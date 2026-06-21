@@ -1,0 +1,16 @@
+FROM debian:bullseye-v1.4.1
+
+# Install dependencies with --no-install-recommends
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        ca-certificates \
+        tzdata \
+        wget \
+        curl && \
+    rm -rf /var/lib/apt/lists/*
+
+# Application binary should be copied at build time
+ COPY newapi-edu /
+EXPOSE 3000
+WORKDIR /data
+ENTRYPOINT ["/newapi-edu"]

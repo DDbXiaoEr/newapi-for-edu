@@ -1,0 +1,64 @@
+# File path: /etc/systemd/system/new-api.service
+# sudo systemctl daemon-reload
+# sudo systemctl start new-api
+# sudo systemctl enable new-api
+# sudo systemctl status new-api
+[Unit]
+Description=One API Service
+After=network.target
+
+[Service]
+User=ubuntu  # 注意修改用户名
+WorkingDirectory=/path/to/new-api  # 注意修改路径
+ExecStart=/path/to/new-api/new-api --port 3000 --log-dir /path/to/new-api/logs  # 注意修改路径和端口号
+Restart=always
+RestartSec=5
+
+# ========== 基础配置 ==========
+Environment="GIN_MODE=release"
+Environment="PORT=3000"
+# Environment="DEBUG=true"
+# Environment="VERSION=latest"
+# Environment="FRONTEND_BASE_URL=http://localhost:3000"
+
+# ========== 数据库配置 ==========
+# SQLite 模式（默认，无需额外配置）
+Environment="SQLITE_PATH=/path/to/new-api/data/one-api.db"
+# MySQL / PostgreSQL 模式（二选一，需在 web 界面中配置或通过数据库迁移设置）
+
+# ========== 密钥配置（生产环境务必修改） ==========
+Environment="SESSION_SECRET=your-session-secret-change-me"
+Environment="JWT_SECRET=your-jwt-secret-change-me"
+# Environment="JWT_EXPIRATION_SECONDS=604800"
+# Environment="CRYPTO_SECRET=your-crypto-secret"
+
+# ========== Redis 配置（多节点部署时必须配置） ==========
+# Environment="REDIS_CONN_STRING=redis://localhost:6379"
+# Environment="SYNC_FREQUENCY=60"
+
+# ========== 节点配置 ==========
+# Environment="NODE_TYPE=master"
+# Environment="NODE_NAME=node-1"
+
+# ========== 性能与缓存 ==========
+# Environment="MEMORY_CACHE_ENABLED=true"
+# Environment="BATCH_UPDATE_ENABLED=true"
+# Environment="POLLING_INTERVAL=60"
+
+# ========== 频道更新 ==========
+# Environment="CHANNEL_UPDATE_FREQUENCY=60"
+# Environment="CHANNEL_TEST_FREQUENCY=60"
+
+# ========== 日志 ==========
+# Environment="LOG_SQL_DSN=/path/to/logs/sql.log"
+
+# ========== 调试与分析 ==========
+# Environment="ENABLE_PPROF=true"
+
+# ========== 统计分析（可选） ==========
+# Environment="UMAMI_WEBSITE_ID=your-id"
+# Environment="UMAMI_SCRIPT_URL=https://analytics.example.com/script.js"
+# Environment="GOOGLE_ANALYTICS_ID=your-ga-id"
+
+[Install]
+WantedBy=multi-user.target

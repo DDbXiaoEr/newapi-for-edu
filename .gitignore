@@ -1,0 +1,42 @@
+# Build binaries
+newapi
+new-api
+newapi-edu
+newapi-edu-pure
+
+# Build artifacts
+*.exe
+*.dll
+*.so
+*.dylib
+*.a
+*.o
+*.obj
+
+# Frontend build
+web/dist/
+web/node_modules/
+web/.vite/
+web/.output/
+
+# Runtime
+one-api.db
+*.log
+
+# Dependencies
+vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+.env.local
+.env.*.local
