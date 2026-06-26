@@ -45,15 +45,15 @@ build-linux: build-backend-linux
 # Frontend-specific targets (using make -C)
 prepare-frontend:
 	@echo "Preparing frontend dependencies..."
-	make -C web install
+	make -C web/default install
 
 build-frontend:
 	@echo "Building frontend..."
-	make -C web build
+	make -C web/default build
 
 dev-frontend:
 	@echo "Starting frontend development server..."
-	make -C web dev
+	make -C web/default dev
 
 dev-backend: build-frontend
 	@echo "Starting backend (frontend must be built first)..."
@@ -61,7 +61,7 @@ dev-backend: build-frontend
 
 clean-frontend:
 	@echo "Cleaning frontend..."
-	make -C web clean
+	make -C web/default clean
 
 clean-backend:
 	@echo "Cleaning backend..."
@@ -70,7 +70,7 @@ clean-backend:
 # Test targets
 test:
 	@echo "Running tests..."
-	make -C web test
+	make -C web/default test
 
 # Additional convenience targets
 prepare-all: prepare-deps prepare-frontend
@@ -82,4 +82,4 @@ build-prod: build
 watch:
 	@echo "Starting development with file watching..."
 	@echo "Run 'make dev-backend' in another terminal for backend"
-	make -C web watch
+	make -C web/default watch
