@@ -4921,6 +4921,27 @@
     "Syslog Network Protocol": "Syslog 网络协议",
     "Syslog Server Address": "Syslog 服务器地址",
     "Syslog Settings": "Syslog 设置",
-    "Syslog Tag": "Syslog 标签"
+    "Syslog Tag": "Syslog 标签",
+    "Allow users to sign in with LDAP": "允许用户通过 LDAP 登录",
+    "Base DN": "Base DN",
+    "Bind DN": "Bind DN",
+    "Bind Password": "Bind Password",
+    "Connection Timeout (seconds)": "连接超时（秒）",
+    "Defaults to (|(uid={username})(mail={username}))": "默认使用 (|(uid={username})(mail={username}))",
+    "Display Name Attribute": "显示名属性",
+    "e.g. dc=example,dc=com": "例如 dc=example,dc=com",
+    "e.g. ldaps://ldap.example.com:636": "例如 ldaps://ldap.example.com:636",
+    "Email Attribute": "邮箱属性",
+    "Enable LDAP Login": "允许通过 LDAP 进行登录",
+    "Enable StartTLS": "启用 StartTLS",
+    "LDAP Configuration": "配置 LDAP",
+    "LDAP Server URL": "LDAP 服务器地址",
+    "Optional, used for directory search": "可选，用于目录搜索",
+    "Sensitive information will not be sent to the frontend": "敏感信息不会发送到前端显示",
+    "Skip TLS Certificate Verification": "跳过 TLS 证书校验",
+    "Support LDAP login, fallback to LDAP verification when local password does not match": "用以支持通过 LDAP 进行登录，并在本地密码不匹配时回退到 LDAP 校验",
+    "User Filter": "用户过滤器",
+    "Username Attribute": "用户名属性",
+    "LDAP": "LDAP"
   }
 }

@@ -21,6 +21,7 @@ import { createSectionRegistry } from '../utils/section-registry'
 import { BasicAuthSection } from './basic-auth-section'
 import { BotProtectionSection } from './bot-protection-section'
 import { CustomOAuthSection } from './custom-oauth/custom-oauth-section'
+import { LdapSection } from './ldap-section'
 import { OAuthSection } from './oauth-section'
 import { PasskeySection } from './passkey-section'
 
@@ -95,6 +96,29 @@ const AUTH_SECTIONS = [
             | 'discouraged',
           'passkey.attachment_preference':
             settings['passkey.attachment_preference'],
+        }}
+      />
+    ),
+  },
+  {
+    id: 'ldap',
+    titleKey: 'LDAP',
+    build: (settings: AuthSettings) => (
+      <LdapSection
+        defaultValues={{
+          'ldap.enabled': settings['ldap.enabled'],
+          'ldap.server_url': settings['ldap.server_url'],
+          'ldap.bind_dn': settings['ldap.bind_dn'],
+          'ldap.bind_password': settings['ldap.bind_password'],
+          'ldap.base_dn': settings['ldap.base_dn'],
+          'ldap.user_filter': settings['ldap.user_filter'],
+          'ldap.username_attribute': settings['ldap.username_attribute'],
+          'ldap.display_name_attribute':
+            settings['ldap.display_name_attribute'],
+          'ldap.mail_attribute': settings['ldap.mail_attribute'],
+          'ldap.start_tls': settings['ldap.start_tls'],
+          'ldap.skip_tls_verify': settings['ldap.skip_tls_verify'],
+          'ldap.timeout_seconds': settings['ldap.timeout_seconds'],
         }}
       />
     ),

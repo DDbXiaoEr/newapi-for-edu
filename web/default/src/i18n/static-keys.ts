@@ -215,6 +215,9 @@ export const STATIC_I18N_KEYS = [
   // Channel Affinity section
   'Channel Affinity',
 
+  // LDAP
+  'LDAP',
+
   // Models constants
   'Exact Match',
   'Prefix Match',

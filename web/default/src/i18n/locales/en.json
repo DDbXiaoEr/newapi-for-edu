@@ -4921,6 +4921,27 @@
     "Syslog Network Protocol": "Syslog Network Protocol",
     "Syslog Server Address": "Syslog Server Address",
     "Syslog Settings": "Syslog Settings",
-    "Syslog Tag": "Syslog Tag"
+    "Syslog Tag": "Syslog Tag",
+    "Allow users to sign in with LDAP": "Allow users to sign in with LDAP",
+    "Base DN": "Base DN",
+    "Bind DN": "Bind DN",
+    "Bind Password": "Bind Password",
+    "Connection Timeout (seconds)": "Connection Timeout (seconds)",
+    "Defaults to (|(uid={username})(mail={username}))": "Defaults to (|(uid={username})(mail={username}))",
+    "Display Name Attribute": "Display Name Attribute",
+    "e.g. dc=example,dc=com": "e.g. dc=example,dc=com",
+    "e.g. ldaps://ldap.example.com:636": "e.g. ldaps://ldap.example.com:636",
+    "Email Attribute": "Email Attribute",
+    "Enable LDAP Login": "Enable LDAP Login",
+    "Enable StartTLS": "Enable StartTLS",
+    "LDAP Configuration": "LDAP Configuration",
+    "LDAP Server URL": "LDAP Server URL",
+    "Optional, used for directory search": "Optional, used for directory search",
+    "Sensitive information will not be sent to the frontend": "Sensitive information will not be sent to the frontend",
+    "Skip TLS Certificate Verification": "Skip TLS Certificate Verification",
+    "Support LDAP login, fallback to LDAP verification when local password does not match": "Support LDAP login, fallback to LDAP verification when local password does not match",
+    "User Filter": "User Filter",
+    "Username Attribute": "Username Attribute",
+    "LDAP": "LDAP"
   }
 }
