@@ -16,6 +16,10 @@ newapi-edu-pure
 # Frontend build
 web/dist/
 web/node_modules/
+web/classic/dist/
+web/classic/node_modules/
+web/default/dist/
+web/default/node_modules/
 web/.vite/
 web/.output/
 
