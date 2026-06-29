@@ -230,77 +230,99 @@ func InjectGoogleAnalytics() {
 }
 
 func InitResources() error {
-	// Initialize resources here if needed
-	// This is a placeholder function for future resource initialization
-	err := godotenv.Load(".env")
+	var err error
+	var stepStart time.Time
+
+	stepStart = time.Now()
+	err = godotenv.Load(".env")
 	if err != nil {
 		if common.DebugEnabled {
 			common.SysLog("No .env file found, using default environment variables. If needed, please create a .env file and set the relevant variables.")
 		}
 	}
+	common.LogModInitTime("load .env file", stepStart)
 
-	// 加载环境变量
+	stepStart = time.Now()
 	common.InitEnv()
+	common.LogModInitTime("init env vars", stepStart)
 
+	stepStart = time.Now()
 	logger.SetupLogger()
+	common.LogModInitTime("setup logger", stepStart)
 
-	// Initialize model settings
+	stepStart = time.Now()
 	ratio_setting.InitRatioSettings()
+	common.LogModInitTime("init ratio settings", stepStart)
 
+	stepStart = time.Now()
 	service.InitHttpClient()
+	common.LogModInitTime("init http client", stepStart)
 
+	stepStart = time.Now()
 	service.InitTokenEncoders()
+	common.LogModInitTime("init token encoders", stepStart)
 
-	// Initialize SQL Database
+	stepStart = time.Now()
 	err = model.InitDB()
 	if err != nil {
 		common.FatalLog("failed to initialize database: " + err.Error())
 		return err
 	}
+	common.LogModInitTime("init main database", stepStart)
 
+	stepStart = time.Now()
 	model.CheckSetup()
+	common.LogModInitTime("check setup", stepStart)
 
-	// Initialize options, should after model.InitDB()
+	stepStart = time.Now()
 	model.InitOptionMap()
+	common.LogModInitTime("init option map", stepStart)
 
-	// 清理旧的磁盘缓存文件
+	stepStart = time.Now()
 	common.CleanupOldCacheFiles()
+	common.LogModInitTime("cleanup old cache files", stepStart)
 
-	// 初始化模型
+	stepStart = time.Now()
 	model.GetPricing()
+	common.LogModInitTime("get pricing", stepStart)
 
-	// Initialize SQL Database
+	stepStart = time.Now()
 	err = model.InitLogDB()
 	if err != nil {
 		return err
 	}
+	common.LogModInitTime("init log database", stepStart)
 
-	// Initialize Redis
+	stepStart = time.Now()
 	err = common.InitRedisClient()
 	if err != nil {
 		return err
 	}
+	common.LogModInitTime("init redis client", stepStart)
 
-	// 启动系统监控
+	stepStart = time.Now()
 	common.StartSystemMonitor()
+	common.LogModInitTime("start system monitor", stepStart)
 
-	// Initialize i18n
+	stepStart = time.Now()
 	err = i18n.Init()
 	if err != nil {
 		common.SysError("failed to initialize i18n: " + err.Error())
-		// Don't return error, i18n is not critical
 	} else {
 		common.SysLog("i18n initialized with languages: " + strings.Join(i18n.SupportedLanguages(), ", "))
 	}
-	// Register user language loader for lazy loading
-	i18n.SetUserLangLoader(model.GetUserLanguage)
+	common.LogModInitTime("init i18n", stepStart)
 
-	// Load custom OAuth providers from database
+	stepStart = time.Now()
+	i18n.SetUserLangLoader(model.GetUserLanguage)
+	common.LogModInitTime("set user lang loader", stepStart)
+
+	stepStart = time.Now()
 	err = oauth.LoadCustomProviders()
 	if err != nil {
 		common.SysError("failed to load custom OAuth providers: " + err.Error())
-		// Don't return error, custom OAuth is not critical
 	}
+	common.LogModInitTime("load oauth providers", stepStart)
 
 	return nil
 }

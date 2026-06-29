@@ -53,6 +53,14 @@ func FatalLog(v ...any) {
 	os.Exit(1)
 }
 
+func LogModInitTime(module string, startTime time.Time) {
+	duration := time.Since(startTime)
+	durationMs := duration.Milliseconds()
+	LogWriterMu.RLock()
+	defer LogWriterMu.RUnlock()
+	_, _ = fmt.Fprintf(syslogWriter(), "[SYS] %v | %-30s %6d ms\n", time.Now().Format("2006/01/02 - 15:04:05"), module, durationMs)
+}
+
 func LogStartupSuccess(startTime time.Time, port string) {
 	duration := time.Since(startTime)
 	durationMs := duration.Milliseconds()
