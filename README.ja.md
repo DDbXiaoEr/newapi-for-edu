@@ -201,6 +201,29 @@ docker run --name new-api-edu -d --restart always \
 > [!TIP]
 > **基本デプロイ方法**：**NEWAPI 公式デプロイガイド** を参照してください: [https://docs.newapi.pro/zh/docs/installation](https://docs.newapi.pro/zh/docs/installation)
 
+### 🛠️ ソースからビルド
+
+```bash
+# プロジェクトをクローン
+git clone [プロジェクトアドレス]
+cd [プロジェクトディレクトリ]
+
+# 依存関係をインストール
+make prepare
+
+# 現在のプラットフォームでビルド
+make build
+
+# Linux向けクロスコンパイル
+make build-backend-linux          # Linux amd64
+make build-backend-linux-arm64    # Linux arm64
+
+# バックエンドのみビルド（フロントエンド埋め込みなし）
+make build-backend-pure           # 現在のプラットフォーム
+make build-backend-pure-linux     # Linux amd64
+make build-backend-pure-linux-arm64  # Linux arm64
+```
+
 ### 📋 デプロイ要件
 
 | コンポーネント | 要件 |

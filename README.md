@@ -201,6 +201,29 @@ Since this project is developed on top of NEWAPI, most basic functionality docum
 > [!TIP]
 > **Basic Deployment Method**: Please refer to **NEWAPI Official Deployment Guide**: [https://docs.newapi.pro/zh/docs/installation](https://docs.newapi.pro/zh/docs/installation)
 
+### 🛠️ Build from Source
+
+```bash
+# Clone the project
+git clone [project address]
+cd [project directory]
+
+# Install dependencies
+make prepare
+
+# Build for current platform
+make build
+
+# Build for Linux (cross-compile)
+make build-backend-linux          # Linux amd64
+make build-backend-linux-arm64    # Linux arm64
+
+# Build backend only (no embedded frontend)
+make build-backend-pure           # Current platform
+make build-backend-pure-linux     # Linux amd64
+make build-backend-pure-linux-arm64  # Linux arm64
+```
+
 ### 📋 Deployment Requirements
 
 | Component | Requirement |

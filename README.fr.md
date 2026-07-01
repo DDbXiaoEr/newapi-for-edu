@@ -201,6 +201,29 @@ docker run --name new-api-edu -d --restart always \
 > [!TIP]
 > **Méthode de déploiement de base** : veuillez consulter le **Guide de déploiement officiel NEWAPI**: [https://docs.newapi.pro/zh/docs/installation](https://docs.newapi.pro/zh/docs/installation)
 
+### 🛠️ Compilation à partir des sources
+
+```bash
+# Cloner le projet
+git clone [adresse du projet]
+cd [répertoire du projet]
+
+# Installer les dépendances
+make prepare
+
+# Compiler pour la plateforme actuelle
+make build
+
+# Compilation croisée pour Linux
+make build-backend-linux          # Linux amd64
+make build-backend-linux-arm64    # Linux arm64
+
+# Compiler le backend uniquement (sans frontend intégré)
+make build-backend-pure           # Plateforme actuelle
+make build-backend-pure-linux     # Linux amd64
+make build-backend-pure-linux-arm64  # Linux arm64
+```
+
 ### 📋 Exigences de déploiement
 
 | Composant | Exigence |

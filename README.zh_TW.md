@@ -201,6 +201,29 @@ docker run --name new-api-edu -d --restart always \
 > [!TIP]
 > **基礎部署方式**：請參考 **NEWAPI 官方部署指南**: [https://docs.newapi.pro/zh/docs/installation](https://docs.newapi.pro/zh/docs/installation)
 
+### 🛠️ 從源碼構建
+
+```bash
+# 克隆項目
+git clone [項目地址]
+cd [項目目錄]
+
+# 安裝依賴
+make prepare
+
+# 構建當前平台
+make build
+
+# 交叉編譯 Linux 平台
+make build-backend-linux          # Linux amd64
+make build-backend-linux-arm64    # Linux arm64
+
+# 僅構建後端（不含內嵌前端）
+make build-backend-pure           # 當前平台
+make build-backend-pure-linux     # Linux amd64
+make build-backend-pure-linux-arm64  # Linux arm64
+```
+
 ### 📋 部署要求
 
 | 組件 | 要求 |

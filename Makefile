@@ -32,12 +32,20 @@ build-backend-pure:
 	go build -ldflags "-X 'github.com/QuantumNous/new-api/common.Version=$(VERSION)'" -o newapi-edu-pure main-backend.go
 
 build-backend-pure-linux:
-	@echo "Building pure backend for Linux (version: $(VERSION))..."
+	@echo "Building pure backend for Linux amd64 (version: $(VERSION))..."
 	GOOS=linux GOARCH=amd64 go build -ldflags "-X 'github.com/QuantumNous/new-api/common.Version=$(VERSION)'" -o newapi-edu-pure main-backend.go
 
+build-backend-pure-linux-arm64:
+	@echo "Building pure backend for Linux arm64 (version: $(VERSION))..."
+	GOOS=linux GOARCH=arm64 go build -ldflags "-X 'github.com/QuantumNous/new-api/common.Version=$(VERSION)'" -o newapi-edu-pure-arm64 main-backend.go
+
 build-backend-linux: build-frontend
-	@echo "Building backend for Linux (version: $(VERSION))..."
+	@echo "Building backend for Linux amd64 (version: $(VERSION))..."
 	GOOS=linux GOARCH=amd64 go build -ldflags "-X 'github.com/QuantumNous/new-api/common.Version=$(VERSION)'" -o newapi-edu main.go
+
+build-backend-linux-arm64: build-frontend
+	@echo "Building backend for Linux arm64 (version: $(VERSION))..."
+	GOOS=linux GOARCH=arm64 go build -ldflags "-X 'github.com/QuantumNous/new-api/common.Version=$(VERSION)'" -o newapi-edu-arm64 main.go
 
 build-linux: build-backend-linux
 	@echo "Linux build complete"
