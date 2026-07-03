@@ -62,6 +62,7 @@ export function OAuthProviders({
     handleOIDCLogin,
     handleLinuxDOLogin,
     handleTelegramLogin,
+    handleCasLogin,
     handleCustomOAuthLogin,
   } = useOAuthLogin(status)
 
@@ -118,6 +119,14 @@ export function OAuthProviders({
       key: 'telegram',
       label: t('Continue with Telegram'),
       onClick: handleTelegramLogin,
+    })
+  }
+
+  if (status?.cas_login) {
+    providerButtons.push({
+      key: 'cas',
+      label: t('Continue with CAS'),
+      onClick: handleCasLogin,
     })
   }
 

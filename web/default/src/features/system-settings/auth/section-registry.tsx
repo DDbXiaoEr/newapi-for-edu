@@ -74,6 +74,14 @@ const AUTH_SECTIONS = [
           WeChatServerAddress: settings.WeChatServerAddress,
           WeChatServerToken: settings.WeChatServerToken,
           WeChatAccountQRCodeImageURL: settings.WeChatAccountQRCodeImageURL,
+          'cas.enabled': settings['cas.enabled'],
+          'cas.server_url': settings['cas.server_url'],
+          'cas.service_id': settings['cas.service_id'],
+          'cas.username_attribute': settings['cas.username_attribute'],
+          'cas.display_name_attribute': settings['cas.display_name_attribute'],
+          'cas.email_attribute': settings['cas.email_attribute'],
+          'cas.access_attribute': settings['cas.access_attribute'],
+          'cas.access_attribute_value': settings['cas.access_attribute_value'],
         }}
       />
     ),

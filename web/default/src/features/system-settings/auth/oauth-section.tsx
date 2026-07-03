@@ -70,6 +70,16 @@ const oauthSchema = z.object({
     token_endpoint: z.string(),
     user_info_endpoint: z.string(),
   }),
+  cas: z.object({
+    enabled: z.boolean(),
+    server_url: z.string(),
+    service_id: z.string(),
+    username_attribute: z.string(),
+    display_name_attribute: z.string(),
+    email_attribute: z.string(),
+    access_attribute: z.string(),
+    access_attribute_value: z.string(),
+  }),
   TelegramOAuthEnabled: z.boolean(),
   TelegramBotToken: z.string(),
   TelegramBotName: z.string(),
@@ -99,6 +109,14 @@ type FlatOAuthDefaults = {
   'oidc.authorization_endpoint': string
   'oidc.token_endpoint': string
   'oidc.user_info_endpoint': string
+  'cas.enabled': boolean
+  'cas.server_url': string
+  'cas.service_id': string
+  'cas.username_attribute': string
+  'cas.display_name_attribute': string
+  'cas.email_attribute': string
+  'cas.access_attribute': string
+  'cas.access_attribute_value': string
   TelegramOAuthEnabled: boolean
   TelegramBotToken: string
   TelegramBotName: string
@@ -133,6 +151,16 @@ const buildFormDefaults = (defaults: FlatOAuthDefaults): OAuthFormValues => ({
     token_endpoint: defaults['oidc.token_endpoint'] ?? '',
     user_info_endpoint: defaults['oidc.user_info_endpoint'] ?? '',
   },
+  cas: {
+    enabled: defaults['cas.enabled'],
+    server_url: defaults['cas.server_url'] ?? '',
+    service_id: defaults['cas.service_id'] ?? '',
+    username_attribute: defaults['cas.username_attribute'] ?? '',
+    display_name_attribute: defaults['cas.display_name_attribute'] ?? '',
+    email_attribute: defaults['cas.email_attribute'] ?? '',
+    access_attribute: defaults['cas.access_attribute'] ?? '',
+    access_attribute_value: defaults['cas.access_attribute_value'] ?? '',
+  },
   TelegramOAuthEnabled: defaults.TelegramOAuthEnabled,
   TelegramBotToken: defaults.TelegramBotToken ?? '',
   TelegramBotName: defaults.TelegramBotName ?? '',
@@ -160,6 +188,14 @@ const normalizeFormValues = (values: OAuthFormValues): FlatOAuthDefaults => ({
   'oidc.authorization_endpoint': values.oidc.authorization_endpoint,
   'oidc.token_endpoint': values.oidc.token_endpoint,
   'oidc.user_info_endpoint': values.oidc.user_info_endpoint,
+  'cas.enabled': values.cas.enabled,
+  'cas.server_url': values.cas.server_url,
+  'cas.service_id': values.cas.service_id,
+  'cas.username_attribute': values.cas.username_attribute,
+  'cas.display_name_attribute': values.cas.display_name_attribute,
+  'cas.email_attribute': values.cas.email_attribute,
+  'cas.access_attribute': values.cas.access_attribute,
+  'cas.access_attribute_value': values.cas.access_attribute_value,
   TelegramOAuthEnabled: values.TelegramOAuthEnabled,
   TelegramBotToken: values.TelegramBotToken,
   TelegramBotName: values.TelegramBotName,
@@ -294,13 +330,14 @@ export function OAuthSection(props: OAuthSectionProps) {
             <FormDirtyIndicator isDirty={form.formState.isDirty} />
 
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className='grid w-full grid-cols-6'>
+              <TabsList className='grid w-full grid-cols-7'>
                 <TabsTrigger value='github'>{t('GitHub')}</TabsTrigger>
                 <TabsTrigger value='discord'>{t('Discord')}</TabsTrigger>
                 <TabsTrigger value='oidc'>{t('OIDC')}</TabsTrigger>
                 <TabsTrigger value='telegram'>{t('Telegram')}</TabsTrigger>
                 <TabsTrigger value='linuxdo'>{t('LinuxDO')}</TabsTrigger>
                 <TabsTrigger value='wechat'>{t('WeChat')}</TabsTrigger>
+                <TabsTrigger value='cas'>{t('CAS')}</TabsTrigger>
               </TabsList>
 
               <TabsContent value='github' className={oauthTabContentClassName}>
@@ -888,6 +925,218 @@ export function OAuthSection(props: OAuthSectionProps) {
                           ref={field.ref}
                         />
                       </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </TabsContent>
+
+              <TabsContent value='cas' className={oauthTabContentClassName}>
+                <FormField
+                  control={form.control}
+                  name='cas.enabled'
+                  render={({ field }) => (
+                    <SettingsSwitchItem>
+                      <SettingsSwitchContent>
+                        <FormLabel>{t('Enable CAS Login')}</FormLabel>
+                        <FormDescription>
+                          {t('Allow users to sign in with CAS')}
+                        </FormDescription>
+                      </SettingsSwitchContent>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                    </SettingsSwitchItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name='cas.server_url'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('CAS Server URL')}</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder={t('https://cas.example.com/cas')}
+                          autoComplete='off'
+                          value={field.value ?? ''}
+                          onChange={(event) =>
+                            field.onChange(event.target.value)
+                          }
+                          name={field.name}
+                          onBlur={field.onBlur}
+                          ref={field.ref}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        {t('The base URL of your CAS server')}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name='cas.service_id'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('Service ID (Optional)')}</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder={t('CAS service identifier')}
+                          autoComplete='off'
+                          value={field.value ?? ''}
+                          onChange={(event) =>
+                            field.onChange(event.target.value)
+                          }
+                          name={field.name}
+                          onBlur={field.onBlur}
+                          ref={field.ref}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        {t('Custom CAS service identifier, defaults to server address if empty')}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name='cas.username_attribute'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('Username Attribute')}</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder='uid'
+                          autoComplete='off'
+                          value={field.value ?? ''}
+                          onChange={(event) =>
+                            field.onChange(event.target.value)
+                          }
+                          name={field.name}
+                          onBlur={field.onBlur}
+                          ref={field.ref}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        {t('CAS attribute name for username. Defaults to CAS principal if empty')}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name='cas.display_name_attribute'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('Display Name Attribute')}</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder='displayname'
+                          autoComplete='off'
+                          value={field.value ?? ''}
+                          onChange={(event) =>
+                            field.onChange(event.target.value)
+                          }
+                          name={field.name}
+                          onBlur={field.onBlur}
+                          ref={field.ref}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        {t('CAS attribute name for display name')}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name='cas.email_attribute'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('Email Attribute')}</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder='mail'
+                          autoComplete='off'
+                          value={field.value ?? ''}
+                          onChange={(event) =>
+                            field.onChange(event.target.value)
+                          }
+                          name={field.name}
+                          onBlur={field.onBlur}
+                          ref={field.ref}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        {t('CAS attribute name for email address')}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name='cas.access_attribute'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('Access Restriction Attribute')}</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder={t('eduPersonAffiliation')}
+                          autoComplete='off'
+                          value={field.value ?? ''}
+                          onChange={(event) =>
+                            field.onChange(event.target.value)
+                          }
+                          name={field.name}
+                          onBlur={field.onBlur}
+                          ref={field.ref}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        {t('CAS attribute used for access control. Leave empty to disable')}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name='cas.access_attribute_value'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('Required Attribute Value')}</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder={t('student')}
+                          autoComplete='off'
+                          value={field.value ?? ''}
+                          onChange={(event) =>
+                            field.onChange(event.target.value)
+                          }
+                          name={field.name}
+                          onBlur={field.onBlur}
+                          ref={field.ref}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        {t('Only users with this attribute value can login')}
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}

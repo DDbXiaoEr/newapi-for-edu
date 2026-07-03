@@ -28,6 +28,7 @@ import {
   buildDiscordOAuthUrl,
   buildOIDCOAuthUrl,
   buildLinuxDOOAuthUrl,
+  buildCasOAuthUrl,
 } from '../lib/oauth'
 import type { SystemStatus, CustomOAuthProviderInfo } from '../types'
 
@@ -59,14 +60,14 @@ export function useOAuthLogin(status: SystemStatus | null) {
   const resetSession = async () => {
     try {
       auth.reset()
-    } catch (_error) {
+    } catch {
       // ignore store reset errors
     }
     try {
       await api.get('/api/user/logout', {
         skipErrorHandler: true,
       } as LogoutRequestConfig)
-    } catch (_error) {
+    } catch {
       // ignore logout errors
     }
   }
@@ -107,7 +108,7 @@ export function useOAuthLogin(status: SystemStatus | null) {
 
       const url = buildGitHubOAuthUrl(status.github_client_id, state)
       window.open(url, '_self')
-    } catch (_error) {
+    } catch {
       toast.error(t('Failed to start GitHub login'))
       if (githubTimeoutRef.current) {
         clearTimeout(githubTimeoutRef.current)
@@ -132,7 +133,7 @@ export function useOAuthLogin(status: SystemStatus | null) {
 
       const url = buildDiscordOAuthUrl(status.discord_client_id, state)
       window.open(url, '_self')
-    } catch (_error) {
+    } catch {
       toast.error(t('Failed to start Discord login'))
     } finally {
       setIsLoading(false)
@@ -157,7 +158,7 @@ export function useOAuthLogin(status: SystemStatus | null) {
         state
       )
       window.open(url, '_self')
-    } catch (_error) {
+    } catch {
       toast.error(t('Failed to start OIDC login'))
     } finally {
       setIsLoading(false)
@@ -178,7 +179,7 @@ export function useOAuthLogin(status: SystemStatus | null) {
 
       const url = buildLinuxDOOAuthUrl(status.linuxdo_client_id, state)
       window.open(url, '_self')
-    } catch (_error) {
+    } catch {
       toast.error(t('Failed to start LinuxDO login'))
     } finally {
       setIsLoading(false)
@@ -187,6 +188,27 @@ export function useOAuthLogin(status: SystemStatus | null) {
 
   const handleTelegramLogin = () => {
     toast.info(t('Telegram login requires widget integration; coming soon'))
+  }
+
+  const handleCasLogin = async () => {
+    if (!status?.cas_server_url) return
+
+    setIsLoading(true)
+    try {
+      await resetSession()
+      const state = await getOAuthState()
+      if (!state) {
+        toast.error(t('Failed to initialize OAuth'))
+        return
+      }
+
+      const url = buildCasOAuthUrl(status.cas_server_url, state)
+      window.open(url, '_self')
+    } catch {
+      toast.error(t('Failed to start CAS login'))
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleCustomOAuthLogin = async (provider: CustomOAuthProviderInfo) => {
@@ -212,7 +234,7 @@ export function useOAuthLogin(status: SystemStatus | null) {
       }
 
       window.open(url.toString(), '_self')
-    } catch (_error) {
+    } catch {
       toast.error(
         t('Failed to start {{provider}} login', { provider: provider.name })
       )
@@ -230,6 +252,7 @@ export function useOAuthLogin(status: SystemStatus | null) {
     handleOIDCLogin,
     handleLinuxDOLogin,
     handleTelegramLogin,
+    handleCasLogin,
     handleCustomOAuthLogin,
   }
 }

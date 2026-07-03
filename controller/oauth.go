@@ -313,6 +313,7 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 				"linux_do_id": user.LinuxDOId,
 				"wechat_id":   user.WeChatId,
 				"telegram_id": user.TelegramId,
+				"cas_id":      user.CasId,
 			}).Error; err != nil {
 				return err
 			}
@@ -356,6 +357,8 @@ func handleOAuthError(c *gin.Context, err error) {
 		common.ApiErrorMsg(c, e.Message)
 	case *oauth.TrustLevelError:
 		common.ApiErrorI18n(c, i18n.MsgOAuthTrustLevelLow)
+	case *oauth.CasAccessDeniedError:
+		common.ApiErrorI18n(c, i18n.MsgOAuthCasAccessDenied)
 	default:
 		common.ApiError(c, err)
 	}

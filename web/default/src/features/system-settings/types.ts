@@ -153,6 +153,14 @@ export type AuthSettings = {
   WeChatServerAddress: string
   WeChatServerToken: string
   WeChatAccountQRCodeImageURL: string
+  'cas.enabled': boolean
+  'cas.server_url': string
+  'cas.service_id': string
+  'cas.username_attribute': string
+  'cas.display_name_attribute': string
+  'cas.email_attribute': string
+  'cas.access_attribute': string
+  'cas.access_attribute_value': string
   TurnstileCheckEnabled: boolean
   TurnstileSiteKey: string
   TurnstileSecretKey: string

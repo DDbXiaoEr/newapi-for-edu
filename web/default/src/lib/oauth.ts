@@ -69,6 +69,15 @@ export function buildLinuxDOOAuthUrl(clientId: string, state: string): string {
   return `https://connect.linux.do/oauth2/authorize?response_type=code&client_id=${clientId}&state=${state}`
 }
 
+/**
+ * Build CAS OAuth URL
+ */
+export function buildCasOAuthUrl(casServerUrl: string, _state: string): string {
+  const url = new URL(`${casServerUrl.replace(/\/+$/, '')  }/login`)
+  url.searchParams.set('service', `${window.location.origin}/oauth/cas`)
+  return url.toString()
+}
+
 // ============================================================================
 // OAuth Helper Functions
 // ============================================================================

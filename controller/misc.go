@@ -106,6 +106,8 @@ func GetStatus(c *gin.Context) {
 		"oidc_enabled":                system_setting.GetOIDCSettings().Enabled,
 		"oidc_client_id":              system_setting.GetOIDCSettings().ClientId,
 		"oidc_authorization_endpoint": system_setting.GetOIDCSettings().AuthorizationEndpoint,
+		"cas_login":                   system_setting.GetCasSettings().Enabled,
+		"cas_server_url":              system_setting.GetCasSettings().ServerUrl,
 		"ldap_login":                  system_setting.GetLDAPSettings().Enabled,
 		"passkey_login":               passkeySetting.Enabled,
 		"passkey_display_name":        passkeySetting.RPDisplayName,
