@@ -218,6 +218,9 @@ export const STATIC_I18N_KEYS = [
   // LDAP
   'LDAP',
 
+  // CAS
+  'CAS',
+
   // Models constants
   'Exact Match',
   'Prefix Match',

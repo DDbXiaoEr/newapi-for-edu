@@ -20,6 +20,7 @@ import type { AuthSettings } from '../types'
 import { createSectionRegistry } from '../utils/section-registry'
 import { BasicAuthSection } from './basic-auth-section'
 import { BotProtectionSection } from './bot-protection-section'
+import { CasSection } from './cas-section'
 import { CustomOAuthSection } from './custom-oauth/custom-oauth-section'
 import { LdapSection } from './ldap-section'
 import { OAuthSection } from './oauth-section'
@@ -74,14 +75,6 @@ const AUTH_SECTIONS = [
           WeChatServerAddress: settings.WeChatServerAddress,
           WeChatServerToken: settings.WeChatServerToken,
           WeChatAccountQRCodeImageURL: settings.WeChatAccountQRCodeImageURL,
-          'cas.enabled': settings['cas.enabled'],
-          'cas.server_url': settings['cas.server_url'],
-          'cas.service_id': settings['cas.service_id'],
-          'cas.username_attribute': settings['cas.username_attribute'],
-          'cas.display_name_attribute': settings['cas.display_name_attribute'],
-          'cas.email_attribute': settings['cas.email_attribute'],
-          'cas.access_attribute': settings['cas.access_attribute'],
-          'cas.access_attribute_value': settings['cas.access_attribute_value'],
         }}
       />
     ),
@@ -127,6 +120,26 @@ const AUTH_SECTIONS = [
           'ldap.start_tls': settings['ldap.start_tls'],
           'ldap.skip_tls_verify': settings['ldap.skip_tls_verify'],
           'ldap.timeout_seconds': settings['ldap.timeout_seconds'],
+        }}
+      />
+    ),
+  },
+  {
+    id: 'cas',
+    titleKey: 'CAS',
+    build: (settings: AuthSettings) => (
+      <CasSection
+        defaultValues={{
+          'cas.enabled': settings['cas.enabled'],
+          'cas.server_url': settings['cas.server_url'],
+          'cas.service_id': settings['cas.service_id'],
+          'cas.username_attribute': settings['cas.username_attribute'],
+          'cas.display_name_attribute':
+            settings['cas.display_name_attribute'],
+          'cas.email_attribute': settings['cas.email_attribute'],
+          'cas.access_attribute': settings['cas.access_attribute'],
+          'cas.access_attribute_value':
+            settings['cas.access_attribute_value'],
         }}
       />
     ),
