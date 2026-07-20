@@ -50,7 +50,7 @@ function simpleAverage(
     total += value
     count++
   }
-  return count > 0 ? total / count : NaN
+  return count > 0 ? total / count : Number.NaN
 }
 
 export function PerformanceHealthPanel() {

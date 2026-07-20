@@ -339,12 +339,10 @@ export function ProviderFormDialog(props: ProviderFormDialogProps) {
                 <FormItem>
                   <FormLabel>{t('Auth Style')}</FormLabel>
                   <Select
-                    items={[
-                      ...AUTH_STYLE_OPTIONS.map((option) => ({
+                    items={AUTH_STYLE_OPTIONS.map((option) => ({
                         value: String(option.value),
                         label: t(option.labelKey),
-                      })),
-                    ]}
+                      }))}
                     value={String(field.value)}
                     onValueChange={(val) => field.onChange(Number(val))}
                   >

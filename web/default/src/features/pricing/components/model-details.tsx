@@ -837,13 +837,7 @@ function getDynamicPriceFields(
   tiers: DynamicPricingTier[],
   options: DynamicPriceOptions
 ) {
-  return Array.from(
-    new Map(
-      tiers
-        .flatMap((tier) => getDynamicPriceEntries(tier, options))
-        .map((entry) => [entry.field, entry])
-    ).values()
-  )
+  return [...new Map(tiers.flatMap((tier) => getDynamicPriceEntries(tier, options)).map((entry) => [entry.field, entry])).values()]
 }
 
 function getDynamicFormattedPricesByTier(
@@ -891,18 +885,18 @@ function GroupPricingSection(props: {
   const extraPriceTypes = useMemo(() => {
     const types: { label: string; type: PriceType }[] = []
     if (props.model.cache_ratio != null)
-      types.push({ label: t('Cache'), type: 'cache' })
+      {types.push({ label: t('Cache'), type: 'cache' })}
     if (props.model.create_cache_ratio != null)
-      types.push({ label: t('Cache Write'), type: 'create_cache' })
+      {types.push({ label: t('Cache Write'), type: 'create_cache' })}
     if (props.model.image_ratio != null)
-      types.push({ label: t('Image'), type: 'image' })
+      {types.push({ label: t('Image'), type: 'image' })}
     if (props.model.audio_ratio != null)
-      types.push({ label: t('Audio In'), type: 'audio_input' })
+      {types.push({ label: t('Audio In'), type: 'audio_input' })}
     if (
       props.model.audio_ratio != null &&
       props.model.audio_completion_ratio != null
     )
-      types.push({ label: t('Audio Out'), type: 'audio_output' })
+      {types.push({ label: t('Audio Out'), type: 'audio_output' })}
     return types
   }, [props.model, t])
 

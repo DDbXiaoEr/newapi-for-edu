@@ -34,7 +34,7 @@ import {
 } from '@/components/ui/tooltip'
 import { BadgeCell } from '@/components/data-table'
 import { StatusBadge } from '@/components/status-badge'
-import { type ApiKey } from '../types'
+import type { ApiKey } from '../types'
 import { useApiKeys } from './api-keys-provider'
 
 export function ApiKeyCell({ apiKey }: { apiKey: ApiKey }) {

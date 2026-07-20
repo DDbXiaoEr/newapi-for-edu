@@ -19,7 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { z } from 'zod'
 import { quotaUnitsToDollars } from '@/lib/format'
 import { DEFAULT_GROUP } from '../constants'
-import { type UserFormData, type User } from '../types'
+import type { UserFormData, User } from '../types'
 
 // ============================================================================
 // Form Schema

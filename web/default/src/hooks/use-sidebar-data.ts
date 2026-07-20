@@ -36,7 +36,7 @@ import {
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { ROLE } from '@/lib/roles'
-import { type SidebarData } from '@/components/layout/types'
+import type { SidebarData } from '@/components/layout/types'
 
 /**
  * Root navigation groups for the application sidebar.

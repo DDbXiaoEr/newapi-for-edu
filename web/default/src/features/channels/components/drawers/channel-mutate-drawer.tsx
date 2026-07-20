@@ -447,7 +447,7 @@ export function ChannelMutateDrawer({
   const groupOptions = useMemo(() => {
     if (!groupsData?.data) return []
     const allGroups = new Set([...groupsData.data, ...(currentGroups || [])])
-    return Array.from(allGroups).map((group) => ({
+    return [...allGroups].map((group) => ({
       value: group,
       label: group,
     }))
@@ -497,7 +497,7 @@ export function ChannelMutateDrawer({
   // Transform models to multi-select options
   const modelOptions = useMemo(() => {
     const allModels = new Set([...allModelsList, ...currentModelsArray])
-    return Array.from(allModels).map((model) => ({
+    return [...allModels].map((model) => ({
       value: model,
       label: model,
     }))
@@ -528,29 +528,9 @@ export function ChannelMutateDrawer({
         return acc
       }, [])
 
-      const missingSourceModels = Array.from(
-        new Set(
-          entries
-            .filter(
-              (entry) =>
-                Boolean(entry.source) &&
-                !currentModelsArray.includes(entry.source)
-            )
-            .map((entry) => entry.source)
-        )
-      )
+      const missingSourceModels = [...new Set(entries.filter((entry) => Boolean(entry.source) && !currentModelsArray.includes(entry.source)).map((entry) => entry.source))]
 
-      const exposedTargetModels = Array.from(
-        new Set(
-          entries
-            .filter(
-              (entry) =>
-                Boolean(entry.target) &&
-                currentModelsArray.includes(entry.target)
-            )
-            .map((entry) => entry.target)
-        )
-      )
+      const exposedTargetModels = [...new Set(entries.filter((entry) => Boolean(entry.target) && currentModelsArray.includes(entry.target)).map((entry) => entry.target))]
 
       return {
         invalidJson: false,
@@ -584,7 +564,7 @@ export function ChannelMutateDrawer({
 
     return {
       lastCheckTime: settings.upstream_model_update_last_check_time,
-      detectedModels: Array.from(new Set(detectedModels)),
+      detectedModels: [...new Set(detectedModels)],
     }
   }, [currentSettings])
 
@@ -1025,9 +1005,7 @@ export function ChannelMutateDrawer({
             return
           }
           if (confirmAction === 'add') {
-            const updatedModels = Array.from(
-              new Set([...normalizedModels, ...missingModels])
-            )
+            const updatedModels = [...new Set([...normalizedModels, ...missingModels])]
             data.models = formatModelsArray(updatedModels)
             form.setValue('models', data.models)
           }
@@ -1601,7 +1579,7 @@ export function ChannelMutateDrawer({
                                 onChange={async (e) => {
                                   const fileList = e.target.files
                                   const files = fileList
-                                    ? Array.from(fileList)
+                                    ? [...fileList]
                                     : []
                                   // allow re-selecting the same file
                                   e.target.value = ''
@@ -1882,12 +1860,10 @@ export function ChannelMutateDrawer({
                             <FormItem>
                               <FormLabel>{t('Add Mode')}</FormLabel>
                               <Select
-                                items={[
-                                  ...addModeOptions.map((option) => ({
+                                items={addModeOptions.map((option) => ({
                                     value: option.value,
                                     label: t(option.label),
-                                  })),
-                                ]}
+                                  }))}
                                 onValueChange={field.onChange}
                                 value={field.value}
                               >
@@ -2900,7 +2876,7 @@ export function ChannelMutateDrawer({
                                         field.onChange(
                                           JSON.stringify(parsed, null, 2)
                                         )
-                                      } catch (_e) {
+                                      } catch {
                                         /* ignore invalid JSON */
                                       }
                                     }}

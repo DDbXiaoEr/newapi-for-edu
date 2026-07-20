@@ -171,7 +171,7 @@ export function SignUpForm({
       } else {
         toast.error(res?.message || t('Failed to create account'))
       }
-    } catch (_error) {
+    } catch {
       // Errors are handled by global interceptor
     } finally {
       setIsLoading(false)
@@ -215,7 +215,7 @@ export function SignUpForm({
       } else {
         toast.error(res?.message || t('Login failed'))
       }
-    } catch (_error) {
+    } catch {
       toast.error(t('Login failed'))
     } finally {
       setIsWeChatSubmitting(false)

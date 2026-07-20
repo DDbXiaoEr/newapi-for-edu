@@ -246,7 +246,7 @@ export function updateLastAssistantMessage(
   updater: (message: Message) => Message
 ): Message[] {
   if (messages.length === 0) return messages
-  const last = messages[messages.length - 1]
+  const last = messages.at(-1)
   if (!last || last.from !== MESSAGE_ROLES.ASSISTANT) return messages
 
   const updated = [...messages]

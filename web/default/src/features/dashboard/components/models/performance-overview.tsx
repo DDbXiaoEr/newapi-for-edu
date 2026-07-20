@@ -59,7 +59,7 @@ function simpleAverage(
     count++
   }
 
-  return count > 0 ? total / count : NaN
+  return count > 0 ? total / count : Number.NaN
 }
 
 function buildPerformanceSummary(rows: PerfModelSummary[]): PerformanceSummary {

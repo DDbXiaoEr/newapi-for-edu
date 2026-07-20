@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
-import { type Table as TanstackTable } from '@tanstack/react-table'
+import type { Table as TanstackTable } from '@tanstack/react-table'
 import { Database } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -49,7 +49,7 @@ import {
   API_KEY_STATUSES,
   ERROR_MESSAGES,
 } from '../constants'
-import { type ApiKey } from '../types'
+import type { ApiKey } from '../types'
 import { ApiKeyCell } from './api-keys-cells'
 import { useApiKeysColumns } from './api-keys-columns'
 import { useApiKeys } from './api-keys-provider'

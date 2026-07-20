@@ -48,11 +48,11 @@ import {
   DASHBOARD_DEFAULT_SECTION,
   DASHBOARD_SECTION_IDS,
 } from './section-registry'
-import {
-  type DashboardChartPreferences,
-  type DashboardFilters,
-  type QuotaDataItem,
-  type UserChartsFilters,
+import type {
+  DashboardChartPreferences,
+  DashboardFilters,
+  QuotaDataItem,
+  UserChartsFilters,
 } from './types'
 
 const route = getRouteApi('/_authenticated/dashboard/$section')

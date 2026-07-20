@@ -553,15 +553,15 @@ const getOperationSummary = (
 
 const getModeTagTailwind = (mode: string): string => {
   if (mode.includes('header'))
-    return 'bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/20'
+    {return 'bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/20'}
   if (mode.includes('replace') || mode.includes('trim'))
-    return 'bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-500/20'
+    {return 'bg-violet-500/15 text-violet-700 dark:text-violet-300 border-violet-500/20'}
   if (mode.includes('copy') || mode.includes('move'))
-    return 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/20'
+    {return 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/20'}
   if (mode.includes('error') || mode.includes('prune'))
-    return 'bg-red-500/15 text-red-700 dark:text-red-300 border-red-500/20'
+    {return 'bg-red-500/15 text-red-700 dark:text-red-300 border-red-500/20'}
   if (mode.includes('sync'))
-    return 'bg-green-500/15 text-green-700 dark:text-green-300 border-green-500/20'
+    {return 'bg-green-500/15 text-green-700 dark:text-green-300 border-green-500/20'}
   return 'bg-muted text-muted-foreground'
 }
 
@@ -607,16 +607,16 @@ const getModeToPlaceholder = (mode: string): string => {
 
 const getModeValueLabel = (mode: string): string => {
   if (mode === 'set_header')
-    return 'Header Value (supports string or JSON mapping)'
+    {return 'Header Value (supports string or JSON mapping)'}
   if (mode === 'pass_headers')
-    return 'Pass-through Headers (comma-separated or JSON array)'
+    {return 'Pass-through Headers (comma-separated or JSON array)'}
   if (
     mode === 'trim_prefix' ||
     mode === 'trim_suffix' ||
     mode === 'ensure_prefix' ||
     mode === 'ensure_suffix'
   )
-    return 'Prefix/Suffix Text'
+    {return 'Prefix/Suffix Text'}
   if (mode === 'prune_objects') return 'Prune Rule (string or JSON object)'
   return 'Value (supports JSON or plain text)'
 }
@@ -630,7 +630,7 @@ const getModeValuePlaceholder = (mode: string): string => {
     mode === 'ensure_prefix' ||
     mode === 'ensure_suffix'
   )
-    return 'openai/'
+    {return 'openai/'}
   if (mode === 'prune_objects') return '{"type":"redacted_thinking"}'
   return '0.7'
 }
@@ -767,7 +767,7 @@ const parsePruneObjectsDraft = (valueText: string): PruneObjectsDraft => {
   try {
     const parsed = JSON.parse(raw)
     if (typeof parsed === 'string')
-      return { ...defaults, typeText: parsed.trim() }
+      {return { ...defaults, typeText: parsed.trim() }}
     if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
       const rules: PruneRule[] = []
       if (
@@ -784,7 +784,7 @@ const parsePruneObjectsDraft = (valueText: string): PruneObjectsDraft => {
       if (Array.isArray(parsed.conditions)) {
         for (const item of parsed.conditions) {
           if (item && typeof item === 'object')
-            rules.push(normalizePruneRule(item))
+            {rules.push(normalizePruneRule(item))}
         }
       } else if (
         parsed.conditions &&
@@ -844,7 +844,7 @@ const buildPruneObjectsValueText = (draft: PruneObjectsDraft): string => {
     })
   if (conditions.length > 0) payload.conditions = conditions
   if (!payload.type && !payload.conditions)
-    return JSON.stringify({ logic: 'AND' })
+    {return JSON.stringify({ logic: 'AND' })}
   return JSON.stringify(payload)
 }
 
@@ -852,11 +852,11 @@ const buildPruneObjectsValueText = (draft: PruneObjectsDraft): string => {
 
 const parsePassHeaderNames = (rawValue: unknown): string[] => {
   if (Array.isArray(rawValue))
-    return rawValue.map((i) => String(i ?? '').trim()).filter(Boolean)
+    {return rawValue.map((i) => String(i ?? '').trim()).filter(Boolean)}
   if (rawValue && typeof rawValue === 'object') {
     const obj = rawValue as Record<string, unknown>
     if (Array.isArray(obj.headers))
-      return obj.headers.map((i) => String(i ?? '').trim()).filter(Boolean)
+      {return obj.headers.map((i) => String(i ?? '').trim()).filter(Boolean)}
     if (obj.header !== undefined) {
       const single = String(obj.header ?? '').trim()
       return single ? [single] : []
@@ -864,10 +864,10 @@ const parsePassHeaderNames = (rawValue: unknown): string[] => {
     return []
   }
   if (typeof rawValue === 'string')
-    return rawValue
+    {return rawValue
       .split(',')
       .map((i) => i.trim())
-      .filter(Boolean)
+      .filter(Boolean)}
   return []
 }
 
@@ -903,17 +903,17 @@ const validateOperations = (
     const toValue = op.to.trim()
 
     if (meta.path && !pathValue)
-      return t('Rule {{line}} is missing target path', { line })
+      {return t('Rule {{line}} is missing target path', { line })}
     if (FROM_REQUIRED_MODES.has(mode) && !fromValue) {
       if (!(meta.pathAlias && pathValue))
-        return t('Rule {{line}} is missing source field', { line })
+        {return t('Rule {{line}} is missing source field', { line })}
     }
     if (TO_REQUIRED_MODES.has(mode) && !toValue) {
       if (!(meta.pathAlias && pathValue))
-        return t('Rule {{line}} is missing target field', { line })
+        {return t('Rule {{line}} is missing target field', { line })}
     }
     if (VALUE_REQUIRED_MODES.has(mode) && op.value_text.trim() === '')
-      return t('Rule {{line}} is missing value', { line })
+      {return t('Rule {{line}} is missing value', { line })}
 
     if (mode === 'return_error') {
       const raw = op.value_text.trim()
@@ -922,9 +922,9 @@ const validateOperations = (
         const parsed = JSON.parse(raw)
         if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
           if (!String((parsed as Record<string, unknown>).message || '').trim())
-            return t('Rule {{line}} return_error requires a message field', {
+            {return t('Rule {{line}} return_error requires a message field', {
               line,
-            })
+            })}
         }
       } catch {
         /* plain string is allowed */
@@ -934,17 +934,17 @@ const validateOperations = (
     if (mode === 'prune_objects') {
       const raw = op.value_text.trim()
       if (!raw)
-        return t('Rule {{line}} prune_objects is missing conditions', { line })
+        {return t('Rule {{line}} prune_objects is missing conditions', { line })}
     }
 
     if (mode === 'pass_headers') {
       const raw = op.value_text.trim()
       if (!raw)
-        return t('Rule {{line}} pass_headers is missing header names', { line })
+        {return t('Rule {{line}} pass_headers is missing header names', { line })}
       const parsed = parseLooseValue(raw)
       const headers = parsePassHeaderNames(parsed)
       if (headers.length === 0)
-        return t('Rule {{line}} pass_headers format is invalid', { line })
+        {return t('Rule {{line}} pass_headers format is invalid', { line })}
     }
   }
   return ''
@@ -1191,13 +1191,13 @@ export function ParamOverrideEditorDialog(
 
   const returnErrorDraft = useMemo(() => {
     if (!selectedOperation || selectedOperation.mode !== 'return_error')
-      return null
+      {return null}
     return parseReturnErrorDraft(selectedOperation.value_text)
   }, [selectedOperation])
 
   const pruneObjectsDraft = useMemo(() => {
     if (!selectedOperation || selectedOperation.mode !== 'prune_objects')
-      return null
+      {return null}
     return parsePruneObjectsDraft(selectedOperation.value_text)
   }, [selectedOperation])
 
@@ -1455,10 +1455,10 @@ export function ParamOverrideEditorDialog(
       const trimmed = legacyValue.trim()
       if (!trimmed) return ''
       if (!verifyJSON(trimmed))
-        throw new Error(t('Parameter override must be valid JSON format'))
+        {throw new Error(t('Parameter override must be valid JSON format'))}
       const parsed = JSON.parse(trimmed) as unknown
       if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed))
-        throw new Error(t('Legacy format must be a JSON object'))
+        {throw new Error(t('Legacy format must be a JSON object'))}
       return JSON.stringify(parsed, null, 2)
     }
     return buildOperationsJson(operations, { validate: true }, t)
@@ -1554,7 +1554,7 @@ export function ParamOverrideEditorDialog(
             }
             parsedCurrent = JSON.parse(trimmed) as Record<string, unknown>
           }
-          const merged = { ...(payload || {}), ...parsedCurrent }
+          const merged = { ...payload, ...parsedCurrent }
           const text = JSON.stringify(merged, null, 2)
           setVisualMode('legacy')
           setLegacyValue(text)
@@ -1661,7 +1661,7 @@ export function ParamOverrideEditorDialog(
         const trimmed = jsonText.trim()
         if (trimmed) {
           if (!verifyJSON(trimmed))
-            throw new Error(t('Parameter override must be valid JSON format'))
+            {throw new Error(t('Parameter override must be valid JSON format'))}
           result = JSON.stringify(JSON.parse(trimmed), null, 2)
         }
       } else {
@@ -1750,12 +1750,10 @@ export function ParamOverrideEditorDialog(
             {t('Template')}
           </span>
           <Select
-            items={[
-              ...templatePresetOptions.map((o) => ({
+            items={templatePresetOptions.map((o) => ({
                 value: o.value,
                 label: t(o.label),
-              })),
-            ]}
+              }))}
             value={templatePresetKey}
             onValueChange={(v) =>
               setTemplatePresetKey(v || 'operations_default')
@@ -2153,12 +2151,10 @@ function RuleEditor(ruleEditorProps: RuleEditorProps) {
           <div className='space-y-1.5'>
             <label className='text-xs font-medium'>{t('Operation Type')}</label>
             <Select
-              items={[
-                ...OPERATION_MODE_OPTIONS.map((o) => ({
+              items={OPERATION_MODE_OPTIONS.map((o) => ({
                   value: o.value,
                   label: t(o.label),
-                })),
-              ]}
+                }))}
               value={mode}
               onValueChange={(nextMode) =>
                 nextMode !== null &&
@@ -2267,7 +2263,7 @@ function RuleEditor(ruleEditorProps: RuleEditorProps) {
                         ruleEditorProps.updateOperation(operation.id, {
                           value_text: JSON.stringify(parsed, null, 2),
                         })
-                      } catch (_e) {
+                      } catch {
                         /* not valid JSON */
                       }
                     }}
@@ -2542,12 +2538,10 @@ function ConditionEditor(conditionEditorProps: ConditionEditorProps) {
                   {t('Match Mode')}
                 </label>
                 <Select
-                  items={[
-                    ...CONDITION_MODE_OPTIONS.map((o) => ({
+                  items={CONDITION_MODE_OPTIONS.map((o) => ({
                       value: o.value,
                       label: t(o.label),
-                    })),
-                  ]}
+                    }))}
                   value={condition.mode}
                   onValueChange={(v) =>
                     v !== null &&
@@ -2715,7 +2709,7 @@ function ReturnErrorEditor(returnErrorEditorProps: ReturnErrorEditorProps) {
                 onChange={(e) =>
                   returnErrorEditorProps.updateDraft(
                     returnErrorEditorProps.operationId,
-                    { statusCode: parseInt(e.target.value, 10) || 400 }
+                    { statusCode: Number.parseInt(e.target.value, 10) || 400 }
                   )
                 }
                 placeholder='400'
@@ -3062,12 +3056,10 @@ function PruneObjectsEditor(pruneObjectsEditorProps: PruneObjectsEditorProps) {
                           {t('Match Mode')}
                         </label>
                         <Select
-                          items={[
-                            ...CONDITION_MODE_OPTIONS.map((o) => ({
+                          items={CONDITION_MODE_OPTIONS.map((o) => ({
                               value: o.value,
                               label: t(o.label),
-                            })),
-                          ]}
+                            }))}
                           value={rule.mode}
                           onValueChange={(v) =>
                             v !== null &&
@@ -3175,12 +3167,10 @@ function SyncFieldsEditor(syncFieldsEditorProps: SyncFieldsEditorProps) {
           </label>
           <div className='flex gap-2'>
             <Select
-              items={[
-                ...SYNC_TARGET_TYPE_OPTIONS.map((o) => ({
+              items={SYNC_TARGET_TYPE_OPTIONS.map((o) => ({
                   value: o.value,
                   label: t(o.label),
-                })),
-              ]}
+                }))}
               value={syncFieldsEditorProps.syncFromTarget.type || 'json'}
               onValueChange={(v) =>
                 v !== null &&
@@ -3232,12 +3222,10 @@ function SyncFieldsEditor(syncFieldsEditorProps: SyncFieldsEditorProps) {
           </label>
           <div className='flex gap-2'>
             <Select
-              items={[
-                ...SYNC_TARGET_TYPE_OPTIONS.map((o) => ({
+              items={SYNC_TARGET_TYPE_OPTIONS.map((o) => ({
                   value: o.value,
                   label: t(o.label),
-                })),
-              ]}
+                }))}
               value={syncFieldsEditorProps.syncToTarget.type || 'json'}
               onValueChange={(v) =>
                 v !== null &&

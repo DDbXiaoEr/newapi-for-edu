@@ -130,3 +130,10 @@ For request structs that are parsed from client JSON and then re-marshaled to up
   - field absent in client JSON => `nil` => omitted on marshal;
   - field explicitly set to zero/false => non-`nil` pointer => must still be sent upstream.
 - Avoid using non-pointer scalars with `omitempty` for optional request parameters, because zero values (`0`, `0.0`, `false`) will be silently dropped during marshal.
+
+### Rule 7: Project Structure — Read from `PROJECT_STRUCTURE.md`
+
+- `PROJECT_STRUCTURE.md` contains the complete project file structure.
+- **MUST read this file** to understand the project layout instead of exploring the entire project directory tree each time.
+- When adding, deleting, or restructuring files/directories, **MUST update `PROJECT_STRUCTURE.md`** to keep it in sync with the actual file system.
+- This avoids repeated directory scanning and speeds up subsequent sessions.

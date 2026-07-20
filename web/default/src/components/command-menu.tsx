@@ -67,7 +67,7 @@ export function CommandMenu() {
               <CommandGroup key={group.id || group.title} heading={group.title}>
                 {group.items.map((navItem, i) => {
                   if (navItem.url)
-                    return (
+                    {return (
                       <CommandItem
                         key={`${navItem.url}-${i}`}
                         value={navItem.title}
@@ -80,7 +80,7 @@ export function CommandMenu() {
                         </div>
                         {navItem.title}
                       </CommandItem>
-                    )
+                    )}
 
                   return navItem.items?.map((subItem, i) => (
                     <CommandItem

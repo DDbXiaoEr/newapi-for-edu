@@ -68,7 +68,7 @@ function uid() {
 function parsePrefix(rawKey: string): { op: OpType; groupName: string } {
   if (rawKey.startsWith('+:')) return { op: OP_ADD, groupName: rawKey.slice(2) }
   if (rawKey.startsWith('-:'))
-    return { op: OP_REMOVE, groupName: rawKey.slice(2) }
+    {return { op: OP_REMOVE, groupName: rawKey.slice(2) }}
   return { op: OP_APPEND, groupName: rawKey }
 }
 
@@ -331,7 +331,7 @@ export function GroupSpecialUsableRulesEditor(
           if (r._id !== id) return r
           const updated = { ...r, [field]: val }
           if (field === 'op' && val === OP_REMOVE)
-            updated.description = 'remove'
+            {updated.description = 'remove'}
           else if (field === 'op' && r.op === OP_REMOVE && val !== OP_REMOVE) {
             if (updated.description === 'remove') updated.description = ''
           }

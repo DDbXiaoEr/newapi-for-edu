@@ -118,7 +118,7 @@ export function RechargeFormCard({
 
   const handleAmountChange = (value: string) => {
     setLocalAmount(value)
-    const numValue = parseInt(value) || 0
+    const numValue = Number.parseInt(value) || 0
     if (numValue >= 0) {
       onTopupAmountChange(numValue)
     }
@@ -362,7 +362,7 @@ export function RechargeFormCard({
                       return disabled ? (
                         <TooltipProvider key={method.type}>
                           <Tooltip>
-                            <TooltipTrigger render={button}></TooltipTrigger>
+                            <TooltipTrigger render={button} />
                             <TooltipContent>{disabledReason}</TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
@@ -444,7 +444,7 @@ export function RechargeFormCard({
                         return belowMin ? (
                           <TooltipProvider key={`${method.name}-${index}`}>
                             <Tooltip>
-                              <TooltipTrigger render={button}></TooltipTrigger>
+                              <TooltipTrigger render={button} />
                               <TooltipContent>{disabledReason}</TooltipContent>
                             </Tooltip>
                           </TooltipProvider>

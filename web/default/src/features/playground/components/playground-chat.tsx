@@ -218,7 +218,7 @@ export function PlaygroundChat({
                                   {/* Reasoning */}
                                   {showReasoning && (
                                     <Reasoning
-                                      defaultOpen={true}
+                                      defaultOpen
                                       isStreaming={message.isReasoningStreaming}
                                     >
                                       <ReasoningTrigger />

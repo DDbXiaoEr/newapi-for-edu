@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { useState } from 'react'
-import { type ColumnDef } from '@tanstack/react-table'
+import type { ColumnDef } from '@tanstack/react-table'
 import { CircleAlert, GitBranch, Sparkles, KeyRound } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { getUserAvatarFallback, getUserAvatarStyle } from '@/lib/avatar'
@@ -682,7 +682,7 @@ export function useCommonLogsColumns(isAdmin: boolean): ColumnDef<UsageLog>[] {
                     <Tooltip>
                       <TooltipTrigger
                         render={<CircleAlert className='size-3 text-red-500' />}
-                      ></TooltipTrigger>
+                       />
                       <TooltipContent>
                         <div className='space-y-0.5 text-xs'>
                           <p>
