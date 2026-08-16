@@ -195,9 +195,45 @@ func InitOptionMap() {
 
 func loadOptionsFromDatabase() {
 	options, _ := AllOption()
+	if len(options) == 0 {
+		return
+	}
+
+	configKeys := make(map[string]string, len(options))
+	hasPerformanceSetting := false
+
+	common.OptionMapRWMutex.Lock()
 	for _, option := range options {
-		err := updateOptionMap(option.Key, option.Value)
-		if err != nil {
+		common.OptionMap[option.Key] = option.Value
+		if strings.Contains(option.Key, ".") {
+			if strings.HasPrefix(option.Key, "performance_setting.") {
+				hasPerformanceSetting = true
+			}
+			configKeys[option.Key] = option.Value
+		}
+	}
+	common.OptionMapRWMutex.Unlock()
+
+	// 批量更新分层配置：一次反射遍历完成所有注册配置，而非逐个 key 处理
+	if len(configKeys) > 0 {
+		if err := config.GlobalConfig.LoadFromDB(configKeys); err != nil {
+			common.SysLog("failed to update configs: " + err.Error())
+		}
+		if hasPerformanceSetting {
+			performance_setting.UpdateAndSync()
+		}
+	}
+
+	// 非分层配置的处理函数（副作用：同步全局变量等）
+	for _, option := range options {
+		if strings.Contains(option.Key, ".") {
+			continue
+		}
+		handler, ok := optionHandlers[option.Key]
+		if !ok {
+			continue
+		}
+		if err := handler(option.Key, option.Value); err != nil {
 			common.SysLog("failed to update option map: " + err.Error())
 		}
 	}
