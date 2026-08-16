@@ -1,6 +1,7 @@
 .PHONY: all prepare build clean dev test backend frontend
 
 VERSION := $(shell git describe --tags --always --dirty)
+BUILD_DIR := build
 
 # Default target builds both
 all: build
@@ -23,29 +24,35 @@ prepare-deps:
 	go mod download
 
 build-backend: build-frontend
+	@mkdir -p $(BUILD_DIR)
 	@echo "Building backend (version: $(VERSION))..."
-	go build -ldflags "-X 'github.com/QuantumNous/new-api/common.Version=$(VERSION)'" -o newapi-edu main.go
+	go build -ldflags "-X 'github.com/QuantumNous/new-api/common.Version=$(VERSION)'" -o $(BUILD_DIR)/newapi-edu main.go
 
 # Pure backend build (no embedded frontend)
 build-backend-pure:
+	@mkdir -p $(BUILD_DIR)
 	@echo "Building pure backend (version: $(VERSION))..."
-	go build -ldflags "-X 'github.com/QuantumNous/new-api/common.Version=$(VERSION)'" -o newapi-edu-pure main-backend.go
+	go build -ldflags "-X 'github.com/QuantumNous/new-api/common.Version=$(VERSION)'" -o $(BUILD_DIR)/newapi-edu-pure main-backend.go
 
 build-backend-pure-linux:
+	@mkdir -p $(BUILD_DIR)
 	@echo "Building pure backend for Linux amd64 (version: $(VERSION))..."
-	GOOS=linux GOARCH=amd64 go build -ldflags "-X 'github.com/QuantumNous/new-api/common.Version=$(VERSION)'" -o newapi-edu-pure main-backend.go
+	GOOS=linux GOARCH=amd64 go build -ldflags "-X 'github.com/QuantumNous/new-api/common.Version=$(VERSION)'" -o $(BUILD_DIR)/newapi-edu-pure main-backend.go
 
 build-backend-pure-linux-arm64:
+	@mkdir -p $(BUILD_DIR)
 	@echo "Building pure backend for Linux arm64 (version: $(VERSION))..."
-	GOOS=linux GOARCH=arm64 go build -ldflags "-X 'github.com/QuantumNous/new-api/common.Version=$(VERSION)'" -o newapi-edu-pure-arm64 main-backend.go
+	GOOS=linux GOARCH=arm64 go build -ldflags "-X 'github.com/QuantumNous/new-api/common.Version=$(VERSION)'" -o $(BUILD_DIR)/newapi-edu-pure-arm64 main-backend.go
 
 build-backend-linux: build-frontend
+	@mkdir -p $(BUILD_DIR)
 	@echo "Building backend for Linux amd64 (version: $(VERSION))..."
-	GOOS=linux GOARCH=amd64 go build -ldflags "-X 'github.com/QuantumNous/new-api/common.Version=$(VERSION)'" -o newapi-edu main.go
+	GOOS=linux GOARCH=amd64 go build -ldflags "-X 'github.com/QuantumNous/new-api/common.Version=$(VERSION)'" -o $(BUILD_DIR)/newapi-edu main.go
 
 build-backend-linux-arm64: build-frontend
+	@mkdir -p $(BUILD_DIR)
 	@echo "Building backend for Linux arm64 (version: $(VERSION))..."
-	GOOS=linux GOARCH=arm64 go build -ldflags "-X 'github.com/QuantumNous/new-api/common.Version=$(VERSION)'" -o newapi-edu-arm64 main.go
+	GOOS=linux GOARCH=arm64 go build -ldflags "-X 'github.com/QuantumNous/new-api/common.Version=$(VERSION)'" -o $(BUILD_DIR)/newapi-edu-arm64 main.go
 
 build-linux: build-backend-linux
 	@echo "Linux build complete"
@@ -65,7 +72,7 @@ dev-frontend:
 
 dev-backend: build-frontend
 	@echo "Starting backend (frontend must be built first)..."
-	./newapi-edu
+	./$(BUILD_DIR)/newapi-edu
 
 clean-frontend:
 	@echo "Cleaning frontend..."
@@ -73,7 +80,7 @@ clean-frontend:
 
 clean-backend:
 	@echo "Cleaning backend..."
-	rm -f newapi-edu newapi-edu-pure
+	rm -rf $(BUILD_DIR)
 
 # Test targets
 test:

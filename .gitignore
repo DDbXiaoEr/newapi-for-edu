@@ -3,6 +3,7 @@ newapi
 new-api
 newapi-edu
 newapi-edu-pure
+build/
 
 # Build artifacts
 *.exe
