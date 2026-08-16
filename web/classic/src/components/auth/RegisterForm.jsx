@@ -216,7 +216,7 @@ const RegisterForm = () => {
   }
 
   async function handleSubmit(e) {
-    if (password.length < 8) {
+    if (!status?.ldap_login && password.length < 8) {
       showInfo('密码长度不得小于 8 位！');
       return;
     }

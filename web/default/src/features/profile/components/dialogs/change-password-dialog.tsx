@@ -24,6 +24,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Dialog } from '@/components/dialog'
 import { PasswordInput } from '@/components/password-input'
+import { useStatus } from '@/hooks/use-status'
 import { updateUserProfile } from '../../api'
 
 // ============================================================================
@@ -42,6 +43,10 @@ export function ChangePasswordDialog({
   username,
 }: ChangePasswordDialogProps) {
   const { t } = useTranslation()
+  const { status } = useStatus()
+  const ldapEnabled = Boolean(
+    status?.ldap_login ?? status?.data?.ldap_login
+  )
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     originalPassword: '',
@@ -67,7 +72,7 @@ export function ChangePasswordDialog({
       return
     }
 
-    if (formData.newPassword.length < 8) {
+    if (!ldapEnabled && formData.newPassword.length < 8) {
       toast.error(t('Password must be at least 8 characters'))
       return
     }
@@ -160,12 +165,14 @@ export function ChangePasswordDialog({
             onChange={(e) => handleChange('newPassword', e.target.value)}
             disabled={loading}
             required
-            minLength={8}
+            minLength={ldapEnabled ? undefined : 8}
             autoComplete='new-password'
           />
-          <p className='text-muted-foreground text-xs'>
-            {t('Must be at least 8 characters')}
-          </p>
+          {!ldapEnabled && (
+            <p className='text-muted-foreground text-xs'>
+              {t('Must be at least 8 characters')}
+            </p>
+          )}
         </div>
 
         <div className='space-y-2'>

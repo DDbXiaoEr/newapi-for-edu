@@ -19,32 +19,52 @@ For commercial licensing, please contact support@quantumnous.com
 import { z } from 'zod'
 
 // ============================================================================
+// Validation Constants
+// ============================================================================
+
+export const PASSWORD_MIN_LENGTH = 8
+export const PASSWORD_MAX_LENGTH = 20
+export const OTP_LENGTH = 6
+export const BACKUP_CODE_LENGTH = 9 // XXXX-XXXX format
+export const BACKUP_CODE_REGEX = /^[A-Z0-9]{4}-[A-Z0-9]{4}$/i
+export const OTP_REGEX = /^\d{6}$/
+
+// ============================================================================
 // Form Schemas
 // ============================================================================
 
-export const loginFormSchema = z.object({
-  username: z.string().min(1, 'Please enter your username or email'),
-  password: z
-    .string()
-    .min(1, 'Please enter your password')
-    .min(8, 'Password must be at least 8 characters long'),
-})
+// 登录不限制密码长度：密码只是凭证，LDAP/本地账号都可能是任意长度
+export function getLoginFormSchema() {
+  return z.object({
+    username: z.string().min(1, 'Please enter your username or email'),
+    password: z.string().min(1, 'Please enter your password'),
+  })
+}
 
-export const registerFormSchema = z
-  .object({
-    username: z.string().min(1, 'Please enter your username'),
-    email: z.string().optional(),
-    password: z
-      .string()
-      .min(1, 'Please enter your password')
-      .min(8, 'Password must be at least 8 characters long')
-      .max(20, 'Password must be at most 20 characters long'),
-    confirmPassword: z.string().min(1, 'Please confirm your password'),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords don't match.",
-    path: ['confirmPassword'],
-  })
+export const loginFormSchema = getLoginFormSchema()
+
+export function getRegisterFormSchema(ldapEnabled = false) {
+  return z
+    .object({
+      username: z.string().min(1, 'Please enter your username'),
+      email: z.string().optional(),
+      password: z
+        .string()
+        .min(1, 'Please enter your password')
+        .refine(
+          (value) => ldapEnabled || value.length >= PASSWORD_MIN_LENGTH,
+          { message: 'Password must be at least 8 characters long' }
+        )
+        .max(20, 'Password must be at most 20 characters long'),
+      confirmPassword: z.string().min(1, 'Please confirm your password'),
+    })
+    .refine((data) => data.password === data.confirmPassword, {
+      message: "Passwords don't match.",
+      path: ['confirmPassword'],
+    })
+}
+
+export const registerFormSchema = getRegisterFormSchema(false)
 
 export const forgotPasswordFormSchema = z.object({
   email: z.string().email({
@@ -55,17 +75,6 @@ export const forgotPasswordFormSchema = z.object({
 export const otpFormSchema = z.object({
   otp: z.string().min(1, 'Please enter a code.'),
 })
-
-// ============================================================================
-// Validation Constants
-// ============================================================================
-
-export const PASSWORD_MIN_LENGTH = 8
-export const PASSWORD_MAX_LENGTH = 20
-export const OTP_LENGTH = 6
-export const BACKUP_CODE_LENGTH = 9 // XXXX-XXXX format
-export const BACKUP_CODE_REGEX = /^[A-Z0-9]{4}-[A-Z0-9]{4}$/i
-export const OTP_REGEX = /^\d{6}$/
 
 // ============================================================================
 // Countdown Constants

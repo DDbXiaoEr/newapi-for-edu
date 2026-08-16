@@ -57,6 +57,8 @@ export type {
 // ============================================================================
 
 export {
+  getLoginFormSchema,
+  getRegisterFormSchema,
   loginFormSchema,
   registerFormSchema,
   forgotPasswordFormSchema,

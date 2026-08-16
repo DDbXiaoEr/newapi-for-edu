@@ -107,6 +107,7 @@ export interface SystemStatus {
     oidc_client_id?: string
     cas_login?: boolean
     cas_server_url?: string
+    ldap_login?: boolean
     linuxdo_oauth?: boolean
     linuxdo_client_id?: string
     telegram_oauth?: boolean
@@ -152,6 +153,7 @@ export interface SystemStatus {
   oidc_client_id?: string
   cas_login?: boolean
   cas_server_url?: string
+  ldap_login?: boolean
   linuxdo_oauth?: boolean
   linuxdo_client_id?: string
   telegram_oauth?: boolean
