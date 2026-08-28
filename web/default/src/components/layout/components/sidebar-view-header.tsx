@@ -19,7 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { Link } from '@tanstack/react-router'
 import { ChevronLeft } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { cn } from '@/lib/utils'
+
 import {
   SidebarHeader,
   SidebarMenu,
@@ -27,6 +27,8 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar'
+import { cn } from '@/lib/utils'
+
 import type { SidebarView } from '../types'
 
 type SidebarViewHeaderProps = {
@@ -41,7 +43,7 @@ type SidebarViewHeaderProps = {
  */
 export function SidebarViewHeader(props: SidebarViewHeaderProps) {
   const { t } = useTranslation()
-  const { setOpenMobile } = useSidebar()
+  const { isMobile, setOpenMobile } = useSidebar()
 
   return (
     <SidebarHeader className='border-sidebar-border border-b px-2 py-2'>
@@ -56,6 +58,7 @@ export function SidebarViewHeader(props: SidebarViewHeaderProps) {
             render={
               <Link
                 to={props.view.parent.to}
+                preload={isMobile ? false : undefined}
                 onClick={() => setOpenMobile(false)}
               />
             }

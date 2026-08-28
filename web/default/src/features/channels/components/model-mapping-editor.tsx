@@ -16,15 +16,15 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Code, Plus, Table, Trash2 } from 'lucide-react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { cn } from '@/lib/utils'
+
+import { JsonCodeEditor } from '@/components/json-code-editor'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Textarea } from '@/components/ui/textarea'
 
 type ModelMappingEditorProps = {
   value: string
@@ -56,7 +56,7 @@ function getDuplicateSources(rows: MappingRow[]): string[] {
     }
   }
 
-  return [...duplicates]
+  return Array.from(duplicates)
 }
 
 export function ModelMappingEditor(props: ModelMappingEditorProps) {
@@ -120,7 +120,7 @@ export function ModelMappingEditor(props: ModelMappingEditorProps) {
       })
       setJsonError(null)
       return true
-    } catch {
+    } catch (_error) {
       setJsonError(t('Model mapping must be valid JSON format'))
       return false
     }
@@ -267,7 +267,7 @@ export function ModelMappingEditor(props: ModelMappingEditorProps) {
               <div className='grid grid-cols-[1fr_1fr_auto] gap-2 text-sm font-medium'>
                 <div>{t('Original Model')}</div>
                 <div>{t('Replacement Model')}</div>
-                <div className='w-10' />
+                <div className='w-10'></div>
               </div>
               {rows.map((row) => (
                 <div
@@ -326,17 +326,14 @@ export function ModelMappingEditor(props: ModelMappingEditorProps) {
           </Button>
         </TabsContent>
         <TabsContent value='json'>
-          <Textarea
+          <JsonCodeEditor
             value={jsonValue}
-            onChange={(e) => handleJsonChange(e.target.value)}
+            onChange={handleJsonChange}
             placeholder={t('{"original-model": "replacement-model"}')}
             disabled={props.disabled}
-            rows={8}
-            className={cn(
-              'font-mono text-sm',
-              jsonError && 'border-destructive'
-            )}
+            className={jsonError ? 'border-destructive' : undefined}
             aria-invalid={Boolean(jsonError)}
+            ariaLabel={t('Model Mapping')}
           />
         </TabsContent>
       </Tabs>

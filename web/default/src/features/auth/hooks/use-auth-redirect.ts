@@ -18,96 +18,38 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { useNavigate } from '@tanstack/react-router'
 import i18n from 'i18next'
-import { useAuthStore, type AuthUser } from '@/stores/auth-store'
-import { getSelf } from '@/lib/api'
-import { markSessionVerified } from '@/lib/session-flag'
-import type { User } from '@/features/users/types'
-import { saveUserId, saveToken } from '../lib/storage'
-import type { LoginSuccessData } from '../types'
 
-function getSavedLanguage(user: User): string | undefined {
-  const userData = user as Record<string, unknown>
-  if (typeof userData.language === 'string') {
-    return userData.language
-  }
-
-  if (typeof userData.setting !== 'string') {
-    return undefined
-  }
-
-  try {
-    const setting = JSON.parse(userData.setting) as { language?: unknown }
-    return typeof setting.language === 'string' ? setting.language : undefined
-  } catch {
-    return undefined
-  }
-}
-
-function buildMinimalUser(data: LoginSuccessData): AuthUser {
-  return {
-    id: data.id ?? 0,
-    username: data.username ?? '',
-    display_name: data.display_name,
-    role: data.role ?? 1,
-    status: data.status ?? 1,
-    group: data.group ?? 'default',
-    token: data.token,
-  }
-}
+import {
+  getSavedLanguage,
+  sanitizeAuthRedirect,
+} from '@/features/auth/lib/auth-redirect'
+import { applyAuthBundle } from '@/lib/api'
+import type { AuthBundle } from '@/stores/auth-store'
 
 /**
  * Hook for handling authentication redirects and user data management
  */
 export function useAuthRedirect() {
   const navigate = useNavigate()
-  const { auth } = useAuthStore()
 
   /**
    * Handle successful login
-   * @param userData - User data from login response (setupLogin fields)
+   * @param userData - Optional user data from login response
    * @param redirectTo - Redirect path after login
    */
   const handleLoginSuccess = async (
-    userData?: LoginSuccessData | null,
+    bundle: AuthBundle,
     redirectTo?: string
   ) => {
-    if (userData?.id) {
-      saveUserId(userData.id)
+    applyAuthBundle(bundle)
+    const savedLang = getSavedLanguage(bundle.user)
+    if (savedLang && savedLang !== i18n.language) {
+      await i18n.changeLanguage(savedLang)
     }
 
-    if (userData?.token) {
-      saveToken(userData.token)
-    }
-
-    if (userData?.id && userData?.username && userData?.token) {
-      auth.setUser(buildMinimalUser(userData))
-      markSessionVerified()
-    } else {
-      try {
-        const self = await getSelf()
-        if (self?.success && self.data) {
-          const user = self.data as User
-          auth.setUser(user)
-
-          if (user.id) {
-            saveUserId(user.id)
-          }
-
-          const savedLang = getSavedLanguage(user)
-          if (savedLang && savedLang !== i18n.language) {
-            i18n.changeLanguage(savedLang)
-          }
-
-          markSessionVerified()
-        }
-      } catch (error) {
-        // eslint-disable-next-line no-console
-        console.error('Failed to fetch user data:', error)
-      }
-    }
-
-    const targetPath = redirectTo || '/dashboard'
-    navigate({ to: targetPath, replace: true })
+    const targetPath =
+      sanitizeAuthRedirect(redirectTo, window.location.origin) ?? '/dashboard'
+    navigate({ href: targetPath, replace: true })
   }
 
   /**

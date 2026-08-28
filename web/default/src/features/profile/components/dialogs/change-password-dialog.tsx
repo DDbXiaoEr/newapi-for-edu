@@ -16,15 +16,16 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useState } from 'react'
 import { Loader2 } from 'lucide-react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
+
 import { Dialog } from '@/components/dialog'
 import { PasswordInput } from '@/components/password-input'
-import { useStatus } from '@/hooks/use-status'
+import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+
 import { updateUserProfile } from '../../api'
 
 // ============================================================================
@@ -43,10 +44,6 @@ export function ChangePasswordDialog({
   username,
 }: ChangePasswordDialogProps) {
   const { t } = useTranslation()
-  const { status } = useStatus()
-  const ldapEnabled = Boolean(
-    status?.ldap_login ?? status?.data?.ldap_login
-  )
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     originalPassword: '',
@@ -72,7 +69,7 @@ export function ChangePasswordDialog({
       return
     }
 
-    if (!ldapEnabled && formData.newPassword.length < 8) {
+    if (formData.newPassword.length < 8) {
       toast.error(t('Password must be at least 8 characters'))
       return
     }
@@ -105,7 +102,7 @@ export function ChangePasswordDialog({
       } else {
         toast.error(response.message || t('Failed to change password'))
       }
-    } catch {
+    } catch (_error) {
       toast.error(t('Failed to change password'))
     } finally {
       setLoading(false)
@@ -165,14 +162,12 @@ export function ChangePasswordDialog({
             onChange={(e) => handleChange('newPassword', e.target.value)}
             disabled={loading}
             required
-            minLength={ldapEnabled ? undefined : 8}
+            minLength={8}
             autoComplete='new-password'
           />
-          {!ldapEnabled && (
-            <p className='text-muted-foreground text-xs'>
-              {t('Must be at least 8 characters')}
-            </p>
-          )}
+          <p className='text-muted-foreground text-xs'>
+            {t('Must be at least 8 characters')}
+          </p>
         </div>
 
         <div className='space-y-2'>

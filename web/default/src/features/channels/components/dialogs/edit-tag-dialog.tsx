@@ -16,11 +16,16 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Loader2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+
+import { Dialog } from '@/components/dialog'
+import { GroupBadge } from '@/components/group-badge'
+import { JsonCodeEditor } from '@/components/json-code-editor'
+import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -34,10 +39,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
-import { Textarea } from '@/components/ui/textarea'
-import { Dialog } from '@/components/dialog'
-import { GroupBadge } from '@/components/group-badge'
-import { StatusBadge } from '@/components/status-badge'
+
 import {
   editTagChannels,
   getTagModels,
@@ -302,10 +304,12 @@ export function EditTagDialog({ open, onOpenChange }: EditTagDialogProps) {
 
                 <div className='flex gap-2'>
                   <Select<string>
-                    items={availableModels.map((model) => ({
+                    items={[
+                      ...availableModels.map((model) => ({
                         value: model,
                         label: model,
-                      }))}
+                      })),
+                    ]}
                     onValueChange={(value) => {
                       if (value === null) return
                       if (!selectedModels.includes(value)) {
@@ -366,13 +370,12 @@ export function EditTagDialog({ open, onOpenChange }: EditTagDialogProps) {
                 {t('(Optional: redirect model names)')}
               </span>
             </Label>
-            <Textarea
+            <JsonCodeEditor
               id='model-mapping'
               value={modelMapping}
-              onChange={(e) => setModelMapping(e.target.value)}
+              onChange={setModelMapping}
               placeholder={'{\n  "gpt-3.5-turbo": "gpt-3.5-turbo-0125"\n}'}
-              rows={4}
-              className='font-mono text-sm'
+              heightClassName='h-40 min-h-40 max-h-40'
             />
             <div className='flex gap-2'>
               <Button

@@ -20,6 +20,7 @@ import * as React from 'react'
 import type { SetStateAction } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -31,6 +32,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+
 import { removeTrailingSlash } from './utils'
 import {
   type CatalogStore,
@@ -500,7 +502,7 @@ export function WaffoPancakeSettingsSection({
             <Label>{t('Payment return URL')}</Label>
             <div className='flex gap-2'>
               <Input
-                placeholder='https://example.com/console/topup'
+                placeholder='https://example.com/wallet'
                 value={returnURL}
                 onChange={(event) =>
                   onValueChange('WaffoPancakeReturnURL', event.target.value)

@@ -215,12 +215,6 @@ export const STATIC_I18N_KEYS = [
   // Channel Affinity section
   'Channel Affinity',
 
-  // LDAP
-  'LDAP',
-
-  // CAS
-  'CAS',
-
   // Models constants
   'Exact Match',
   'Prefix Match',
@@ -234,6 +228,20 @@ export const STATIC_I18N_KEYS = [
   'Match models starting with this name',
   'Match models containing this name',
   'Match models ending with this name',
+
+  // Playground parameter controls
+  'Temperature',
+  'Top P',
+  'Frequency Penalty',
+  'Presence Penalty',
+  'Max Tokens',
+  'Seed',
+  'Controls randomness and creativity',
+  'Limits token selection to a probability mass',
+  'Reduces repeated wording',
+  'Encourages new topics',
+  'Caps the response length',
+  'Keeps compatible responses more repeatable',
   'All Status',
   'All Sync Status',
   'Official Sync',
@@ -445,6 +453,20 @@ export const STATIC_I18N_KEYS = [
   'Playground',
   'AI model testing environment',
   'Chat session management',
+  'No content to copy',
+  'Please wait for the current generation to complete',
+  'An unknown error occurred',
+  'Request error occurred',
+  'Network connection failed or server not responding',
+  'Error parsing response data',
+  'Error establishing connection',
+  'Connection closed',
+  'Generation was interrupted',
+  'Note',
+  'Tip',
+  'Important',
+  'Image not available',
+  'Back to footnote {{id}} reference',
   'Console Area',
   'Data management and log viewing',
   'Dashboard',
@@ -508,6 +530,13 @@ export const STATIC_I18N_KEYS = [
   'Batch detection failed',
   'Batch detection complete: {{channels}} channels, {{add}} to add, {{remove}} to remove, {{fails}} failed',
 
+  // Advanced Custom model discovery
+  'Only one OpenAI Models route is allowed',
+  'OpenAI Models route does not support client model rules',
+  'OpenAI Models route must use native forwarding',
+  'OpenAI Models upstream path must not contain {model}',
+  'OpenAI Models route is required to enable upstream model checks',
+
   // Dashboard flow stages (labels/descriptions passed to t at runtime)
   'User',
   'Node',
@@ -532,4 +561,15 @@ export const STATIC_I18N_KEYS = [
   'Failed to load',
   'Expired at',
   'Cancelled at',
+  'Too many active login sessions. On a device where you are already signed in, open Login sessions and use “Sign out other sessions” to revoke them. If you cannot access a signed-in device, reset your password to sign out all sessions.',
+  'Too many login sessions were created recently. Please wait for the rolling window to pass, then try again.',
+  'Telegram binding is disabled.',
+  'The Telegram authorization request is invalid or expired.',
+  'This Telegram binding request has expired or has already been used.',
+  'The login session that started this Telegram binding is no longer valid.',
+  'This Telegram account is already bound.',
+  'This user account no longer exists.',
+  'This user account is disabled.',
+  'Telegram binding failed. Please try again.',
+  'Verification scope is missing',
 ] as const

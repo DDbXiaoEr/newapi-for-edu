@@ -16,13 +16,11 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import React from 'react'
 import { useLocation, useNavigate } from '@tanstack/react-router'
 import { ArrowRight, ChevronRight, Laptop, Moon, Sun } from 'lucide-react'
+import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { useSearch } from '@/context/search-provider'
-import { useTheme } from '@/context/theme-provider'
-import { useSidebarData } from '@/hooks/use-sidebar-data'
+
 import {
   Command,
   CommandDialog,
@@ -33,6 +31,10 @@ import {
   CommandList,
   CommandSeparator,
 } from '@/components/ui/command'
+import { useSearch } from '@/context/search-provider'
+import { useTheme } from '@/context/theme-provider'
+import { useSidebarData } from '@/hooks/use-sidebar-data'
+
 import { getNavGroupsForPath } from './layout/lib/sidebar-view-registry'
 import { ScrollArea } from './ui/scroll-area'
 
@@ -67,7 +69,7 @@ export function CommandMenu() {
               <CommandGroup key={group.id || group.title} heading={group.title}>
                 {group.items.map((navItem, i) => {
                   if (navItem.url)
-                    {return (
+                    return (
                       <CommandItem
                         key={`${navItem.url}-${i}`}
                         value={navItem.title}
@@ -80,7 +82,7 @@ export function CommandMenu() {
                         </div>
                         {navItem.title}
                       </CommandItem>
-                    )}
+                    )
 
                   return navItem.items?.map((subItem, i) => (
                     <CommandItem

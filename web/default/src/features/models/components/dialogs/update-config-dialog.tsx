@@ -16,14 +16,17 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useEffect, useMemo } from 'react'
-import { z } from 'zod'
-import { useForm, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Loader2 } from 'lucide-react'
+import { useEffect, useMemo } from 'react'
+import { useForm, type Resolver } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+import { z } from 'zod'
+
+import { Dialog } from '@/components/dialog'
+import { JsonCodeEditor } from '@/components/json-code-editor'
 import { Button } from '@/components/ui/button'
 import {
   Collapsible,
@@ -39,8 +42,7 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import { Dialog } from '@/components/dialog'
+
 import { getDeployment, updateDeployment } from '../../api'
 import { deploymentsQueryKeys } from '../../lib'
 
@@ -396,10 +398,14 @@ export function UpdateConfigDialog({
                         <FormItem>
                           <FormLabel>{t('Env (JSON object)')}</FormLabel>
                           <FormControl>
-                            <Textarea
-                              className='min-h-40 font-mono text-xs'
+                            <JsonCodeEditor
+                              value={field.value || ''}
+                              onChange={field.onChange}
+                              name={field.name}
+                              onBlur={field.onBlur}
+                              textareaRef={field.ref}
                               placeholder='{"KEY":"VALUE"}'
-                              {...field}
+                              heightClassName='h-40 min-h-40 max-h-40'
                             />
                           </FormControl>
                           <FormMessage />
@@ -413,10 +419,14 @@ export function UpdateConfigDialog({
                         <FormItem>
                           <FormLabel>{t('Secret env (JSON object)')}</FormLabel>
                           <FormControl>
-                            <Textarea
-                              className='min-h-40 font-mono text-xs'
+                            <JsonCodeEditor
+                              value={field.value || ''}
+                              onChange={field.onChange}
+                              name={field.name}
+                              onBlur={field.onBlur}
+                              textareaRef={field.ref}
                               placeholder='{"SECRET":"VALUE"}'
-                              {...field}
+                              heightClassName='h-40 min-h-40 max-h-40'
                             />
                           </FormControl>
                           <FormMessage />

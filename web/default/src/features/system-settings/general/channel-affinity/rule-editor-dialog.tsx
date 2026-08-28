@@ -16,11 +16,14 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { Plus, Trash2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { Plus, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+
+import { Dialog } from '@/components/dialog'
+import { JsonCodeEditor } from '@/components/json-code-editor'
 import { Button } from '@/components/ui/button'
 import {
   Collapsible,
@@ -39,7 +42,7 @@ import {
 } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Textarea } from '@/components/ui/textarea'
-import { Dialog } from '@/components/dialog'
+
 import { SettingsSwitchField } from '../../components/settings-form-layout'
 import { RULE_TEMPLATES } from './constants'
 import type { AffinityRule, KeySource } from './types'
@@ -132,6 +135,9 @@ export function RuleEditorDialog(props: Props) {
       param_override_template_json: '',
     },
   })
+  const paramOverrideTemplateField = form.register(
+    'param_override_template_json'
+  )
 
   const resetFromRule = (r: Partial<AffinityRule>) => {
     form.reset({
@@ -432,12 +438,30 @@ export function RuleEditorDialog(props: Props) {
             </div>
 
             <div className='grid gap-1.5'>
-              <Label>{t('Parameter Override Template (JSON)')}</Label>
-              <Textarea
-                rows={5}
+              <Label htmlFor='channel-affinity-param-override-template'>
+                {t('Parameter Override Template (JSON)')}
+              </Label>
+              <JsonCodeEditor
+                id='channel-affinity-param-override-template'
+                value={form.watch('param_override_template_json') || ''}
+                onChange={(value) =>
+                  form.setValue('param_override_template_json', value, {
+                    shouldDirty: true,
+                  })
+                }
+                name={paramOverrideTemplateField.name}
+                onBlur={() => {
+                  void paramOverrideTemplateField.onBlur({
+                    target: {
+                      name: paramOverrideTemplateField.name,
+                      value: form.getValues('param_override_template_json'),
+                    },
+                    type: 'blur',
+                  })
+                }}
+                textareaRef={paramOverrideTemplateField.ref}
                 placeholder='{"operations": [...]}'
-                {...form.register('param_override_template_json')}
-                className='font-mono text-xs'
+                heightClassName='h-40 min-h-40 max-h-40'
               />
             </div>
 

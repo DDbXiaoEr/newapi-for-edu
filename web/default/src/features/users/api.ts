@@ -16,7 +16,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import type { PermissionCatalog } from '@/lib/admin-permissions'
 import { api } from '@/lib/api'
+import type { CustomOAuthBinding } from '@/lib/oauth'
+
 import type {
   User,
   GetUsersParams,
@@ -38,8 +41,15 @@ import type {
 export async function getUsers(
   params: GetUsersParams = {}
 ): Promise<GetUsersResponse> {
-  const { p = 1, page_size = 10 } = params
-  const res = await api.get(`/api/user/?p=${p}&page_size=${page_size}`)
+  const { p = 1, page_size = 10, sort_by, sort_order } = params
+  const res = await api.get('/api/user/', {
+    params: {
+      p,
+      page_size,
+      sort_by,
+      sort_order,
+    },
+  })
   return res.data
 }
 
@@ -56,6 +66,8 @@ export async function searchUsers(
     status = '',
     p = 1,
     page_size = 10,
+    sort_by,
+    sort_order,
   } = params
   const queryParams = new URLSearchParams()
   queryParams.set('keyword', keyword)
@@ -64,6 +76,8 @@ export async function searchUsers(
   if (status) queryParams.set('status', status)
   queryParams.set('p', String(p))
   queryParams.set('page_size', String(page_size))
+  if (sort_by) queryParams.set('sort_by', sort_by)
+  if (sort_order) queryParams.set('sort_order', sort_order)
   const res = await api.get(`/api/user/search?${queryParams.toString()}`)
   return res.data
 }
@@ -149,23 +163,28 @@ export async function getGroups(): Promise<ApiResponse<string[]>> {
   return res.data
 }
 
+/**
+ * Get the permission catalog (resources, actions, and role baselines).
+ * Source of truth lives in the backend authz package.
+ */
+export async function getPermissionCatalog(): Promise<PermissionCatalog> {
+  const res = await api.get('/api/authz/catalog')
+  return {
+    resources: res.data?.data?.resources ?? [],
+    roles: res.data?.data?.roles ?? [],
+  }
+}
+
 // ============================================================================
 // Admin Binding Management APIs
 // ============================================================================
-
-export interface OAuthBinding {
-  provider_id: string
-  provider_name: string
-  user_id?: number
-  external_id?: string
-}
 
 /**
  * Get user's custom OAuth bindings (admin)
  */
 export async function getUserOAuthBindings(
   userId: number
-): Promise<ApiResponse<OAuthBinding[]>> {
+): Promise<ApiResponse<CustomOAuthBinding[]>> {
   const res = await api.get(`/api/user/${userId}/oauth/bindings`)
   return res.data
 }
@@ -186,7 +205,7 @@ export async function adminClearUserBinding(
  */
 export async function adminUnbindCustomOAuth(
   userId: number,
-  providerId: string
+  providerId: number
 ): Promise<ApiResponse> {
   const res = await api.delete(
     `/api/user/${userId}/oauth/bindings/${providerId}`

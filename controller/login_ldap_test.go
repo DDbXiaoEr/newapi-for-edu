@@ -27,9 +27,7 @@ func setupLoginControllerTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 
 	gin.SetMode(gin.TestMode)
-	common.UsingSQLite = true
-	common.UsingMySQL = false
-	common.UsingPostgreSQL = false
+	common.SetMainDatabaseType(common.DatabaseTypeSQLite)
 	common.RedisEnabled = false
 	common.PasswordLoginEnabled = true
 	common.RegisterEnabled = true
@@ -48,7 +46,7 @@ func setupLoginControllerTestDB(t *testing.T) *gorm.DB {
 	model.DB = db
 	model.LOG_DB = db
 
-	if err := db.AutoMigrate(&model.User{}, &model.Log{}, &model.TwoFA{}, &model.TwoFABackupCode{}); err != nil {
+	if err := db.AutoMigrate(&model.User{}, &model.Log{}, &model.TwoFA{}, &model.TwoFABackupCode{}, &model.UserSession{}, &model.AuthFlow{}); err != nil {
 		t.Fatalf("failed to migrate login test tables: %v", err)
 	}
 
@@ -146,7 +144,9 @@ func TestLoginLocalPasswordSuccessSkipsLDAP(t *testing.T) {
 	var response struct {
 		Success bool `json:"success"`
 		Data    struct {
-			ID int `json:"id"`
+			User struct {
+				ID int `json:"id"`
+			} `json:"user"`
 		} `json:"data"`
 	}
 	if err := common.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
@@ -155,8 +155,8 @@ func TestLoginLocalPasswordSuccessSkipsLDAP(t *testing.T) {
 	if !response.Success {
 		t.Fatalf("expected success response, got body: %s", recorder.Body.String())
 	}
-	if response.Data.ID != user.Id {
-		t.Fatalf("expected logged in user id %d, got %d", user.Id, response.Data.ID)
+	if response.Data.User.ID != user.Id {
+		t.Fatalf("expected logged in user id %d, got %d", user.Id, response.Data.User.ID)
 	}
 	if ldapCalled {
 		t.Fatalf("expected LDAP authenticator not to be called")
@@ -234,7 +234,9 @@ func TestLoginFallsBackToLDAPAndUpdatesLocalPassword(t *testing.T) {
 	var response struct {
 		Success bool `json:"success"`
 		Data    struct {
-			ID int `json:"id"`
+			User struct {
+				ID int `json:"id"`
+			} `json:"user"`
 		} `json:"data"`
 	}
 	if err := common.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
@@ -243,8 +245,8 @@ func TestLoginFallsBackToLDAPAndUpdatesLocalPassword(t *testing.T) {
 	if !response.Success {
 		t.Fatalf("expected success response, got body: %s", recorder.Body.String())
 	}
-	if response.Data.ID != user.Id {
-		t.Fatalf("expected logged in user id %d, got %d", user.Id, response.Data.ID)
+	if response.Data.User.ID != user.Id {
+		t.Fatalf("expected logged in user id %d, got %d", user.Id, response.Data.User.ID)
 	}
 
 	storedUser := fetchUserByID(t, user.Id)
@@ -316,8 +318,10 @@ func TestLoginCreatesUserFromLDAPWhenLocalUserDoesNotExist(t *testing.T) {
 	var response struct {
 		Success bool `json:"success"`
 		Data    struct {
-			ID       int    `json:"id"`
-			Username string `json:"username"`
+			User struct {
+				ID       int    `json:"id"`
+				Username string `json:"username"`
+			} `json:"user"`
 		} `json:"data"`
 	}
 	if err := common.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
@@ -326,11 +330,11 @@ func TestLoginCreatesUserFromLDAPWhenLocalUserDoesNotExist(t *testing.T) {
 	if !response.Success {
 		t.Fatalf("expected successful LDAP auto-create login, got body: %s", recorder.Body.String())
 	}
-	if response.Data.Username != "ldap-user" {
-		t.Fatalf("expected username ldap-user, got %q", response.Data.Username)
+	if response.Data.User.Username != "ldap-user" {
+		t.Fatalf("expected username ldap-user, got %q", response.Data.User.Username)
 	}
 
-	user := fetchUserByID(t, response.Data.ID)
+	user := fetchUserByID(t, response.Data.User.ID)
 	if user.Email != "ldap-user@example.com" {
 		t.Fatalf("expected created user email to be saved, got %q", user.Email)
 	}
@@ -366,8 +370,10 @@ func TestLoginCreatesUserFromLDAPWhenRegisterDisabled(t *testing.T) {
 	var response struct {
 		Success bool `json:"success"`
 		Data    struct {
-			ID       int    `json:"id"`
-			Username string `json:"username"`
+			User struct {
+				ID       int    `json:"id"`
+				Username string `json:"username"`
+			} `json:"user"`
 		} `json:"data"`
 	}
 	if err := common.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
@@ -376,7 +382,7 @@ func TestLoginCreatesUserFromLDAPWhenRegisterDisabled(t *testing.T) {
 	if !response.Success {
 		t.Fatalf("expected successful LDAP auto-create login, got body: %s", recorder.Body.String())
 	}
-	if response.Data.Username == "" {
+	if response.Data.User.Username == "" {
 		t.Fatalf("expected non-empty username for auto-created LDAP user")
 	}
 }
@@ -513,7 +519,8 @@ func TestLoginLDAPSuccessThenVerify2FACompletesLogin(t *testing.T) {
 	var loginResponse struct {
 		Success bool `json:"success"`
 		Data    struct {
-			RequireTwoFA bool `json:"require_2fa"`
+			RequireTwoFA bool   `json:"require_2fa"`
+			FlowToken    string `json:"flow_token"`
 		} `json:"data"`
 	}
 	if err := common.Unmarshal(loginRecorder.Body.Bytes(), &loginResponse); err != nil {
@@ -522,17 +529,22 @@ func TestLoginLDAPSuccessThenVerify2FACompletesLogin(t *testing.T) {
 	if !loginResponse.Success || !loginResponse.Data.RequireTwoFA {
 		t.Fatalf("expected require_2fa response, got body: %s", loginRecorder.Body.String())
 	}
+	if loginResponse.Data.FlowToken == "" {
+		t.Fatalf("expected flow_token in login response")
+	}
 
 	verifyRecorder := httptest.NewRecorder()
-	verifyRequest := httptest.NewRequest(http.MethodPost, "/api/user/2fa/login", bytes.NewBufferString(`{"code":"ABCD1234"}`))
+	verifyBody := fmt.Sprintf(`{"code":"ABCD1234","flow_token":%q}`, loginResponse.Data.FlowToken)
+	verifyRequest := httptest.NewRequest(http.MethodPost, "/api/user/2fa/login", bytes.NewBufferString(verifyBody))
 	verifyRequest.Header.Set("Content-Type", "application/json")
-	verifyRequest.AddCookie(getSessionCookie(t, loginRecorder, "new-api-session"))
 	router.ServeHTTP(verifyRecorder, verifyRequest)
 
 	var verifyResponse struct {
 		Success bool `json:"success"`
 		Data    struct {
-			ID int `json:"id"`
+			User struct {
+				ID int `json:"id"`
+			} `json:"user"`
 		} `json:"data"`
 	}
 	if err := common.Unmarshal(verifyRecorder.Body.Bytes(), &verifyResponse); err != nil {
@@ -541,8 +553,8 @@ func TestLoginLDAPSuccessThenVerify2FACompletesLogin(t *testing.T) {
 	if !verifyResponse.Success {
 		t.Fatalf("expected successful 2FA verification, got body: %s", verifyRecorder.Body.String())
 	}
-	if verifyResponse.Data.ID != user.Id {
-		t.Fatalf("expected logged in user id %d after 2FA, got %d", user.Id, verifyResponse.Data.ID)
+	if verifyResponse.Data.User.ID != user.Id {
+		t.Fatalf("expected logged in user id %d after 2FA, got %d", user.Id, verifyResponse.Data.User.ID)
 	}
 
 	storedUser := fetchUserByID(t, user.Id)

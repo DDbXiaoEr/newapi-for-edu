@@ -16,11 +16,12 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useMemo, useCallback, useRef, useState } from 'react'
 import { Link, useLocation } from '@tanstack/react-router'
 import { ExternalLink, Loader2, ChevronRight } from 'lucide-react'
+import { useMemo, useCallback, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+
 import {
   Collapsible,
   CollapsibleContent,
@@ -47,6 +48,7 @@ import {
   resolveChatUrl,
   type ChatPreset,
 } from '@/features/chat/lib/chat-links'
+
 import { normalizeHref } from '../lib/url-utils'
 import type { NavChatPresets } from '../types'
 
@@ -59,12 +61,14 @@ function ChatMenuItem({
   loading,
   onOpen,
   onNavigate,
+  preload,
 }: {
   preset: ChatPreset
   active: boolean
   loading: boolean
   onOpen: (preset: ChatPreset) => void | Promise<void>
   onNavigate: () => void
+  preload?: false
 }) {
   if (preset.type === 'web') {
     return (
@@ -75,6 +79,7 @@ function ChatMenuItem({
             <Link
               to='/chat/$chatId'
               params={{ chatId: preset.id }}
+              preload={preload}
               onClick={onNavigate}
             />
           }
@@ -275,6 +280,7 @@ export function ChatPresetsItem({ item }: { item: NavChatPresets }) {
               loading={loadingPresetId === preset.id}
               onOpen={handleOpenExternal}
               onNavigate={() => setOpenMobile(false)}
+              preload={isMobile ? false : undefined}
             />
           ))}
         </SidebarMenuSub>

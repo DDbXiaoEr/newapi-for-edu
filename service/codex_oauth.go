@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -49,39 +48,6 @@ func RefreshCodexOAuthTokenWithProxy(ctx context.Context, refreshToken string, p
 		return nil, err
 	}
 	return refreshCodexOAuthToken(ctx, client, codexOAuthTokenURL, codexOAuthClientID, refreshToken)
-}
-
-func ExchangeCodexAuthorizationCode(ctx context.Context, code string, verifier string) (*CodexOAuthTokenResult, error) {
-	return ExchangeCodexAuthorizationCodeWithProxy(ctx, code, verifier, "")
-}
-
-func ExchangeCodexAuthorizationCodeWithProxy(ctx context.Context, code string, verifier string, proxyURL string) (*CodexOAuthTokenResult, error) {
-	client, err := getCodexOAuthHTTPClient(proxyURL)
-	if err != nil {
-		return nil, err
-	}
-	return exchangeCodexAuthorizationCode(ctx, client, codexOAuthTokenURL, codexOAuthClientID, code, verifier, codexOAuthRedirectURI)
-}
-
-func CreateCodexOAuthAuthorizationFlow() (*CodexOAuthAuthorizationFlow, error) {
-	state, err := createStateHex(16)
-	if err != nil {
-		return nil, err
-	}
-	verifier, challenge, err := generatePKCEPair()
-	if err != nil {
-		return nil, err
-	}
-	u, err := buildCodexAuthorizeURL(state, challenge)
-	if err != nil {
-		return nil, err
-	}
-	return &CodexOAuthAuthorizationFlow{
-		State:        state,
-		Verifier:     verifier,
-		Challenge:    challenge,
-		AuthorizeURL: u,
-	}, nil
 }
 
 func refreshCodexOAuthToken(
@@ -135,6 +101,52 @@ func refreshCodexOAuthToken(
 		AccessToken:  strings.TrimSpace(payload.AccessToken),
 		RefreshToken: strings.TrimSpace(payload.RefreshToken),
 		ExpiresAt:    time.Now().Add(time.Duration(payload.ExpiresIn) * time.Second),
+	}, nil
+}
+
+func getCodexOAuthHTTPClient(proxyURL string) (*http.Client, error) {
+	baseClient, err := GetHttpClientWithProxy(strings.TrimSpace(proxyURL))
+	if err != nil {
+		return nil, err
+	}
+	if baseClient == nil {
+		return &http.Client{Timeout: defaultHTTPTimeout}, nil
+	}
+	clientCopy := *baseClient
+	clientCopy.Timeout = defaultHTTPTimeout
+	return &clientCopy, nil
+}
+
+func ExchangeCodexAuthorizationCode(ctx context.Context, code string, verifier string) (*CodexOAuthTokenResult, error) {
+	return ExchangeCodexAuthorizationCodeWithProxy(ctx, code, verifier, "")
+}
+
+func ExchangeCodexAuthorizationCodeWithProxy(ctx context.Context, code string, verifier string, proxyURL string) (*CodexOAuthTokenResult, error) {
+	client, err := getCodexOAuthHTTPClient(proxyURL)
+	if err != nil {
+		return nil, err
+	}
+	return exchangeCodexAuthorizationCode(ctx, client, codexOAuthTokenURL, codexOAuthClientID, code, verifier, codexOAuthRedirectURI)
+}
+
+func CreateCodexOAuthAuthorizationFlow() (*CodexOAuthAuthorizationFlow, error) {
+	state, err := createStateHex(16)
+	if err != nil {
+		return nil, err
+	}
+	verifier, challenge, err := generatePKCEPair()
+	if err != nil {
+		return nil, err
+	}
+	u, err := buildCodexAuthorizeURL(state, challenge)
+	if err != nil {
+		return nil, err
+	}
+	return &CodexOAuthAuthorizationFlow{
+		State:        state,
+		Verifier:     verifier,
+		Challenge:    challenge,
+		AuthorizeURL: u,
 	}, nil
 }
 
@@ -195,19 +207,6 @@ func exchangeCodexAuthorizationCode(
 		RefreshToken: strings.TrimSpace(payload.RefreshToken),
 		ExpiresAt:    time.Now().Add(time.Duration(payload.ExpiresIn) * time.Second),
 	}, nil
-}
-
-func getCodexOAuthHTTPClient(proxyURL string) (*http.Client, error) {
-	baseClient, err := GetHttpClientWithProxy(strings.TrimSpace(proxyURL))
-	if err != nil {
-		return nil, err
-	}
-	if baseClient == nil {
-		return &http.Client{Timeout: defaultHTTPTimeout}, nil
-	}
-	clientCopy := *baseClient
-	clientCopy.Timeout = defaultHTTPTimeout
-	return &clientCopy, nil
 }
 
 func buildCodexAuthorizeURL(state string, challenge string) (string, error) {
@@ -310,7 +309,7 @@ func decodeJWTClaims(token string) (map[string]any, bool) {
 		return nil, false
 	}
 	var claims map[string]any
-	if err := json.Unmarshal(payloadRaw, &claims); err != nil {
+	if err := common.Unmarshal(payloadRaw, &claims); err != nil {
 		return nil, false
 	}
 	return claims, true

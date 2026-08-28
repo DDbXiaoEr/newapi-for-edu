@@ -19,6 +19,18 @@ For commercial licensing, please contact support@quantumnous.com
 /* eslint-disable react-refresh/only-export-components */
 'use client'
 
+import type { ChatStatus, FileUIPart } from 'ai'
+import {
+  ImageIcon,
+  Loader2Icon,
+  MicIcon,
+  PaperclipIcon,
+  PlusIcon,
+  SendIcon,
+  SquareIcon,
+  XIcon,
+} from 'lucide-react'
+import { nanoid } from 'nanoid'
 import {
   type ChangeEvent,
   type ChangeEventHandler,
@@ -41,20 +53,8 @@ import {
   useRef,
   useState,
 } from 'react'
-import type { ChatStatus, FileUIPart } from 'ai'
-import {
-  ImageIcon,
-  Loader2Icon,
-  MicIcon,
-  PaperclipIcon,
-  PlusIcon,
-  SendIcon,
-  SquareIcon,
-  XIcon,
-} from 'lucide-react'
-import { nanoid } from 'nanoid'
 import { useTranslation } from 'react-i18next'
-import { cn } from '@/lib/utils'
+
 import { Button } from '@/components/ui/button'
 import {
   Command,
@@ -89,6 +89,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { cn } from '@/lib/utils'
 
 // ============================================================================
 // Provider Context & Types
@@ -176,7 +177,7 @@ export function PromptInputProvider({
   const openRef = useRef<() => void>(() => {})
 
   const add = useCallback((files: File[] | FileList) => {
-    const incoming = [...files]
+    const incoming = Array.from(files)
     if (incoming.length === 0) return
 
     setAttachements((prev) =>
@@ -508,7 +509,7 @@ export const PromptInput = ({
 
   const addLocal = useCallback(
     (fileList: File[] | FileList) => {
-      const incoming = [...fileList]
+      const incoming = Array.from(fileList)
       const accepted = incoming.filter((f) => matchesAccept(f))
       if (incoming.length && accepted.length === 0) {
         onError?.({
@@ -759,7 +760,7 @@ export const PromptInput = ({
             controller.textInput.clear()
           }
         }
-      } catch {
+      } catch (_error) {
         // Don't clear on error - user may want to retry
       }
     })
@@ -842,7 +843,7 @@ export const PromptInputTextarea = ({
       e.preventDefault()
       const lastAttachment =
         attachments.files.length > 0
-          ? attachments.files.at(-1)
+          ? attachments.files[attachments.files.length - 1]
           : undefined
       if (lastAttachment) {
         attachments.remove(lastAttachment.id)
@@ -1137,7 +1138,7 @@ export const PromptInputSpeechButton = ({
       speechRecognition.onresult = (event) => {
         let finalTranscript = ''
 
-        const results = [...event.results]
+        const results = Array.from(event.results)
 
         for (const result of results) {
           if (result.isFinal) {

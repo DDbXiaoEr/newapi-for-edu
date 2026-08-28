@@ -16,13 +16,13 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useState, useEffect } from 'react'
 import { Code, Table, Plus, Trash2 } from 'lucide-react'
+import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { cn } from '@/lib/utils'
+
+import { JsonCodeEditor } from '@/components/json-code-editor'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 
 type JsonEditorProps = {
   value: string
@@ -41,6 +41,23 @@ type EditorRow = {
   id: string
   key: string
   value: string
+}
+
+function parseJsonRows(json: string): EditorRow[] {
+  try {
+    if (!json.trim()) return []
+    const parsed = JSON.parse(json)
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return []
+    }
+    return Object.entries(parsed).map(([key, val], index) => ({
+      id: `${Date.now()}-${index}`,
+      key,
+      value: typeof val === 'object' ? JSON.stringify(val) : String(val),
+    }))
+  } catch {
+    return []
+  }
 }
 
 export function JsonEditor({
@@ -63,27 +80,11 @@ export function JsonEditor({
   const resolvedKeyLabel = keyLabel ?? t('Key')
   const resolvedValueLabel = valueLabel ?? t('Value')
   const [mode, setMode] = useState<'visual' | 'json'>('visual')
-  const [rows, setRows] = useState<EditorRow[]>([])
+  const [rows, setRows] = useState<EditorRow[]>(() => parseJsonRows(value))
   const [jsonValue, setJsonValue] = useState(value)
 
   const parseJsonToRows = (json: string) => {
-    try {
-      if (!json.trim()) {
-        setRows([])
-        return
-      }
-      const parsed = JSON.parse(json)
-      const newRows: EditorRow[] = Object.entries(parsed).map(
-        ([key, val], index) => ({
-          id: `${Date.now()}-${index}`,
-          key,
-          value: typeof val === 'object' ? JSON.stringify(val) : String(val),
-        })
-      )
-      setRows(newRows)
-    } catch {
-      // Invalid JSON, keep current rows
-    }
+    setRows(parseJsonRows(json))
   }
 
   // Parse JSON to rows when value changes externally
@@ -283,15 +284,14 @@ export function JsonEditor({
           </Button>
         </div>
       ) : (
-        <Textarea
+        <JsonCodeEditor
           value={jsonValue}
-          onChange={(e) => handleJsonChange(e.target.value)}
+          onChange={handleJsonChange}
           placeholder={
             template ? JSON.stringify(template, null, 2) : '{"key": "value"}'
           }
           disabled={disabled}
-          rows={8}
-          className={cn('font-mono text-sm')}
+          ariaLabel={t('JSON')}
         />
       )}
     </div>

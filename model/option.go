@@ -13,6 +13,7 @@ import (
 	"github.com/QuantumNous/new-api/setting/performance_setting"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/QuantumNous/new-api/setting/system_setting"
+	"gorm.io/gorm"
 )
 
 type Option struct {
@@ -67,6 +68,8 @@ func InitOptionMap() {
 	common.OptionMap["SMTPAccount"] = ""
 	common.OptionMap["SMTPToken"] = ""
 	common.OptionMap["SMTPSSLEnabled"] = strconv.FormatBool(common.SMTPSSLEnabled)
+	common.OptionMap["SMTPStartTLSEnabled"] = strconv.FormatBool(common.SMTPStartTLSEnabled)
+	common.OptionMap["SMTPInsecureSkipVerify"] = strconv.FormatBool(common.SMTPInsecureSkipVerify)
 	common.OptionMap["SMTPForceAuthLogin"] = strconv.FormatBool(common.SMTPForceAuthLogin)
 	common.OptionMap["Notice"] = ""
 	common.OptionMap["About"] = ""
@@ -111,22 +114,18 @@ func InitOptionMap() {
 	common.OptionMap["WaffoUnitPrice"] = strconv.FormatFloat(setting.WaffoUnitPrice, 'f', -1, 64)
 	common.OptionMap["WaffoMinTopUp"] = strconv.Itoa(setting.WaffoMinTopUp)
 	common.OptionMap["WaffoPayMethods"] = setting.WaffoPayMethods2JsonString()
-	common.OptionMap["WaffoPancakeEnabled"] = strconv.FormatBool(setting.WaffoPancakeEnabled)
-	common.OptionMap["WaffoPancakeSandbox"] = strconv.FormatBool(setting.WaffoPancakeSandbox)
 	common.OptionMap["WaffoPancakeMerchantID"] = setting.WaffoPancakeMerchantID
 	common.OptionMap["WaffoPancakePrivateKey"] = setting.WaffoPancakePrivateKey
-	common.OptionMap["WaffoPancakeWebhookPublicKey"] = setting.WaffoPancakeWebhookPublicKey
-	common.OptionMap["WaffoPancakeWebhookTestKey"] = setting.WaffoPancakeWebhookTestKey
-	common.OptionMap["WaffoPancakeStoreID"] = setting.WaffoPancakeStoreID
-	common.OptionMap["WaffoPancakeProductID"] = setting.WaffoPancakeProductID
 	common.OptionMap["WaffoPancakeReturnURL"] = setting.WaffoPancakeReturnURL
-	common.OptionMap["WaffoPancakeCurrency"] = setting.WaffoPancakeCurrency
 	common.OptionMap["WaffoPancakeUnitPrice"] = strconv.FormatFloat(setting.WaffoPancakeUnitPrice, 'f', -1, 64)
 	common.OptionMap["WaffoPancakeMinTopUp"] = strconv.Itoa(setting.WaffoPancakeMinTopUp)
+	common.OptionMap["WaffoPancakeStoreID"] = setting.WaffoPancakeStoreID
+	common.OptionMap["WaffoPancakeProductID"] = setting.WaffoPancakeProductID
 	common.OptionMap["TopupGroupRatio"] = common.TopupGroupRatio2JSONString()
 	common.OptionMap["Chats"] = setting.Chats2JsonString()
 	common.OptionMap["AutoGroups"] = setting.AutoGroups2JsonString()
 	common.OptionMap["DefaultUseAutoGroup"] = strconv.FormatBool(setting.DefaultUseAutoGroup)
+	common.OptionMap["MaxTokenAutoGroups"] = strconv.Itoa(setting.GetMaxTokenAutoGroups())
 	common.OptionMap["PayMethods"] = operation_setting.PayMethods2JsonString()
 	common.OptionMap["GitHubClientId"] = ""
 	common.OptionMap["GitHubClientSecret"] = ""
@@ -195,45 +194,9 @@ func InitOptionMap() {
 
 func loadOptionsFromDatabase() {
 	options, _ := AllOption()
-	if len(options) == 0 {
-		return
-	}
-
-	configKeys := make(map[string]string, len(options))
-	hasPerformanceSetting := false
-
-	common.OptionMapRWMutex.Lock()
 	for _, option := range options {
-		common.OptionMap[option.Key] = option.Value
-		if strings.Contains(option.Key, ".") {
-			if strings.HasPrefix(option.Key, "performance_setting.") {
-				hasPerformanceSetting = true
-			}
-			configKeys[option.Key] = option.Value
-		}
-	}
-	common.OptionMapRWMutex.Unlock()
-
-	// 批量更新分层配置：一次反射遍历完成所有注册配置，而非逐个 key 处理
-	if len(configKeys) > 0 {
-		if err := config.GlobalConfig.LoadFromDB(configKeys); err != nil {
-			common.SysLog("failed to update configs: " + err.Error())
-		}
-		if hasPerformanceSetting {
-			performance_setting.UpdateAndSync()
-		}
-	}
-
-	// 非分层配置的处理函数（副作用：同步全局变量等）
-	for _, option := range options {
-		if strings.Contains(option.Key, ".") {
-			continue
-		}
-		handler, ok := optionHandlers[option.Key]
-		if !ok {
-			continue
-		}
-		if err := handler(option.Key, option.Value); err != nil {
+		err := updateOptionMap(option.Key, option.Value)
+		if err != nil {
 			common.SysLog("failed to update option map: " + err.Error())
 		}
 	}
@@ -247,7 +210,23 @@ func SyncOptions(frequency int) {
 	}
 }
 
+func validateOptionValue(key string, value string) error {
+	if key == operation_setting.ToolPriceOptionKey {
+		return operation_setting.ValidateToolPricesJSON(value)
+	}
+	if key == operation_setting.ChannelTestConcurrencyOptionKey {
+		return operation_setting.ValidateChannelTestConcurrency(value)
+	}
+	if key == "MaxTokenAutoGroups" {
+		return setting.ValidateMaxTokenAutoGroups(value)
+	}
+	return nil
+}
+
 func UpdateOption(key string, value string) error {
+	if err := validateOptionValue(key, value); err != nil {
+		return err
+	}
 	// Save to database first
 	option := Option{
 		Key: key,
@@ -263,221 +242,394 @@ func UpdateOption(key string, value string) error {
 	return updateOptionMap(key, value)
 }
 
-type optionHandler func(key, value string) error
-
-var optionHandlers = map[string]optionHandler{
-	// Permission (int)
-	"FileUploadPermission":    func(_, v string) error { val, _ := strconv.Atoi(v); common.FileUploadPermission = val; return nil },
-	"FileDownloadPermission":  func(_, v string) error { val, _ := strconv.Atoi(v); common.FileDownloadPermission = val; return nil },
-	"ImageUploadPermission":   func(_, v string) error { val, _ := strconv.Atoi(v); common.ImageUploadPermission = val; return nil },
-	"ImageDownloadPermission": func(_, v string) error { val, _ := strconv.Atoi(v); common.ImageDownloadPermission = val; return nil },
-
-	// Bool / Enabled flags
-	"PasswordRegisterEnabled":         func(_, v string) error { common.PasswordRegisterEnabled = v == "true"; return nil },
-	"PasswordLoginEnabled":            func(_, v string) error { common.PasswordLoginEnabled = v == "true"; return nil },
-	"EmailVerificationEnabled":        func(_, v string) error { common.EmailVerificationEnabled = v == "true"; return nil },
-	"GitHubOAuthEnabled":              func(_, v string) error { common.GitHubOAuthEnabled = v == "true"; return nil },
-	"LinuxDOOAuthEnabled":             func(_, v string) error { common.LinuxDOOAuthEnabled = v == "true"; return nil },
-	"WeChatAuthEnabled":               func(_, v string) error { common.WeChatAuthEnabled = v == "true"; return nil },
-	"TelegramOAuthEnabled":            func(_, v string) error { common.TelegramOAuthEnabled = v == "true"; return nil },
-	"TurnstileCheckEnabled":           func(_, v string) error { common.TurnstileCheckEnabled = v == "true"; return nil },
-	"RegisterEnabled":                 func(_, v string) error { common.RegisterEnabled = v == "true"; return nil },
-	"EmailDomainRestrictionEnabled":   func(_, v string) error { common.EmailDomainRestrictionEnabled = v == "true"; return nil },
-	"EmailAliasRestrictionEnabled":    func(_, v string) error { common.EmailAliasRestrictionEnabled = v == "true"; return nil },
-	"AutomaticDisableChannelEnabled":  func(_, v string) error { common.AutomaticDisableChannelEnabled = v == "true"; return nil },
-	"AutomaticEnableChannelEnabled":   func(_, v string) error { common.AutomaticEnableChannelEnabled = v == "true"; return nil },
-	"LogConsumeEnabled":               func(_, v string) error { common.LogConsumeEnabled = v == "true"; return nil },
-	"DisplayTokenStatEnabled":         func(_, v string) error { common.DisplayTokenStatEnabled = v == "true"; return nil },
-	"DrawingEnabled":                  func(_, v string) error { common.DrawingEnabled = v == "true"; return nil },
-	"TaskEnabled":                     func(_, v string) error { common.TaskEnabled = v == "true"; return nil },
-	"DataExportEnabled":               func(_, v string) error { common.DataExportEnabled = v == "true"; return nil },
-	"DefaultCollapseSidebar":          func(_, v string) error { common.DefaultCollapseSidebar = v == "true"; return nil },
-	"MjNotifyEnabled":                 func(_, v string) error { setting.MjNotifyEnabled = v == "true"; return nil },
-	"MjAccountFilterEnabled":          func(_, v string) error { setting.MjAccountFilterEnabled = v == "true"; return nil },
-	"MjModeClearEnabled":              func(_, v string) error { setting.MjModeClearEnabled = v == "true"; return nil },
-	"MjForwardUrlEnabled":             func(_, v string) error { setting.MjForwardUrlEnabled = v == "true"; return nil },
-	"MjActionCheckSuccessEnabled":     func(_, v string) error { setting.MjActionCheckSuccessEnabled = v == "true"; return nil },
-	"CheckSensitiveEnabled":           func(_, v string) error { setting.CheckSensitiveEnabled = v == "true"; return nil },
-	"DemoSiteEnabled":                 func(_, v string) error { operation_setting.DemoSiteEnabled = v == "true"; return nil },
-	"SelfUseModeEnabled":              func(_, v string) error { operation_setting.SelfUseModeEnabled = v == "true"; return nil },
-	"CheckSensitiveOnPromptEnabled":   func(_, v string) error { setting.CheckSensitiveOnPromptEnabled = v == "true"; return nil },
-	"ModelRequestRateLimitEnabled":    func(_, v string) error { setting.ModelRequestRateLimitEnabled = v == "true"; return nil },
-	"StopOnSensitiveEnabled":          func(_, v string) error { setting.StopOnSensitiveEnabled = v == "true"; return nil },
-	"SMTPSSLEnabled":                  func(_, v string) error { common.SMTPSSLEnabled = v == "true"; return nil },
-	"SMTPForceAuthLogin":              func(_, v string) error { common.SMTPForceAuthLogin = v == "true"; return nil },
-	"WorkerAllowHttpImageRequestEnabled": func(_, v string) error { system_setting.WorkerAllowHttpImageRequestEnabled = v == "true"; return nil },
-	"DefaultUseAutoGroup":             func(_, v string) error { setting.DefaultUseAutoGroup = v == "true"; return nil },
-	"StripePromotionCodesEnabled":     func(_, v string) error { setting.StripePromotionCodesEnabled = v == "true"; return nil },
-	"CreemTestMode":                   func(_, v string) error { setting.CreemTestMode = v == "true"; return nil },
-	"WaffoEnabled":                    func(_, v string) error { setting.WaffoEnabled = v == "true"; return nil },
-	"WaffoSandbox":                    func(_, v string) error { setting.WaffoSandbox = v == "true"; return nil },
-	"WaffoPancakeEnabled":             func(_, v string) error { setting.WaffoPancakeEnabled = v == "true"; return nil },
-	"WaffoPancakeSandbox":             func(_, v string) error { setting.WaffoPancakeSandbox = v == "true"; return nil },
-
-	// ExposeRatioEnabled (has setter function)
-	"ExposeRatioEnabled": func(_, v string) error { ratio_setting.SetExposeRatioEnabled(v == "true"); return nil },
-
-	// DisplayInCurrencyEnabled (syncs config to general_setting.quota_display_type)
-	"DisplayInCurrencyEnabled": func(_, v string) error {
-		newVal := "USD"
-		if v != "true" {
-			newVal = "TOKENS"
-		}
-		if cfg := config.GlobalConfig.Get("general_setting"); cfg != nil {
-			_ = config.UpdateConfigFromMap(cfg, map[string]string{"quota_display_type": newVal})
-		}
-		return nil
-	},
-
-	// Syslog (triggers logger sync)
-	"SyslogEnabled": func(_, v string) error {
-		common.SyslogEnabled = v == "true"
-		logger.SyncSyslogFromConfig()
-		return nil
-	},
-	"SyslogNetwork": func(_, v string) error {
-		common.SyslogNetwork = v
-		logger.SyncSyslogFromConfig()
-		return nil
-	},
-	"SyslogAddr": func(_, v string) error {
-		common.SyslogAddr = v
-		logger.SyncSyslogFromConfig()
-		return nil
-	},
-	"SyslogTag": func(_, v string) error {
-		common.SyslogTag = v
-		logger.SyncSyslogFromConfig()
-		return nil
-	},
-
-	// String assignments
-	"EmailDomainWhitelist":         func(_, v string) error { common.EmailDomainWhitelist = strings.Split(v, ","); return nil },
-	"SMTPServer":                   func(_, v string) error { common.SMTPServer = v; return nil },
-	"SMTPAccount":                  func(_, v string) error { common.SMTPAccount = v; return nil },
-	"SMTPFrom":                     func(_, v string) error { common.SMTPFrom = v; return nil },
-	"SMTPToken":                    func(_, v string) error { common.SMTPToken = v; return nil },
-	"ServerAddress":                func(_, v string) error { system_setting.ServerAddress = v; return nil },
-	"WorkerUrl":                    func(_, v string) error { system_setting.WorkerUrl = v; return nil },
-	"WorkerValidKey":               func(_, v string) error { system_setting.WorkerValidKey = v; return nil },
-	"PayAddress":                   func(_, v string) error { operation_setting.PayAddress = v; return nil },
-	"CustomCallbackAddress":        func(_, v string) error { operation_setting.CustomCallbackAddress = v; return nil },
-	"EpayId":                       func(_, v string) error { operation_setting.EpayId = v; return nil },
-	"EpayKey":                      func(_, v string) error { operation_setting.EpayKey = v; return nil },
-	"StripeApiSecret":              func(_, v string) error { setting.StripeApiSecret = v; return nil },
-	"StripeWebhookSecret":          func(_, v string) error { setting.StripeWebhookSecret = v; return nil },
-	"StripePriceId":                func(_, v string) error { setting.StripePriceId = v; return nil },
-	"CreemApiKey":                  func(_, v string) error { setting.CreemApiKey = v; return nil },
-	"CreemProducts":                func(_, v string) error { setting.CreemProducts = v; return nil },
-	"CreemWebhookSecret":           func(_, v string) error { setting.CreemWebhookSecret = v; return nil },
-	"WaffoApiKey":                  func(_, v string) error { setting.WaffoApiKey = v; return nil },
-	"WaffoPrivateKey":              func(_, v string) error { setting.WaffoPrivateKey = v; return nil },
-	"WaffoPublicCert":              func(_, v string) error { setting.WaffoPublicCert = v; return nil },
-	"WaffoSandboxPublicCert":       func(_, v string) error { setting.WaffoSandboxPublicCert = v; return nil },
-	"WaffoSandboxApiKey":           func(_, v string) error { setting.WaffoSandboxApiKey = v; return nil },
-	"WaffoSandboxPrivateKey":       func(_, v string) error { setting.WaffoSandboxPrivateKey = v; return nil },
-	"WaffoMerchantId":              func(_, v string) error { setting.WaffoMerchantId = v; return nil },
-	"WaffoNotifyUrl":               func(_, v string) error { setting.WaffoNotifyUrl = v; return nil },
-	"WaffoReturnUrl":               func(_, v string) error { setting.WaffoReturnUrl = v; return nil },
-	"WaffoSubscriptionReturnUrl":   func(_, v string) error { setting.WaffoSubscriptionReturnUrl = v; return nil },
-	"WaffoCurrency":                func(_, v string) error { setting.WaffoCurrency = v; return nil },
-	"WaffoPancakeMerchantID":       func(_, v string) error { setting.WaffoPancakeMerchantID = v; return nil },
-	"WaffoPancakePrivateKey":       func(_, v string) error { setting.WaffoPancakePrivateKey = v; return nil },
-	"WaffoPancakeWebhookPublicKey": func(_, v string) error { setting.WaffoPancakeWebhookPublicKey = v; return nil },
-	"WaffoPancakeWebhookTestKey":   func(_, v string) error { setting.WaffoPancakeWebhookTestKey = v; return nil },
-	"WaffoPancakeStoreID":          func(_, v string) error { setting.WaffoPancakeStoreID = v; return nil },
-	"WaffoPancakeProductID":        func(_, v string) error { setting.WaffoPancakeProductID = v; return nil },
-	"WaffoPancakeReturnURL":        func(_, v string) error { setting.WaffoPancakeReturnURL = v; return nil },
-	"WaffoPancakeCurrency":         func(_, v string) error { setting.WaffoPancakeCurrency = v; return nil },
-	"GitHubClientId":               func(_, v string) error { common.GitHubClientId = v; return nil },
-	"GitHubClientSecret":           func(_, v string) error { common.GitHubClientSecret = v; return nil },
-	"LinuxDOClientId":              func(_, v string) error { common.LinuxDOClientId = v; return nil },
-	"LinuxDOClientSecret":          func(_, v string) error { common.LinuxDOClientSecret = v; return nil },
-	"Footer":                       func(_, v string) error { common.Footer = v; return nil },
-	"SystemName":                   func(_, v string) error { common.SystemName = v; return nil },
-	"Logo":                         func(_, v string) error { common.Logo = v; return nil },
-	"WeChatServerAddress":          func(_, v string) error { common.WeChatServerAddress = v; return nil },
-	"WeChatServerToken":            func(_, v string) error { common.WeChatServerToken = v; return nil },
-	"WeChatAccountQRCodeImageURL":  func(_, v string) error { common.WeChatAccountQRCodeImageURL = v; return nil },
-	"TelegramBotToken":             func(_, v string) error { common.TelegramBotToken = v; return nil },
-	"TelegramBotName":              func(_, v string) error { common.TelegramBotName = v; return nil },
-	"TurnstileSiteKey":             func(_, v string) error { common.TurnstileSiteKey = v; return nil },
-	"TurnstileSecretKey":           func(_, v string) error { common.TurnstileSecretKey = v; return nil },
-	"DataExportDefaultTime":        func(_, v string) error { common.DataExportDefaultTime = v; return nil },
-	"TopUpLink":                    func(_, v string) error { common.TopUpLink = v; return nil },
-
-	// Int assignments
-	"SMTPPort":                          func(_, v string) error { val, _ := strconv.Atoi(v); common.SMTPPort = val; return nil },
-	"LinuxDOMinimumTrustLevel":          func(_, v string) error { val, _ := strconv.Atoi(v); common.LinuxDOMinimumTrustLevel = val; return nil },
-	"MinTopUp":                          func(_, v string) error { val, _ := strconv.Atoi(v); operation_setting.MinTopUp = val; return nil },
-	"StripeMinTopUp":                    func(_, v string) error { val, _ := strconv.Atoi(v); setting.StripeMinTopUp = val; return nil },
-	"WaffoMinTopUp":                     func(_, v string) error { val, _ := strconv.Atoi(v); setting.WaffoMinTopUp = val; return nil },
-	"WaffoPancakeMinTopUp":              func(_, v string) error { val, _ := strconv.Atoi(v); setting.WaffoPancakeMinTopUp = val; return nil },
-	"QuotaForNewUser":                   func(_, v string) error { val, _ := strconv.Atoi(v); common.QuotaForNewUser = val; return nil },
-	"QuotaForInviter":                   func(_, v string) error { val, _ := strconv.Atoi(v); common.QuotaForInviter = val; return nil },
-	"QuotaForInvitee":                   func(_, v string) error { val, _ := strconv.Atoi(v); common.QuotaForInvitee = val; return nil },
-	"QuotaRemindThreshold":              func(_, v string) error { val, _ := strconv.Atoi(v); common.QuotaRemindThreshold = val; return nil },
-	"PreConsumedQuota":                  func(_, v string) error { val, _ := strconv.Atoi(v); common.PreConsumedQuota = val; return nil },
-	"ModelRequestRateLimitCount":        func(_, v string) error { val, _ := strconv.Atoi(v); setting.ModelRequestRateLimitCount = val; return nil },
-	"ModelRequestRateLimitDurationMinutes": func(_, v string) error { val, _ := strconv.Atoi(v); setting.ModelRequestRateLimitDurationMinutes = val; return nil },
-	"ModelRequestRateLimitSuccessCount":    func(_, v string) error { val, _ := strconv.Atoi(v); setting.ModelRequestRateLimitSuccessCount = val; return nil },
-	"RetryTimes":                        func(_, v string) error { val, _ := strconv.Atoi(v); common.RetryTimes = val; return nil },
-	"DataExportInterval":                func(_, v string) error { val, _ := strconv.Atoi(v); common.DataExportInterval = val; return nil },
-	"StreamCacheQueueLength":            func(_, v string) error { val, _ := strconv.Atoi(v); setting.StreamCacheQueueLength = val; return nil },
-
-	// Float64 assignments
-	"Price":                  func(_, v string) error { val, _ := strconv.ParseFloat(v, 64); operation_setting.Price = val; return nil },
-	"USDExchangeRate":        func(_, v string) error { val, _ := strconv.ParseFloat(v, 64); operation_setting.USDExchangeRate = val; return nil },
-	"StripeUnitPrice":        func(_, v string) error { val, _ := strconv.ParseFloat(v, 64); setting.StripeUnitPrice = val; return nil },
-	"WaffoUnitPrice":         func(_, v string) error { val, _ := strconv.ParseFloat(v, 64); setting.WaffoUnitPrice = val; return nil },
-	"WaffoPancakeUnitPrice":  func(_, v string) error { val, _ := strconv.ParseFloat(v, 64); setting.WaffoPancakeUnitPrice = val; return nil },
-	"ChannelDisableThreshold": func(_, v string) error { val, _ := strconv.ParseFloat(v, 64); common.ChannelDisableThreshold = val; return nil },
-	"QuotaPerUnit":           func(_, v string) error { val, _ := strconv.ParseFloat(v, 64); common.QuotaPerUnit = val; return nil },
-
-	// Complex JSON/struct handlers
-	"Chats":                      func(_, v string) error { return setting.UpdateChatsByJsonString(v) },
-	"AutoGroups":                 func(_, v string) error { return setting.UpdateAutoGroupsByJsonString(v) },
-	"TopupGroupRatio":            func(_, v string) error { return common.UpdateTopupGroupRatioByJSONString(v) },
-	"ModelRequestRateLimitGroup": func(_, v string) error { return setting.UpdateModelRequestRateLimitGroupByJSONString(v) },
-	"ModelRatio":                 func(_, v string) error { return ratio_setting.UpdateModelRatioByJSONString(v) },
-	"GroupRatio":                 func(_, v string) error { return ratio_setting.UpdateGroupRatioByJSONString(v) },
-	"GroupGroupRatio":            func(_, v string) error { return ratio_setting.UpdateGroupGroupRatioByJSONString(v) },
-	"UserUsableGroups":           func(_, v string) error { return setting.UpdateUserUsableGroupsByJSONString(v) },
-	"CompletionRatio":            func(_, v string) error { return ratio_setting.UpdateCompletionRatioByJSONString(v) },
-	"ModelPrice":                 func(_, v string) error { return ratio_setting.UpdateModelPriceByJSONString(v) },
-	"CacheRatio":                 func(_, v string) error { return ratio_setting.UpdateCacheRatioByJSONString(v) },
-	"CreateCacheRatio":           func(_, v string) error { return ratio_setting.UpdateCreateCacheRatioByJSONString(v) },
-	"ImageRatio":                 func(_, v string) error { return ratio_setting.UpdateImageRatioByJSONString(v) },
-	"AudioRatio":                 func(_, v string) error { return ratio_setting.UpdateAudioRatioByJSONString(v) },
-	"AudioCompletionRatio":       func(_, v string) error { return ratio_setting.UpdateAudioCompletionRatioByJSONString(v) },
-	"PayMethods":                 func(_, v string) error { return operation_setting.UpdatePayMethodsByJsonString(v) },
-	"SensitiveWords":             func(_, v string) error { setting.SensitiveWordsFromString(v); return nil },
-	"AutomaticDisableKeywords":   func(_, v string) error { operation_setting.AutomaticDisableKeywordsFromString(v); return nil },
-	"AutomaticDisableStatusCodes": func(_, v string) error { return operation_setting.AutomaticDisableStatusCodesFromString(v) },
-	"AutomaticRetryStatusCodes":  func(_, v string) error { return operation_setting.AutomaticRetryStatusCodesFromString(v) },
-
-	// WaffoPayMethods - value is read directly from OptionMap; no global variable to sync
-	"WaffoPayMethods": func(_, v string) error { return nil },
-}
-
-func updateOptionMap(key string, value string) (err error) {
-	common.OptionMapRWMutex.Lock()
-	defer common.OptionMapRWMutex.Unlock()
-	common.OptionMap[key] = value
-
-	if handleConfigUpdate(key, value) {
+// UpdateOptionsBulk persists multiple key/value pairs in a single database
+// transaction, then dispatches them through updateOptionMap in one pass. If
+// any DB write fails the whole transaction rolls back and no in-memory state
+// is touched — safe for callers that must commit a set of related options
+// atomically (e.g. payment gateway binding).
+func UpdateOptionsBulk(values map[string]string) error {
+	if len(values) == 0 {
 		return nil
 	}
-
-	handler, ok := optionHandlers[key]
-	if ok {
-		return handler(key, value)
+	for key, value := range values {
+		if err := validateOptionValue(key, value); err != nil {
+			return err
+		}
+	}
+	err := DB.Transaction(func(tx *gorm.DB) error {
+		for k, v := range values {
+			option := Option{Key: k}
+			if err := tx.FirstOrCreate(&option, Option{Key: k}).Error; err != nil {
+				return err
+			}
+			option.Value = v
+			if err := tx.Save(&option).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	for k, v := range values {
+		if err := updateOptionMap(k, v); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
+func updateOptionMap(key string, value string) (err error) {
+	if key == retiredThemeOptionKey {
+		common.OptionMapRWMutex.Lock()
+		delete(common.OptionMap, key)
+		common.OptionMapRWMutex.Unlock()
+		return nil
+	}
+	common.OptionMapRWMutex.Lock()
+	defer common.OptionMapRWMutex.Unlock()
+	common.OptionMap[key] = value
+
+	// 检查是否是模型配置 - 使用更规范的方式处理
+	if handleConfigUpdate(key, value) {
+		return nil // 已由配置系统处理
+	}
+
+	// 处理传统配置项...
+	if strings.HasSuffix(key, "Permission") {
+		intValue, _ := strconv.Atoi(value)
+		switch key {
+		case "FileUploadPermission":
+			common.FileUploadPermission = intValue
+		case "FileDownloadPermission":
+			common.FileDownloadPermission = intValue
+		case "ImageUploadPermission":
+			common.ImageUploadPermission = intValue
+		case "ImageDownloadPermission":
+			common.ImageDownloadPermission = intValue
+		}
+	}
+	if strings.HasSuffix(key, "Enabled") || key == "DefaultCollapseSidebar" || key == "DefaultUseAutoGroup" || key == "SMTPForceAuthLogin" || key == "SMTPInsecureSkipVerify" {
+		boolValue := value == "true"
+		switch key {
+		case "PasswordRegisterEnabled":
+			common.PasswordRegisterEnabled = boolValue
+		case "PasswordLoginEnabled":
+			common.PasswordLoginEnabled = boolValue
+		case "EmailVerificationEnabled":
+			common.EmailVerificationEnabled = boolValue
+		case "GitHubOAuthEnabled":
+			common.GitHubOAuthEnabled = boolValue
+		case "LinuxDOOAuthEnabled":
+			common.LinuxDOOAuthEnabled = boolValue
+		case "WeChatAuthEnabled":
+			common.WeChatAuthEnabled = boolValue
+		case "TelegramOAuthEnabled":
+			common.TelegramOAuthEnabled = boolValue
+		case "TurnstileCheckEnabled":
+			common.TurnstileCheckEnabled = boolValue
+		case "RegisterEnabled":
+			common.RegisterEnabled = boolValue
+		case "EmailDomainRestrictionEnabled":
+			common.EmailDomainRestrictionEnabled = boolValue
+		case "EmailAliasRestrictionEnabled":
+			common.EmailAliasRestrictionEnabled = boolValue
+		case "AutomaticDisableChannelEnabled":
+			common.AutomaticDisableChannelEnabled = boolValue
+		case "AutomaticEnableChannelEnabled":
+			common.AutomaticEnableChannelEnabled = boolValue
+		case "LogConsumeEnabled":
+			common.LogConsumeEnabled = boolValue
+		case "DisplayInCurrencyEnabled":
+			// 兼容旧字段：同步到新配置 general_setting.quota_display_type（运行时生效）
+			// true -> USD, false -> TOKENS
+			newVal := "USD"
+			if !boolValue {
+				newVal = "TOKENS"
+			}
+			if cfg := config.GlobalConfig.Get("general_setting"); cfg != nil {
+				_ = config.UpdateConfigFromMap(cfg, map[string]string{"quota_display_type": newVal})
+			}
+		case "DisplayTokenStatEnabled":
+			common.DisplayTokenStatEnabled = boolValue
+		case "DrawingEnabled":
+			common.DrawingEnabled = boolValue
+		case "TaskEnabled":
+			common.TaskEnabled = boolValue
+		case "DataExportEnabled":
+			common.DataExportEnabled = boolValue
+		case "DefaultCollapseSidebar":
+			common.DefaultCollapseSidebar = boolValue
+		case "MjNotifyEnabled":
+			setting.MjNotifyEnabled = boolValue
+		case "MjAccountFilterEnabled":
+			setting.MjAccountFilterEnabled = boolValue
+		case "MjModeClearEnabled":
+			setting.MjModeClearEnabled = boolValue
+		case "MjForwardUrlEnabled":
+			setting.MjForwardUrlEnabled = boolValue
+		case "MjActionCheckSuccessEnabled":
+			setting.MjActionCheckSuccessEnabled = boolValue
+		case "CheckSensitiveEnabled":
+			setting.CheckSensitiveEnabled = boolValue
+		case "DemoSiteEnabled":
+			operation_setting.DemoSiteEnabled = boolValue
+		case "SelfUseModeEnabled":
+			operation_setting.SelfUseModeEnabled = boolValue
+		case "CheckSensitiveOnPromptEnabled":
+			setting.CheckSensitiveOnPromptEnabled = boolValue
+		case "ModelRequestRateLimitEnabled":
+			setting.ModelRequestRateLimitEnabled = boolValue
+		case "StopOnSensitiveEnabled":
+			setting.StopOnSensitiveEnabled = boolValue
+		case "SMTPSSLEnabled":
+			common.SMTPSSLEnabled = boolValue
+		case "SMTPStartTLSEnabled":
+			common.SMTPStartTLSEnabled = boolValue
+		case "SMTPInsecureSkipVerify":
+			common.SMTPInsecureSkipVerify = boolValue
+		case "SMTPForceAuthLogin":
+			common.SMTPForceAuthLogin = boolValue
+		case "WorkerAllowHttpImageRequestEnabled":
+			system_setting.WorkerAllowHttpImageRequestEnabled = boolValue
+		case "DefaultUseAutoGroup":
+			setting.DefaultUseAutoGroup = boolValue
+		case "ExposeRatioEnabled":
+			ratio_setting.SetExposeRatioEnabled(boolValue)
+		}
+	}
+	switch key {
+	case "EmailDomainWhitelist":
+		common.EmailDomainWhitelist = strings.Split(value, ",")
+	case "SMTPServer":
+		common.SMTPServer = value
+	case "SMTPPort":
+		intValue, _ := strconv.Atoi(value)
+		common.SMTPPort = intValue
+	case "SMTPAccount":
+		common.SMTPAccount = value
+	case "SMTPFrom":
+		common.SMTPFrom = value
+	case "SMTPToken":
+		common.SMTPToken = value
+	case "ServerAddress":
+		system_setting.ServerAddress = value
+	case "WorkerUrl":
+		system_setting.WorkerUrl = value
+	case "WorkerValidKey":
+		system_setting.WorkerValidKey = value
+	case "PayAddress":
+		operation_setting.PayAddress = value
+	case "Chats":
+		err = setting.UpdateChatsByJsonString(value)
+	case "AutoGroups":
+		err = setting.UpdateAutoGroupsByJsonString(value)
+	case "MaxTokenAutoGroups":
+		err = setting.UpdateMaxTokenAutoGroups(value)
+	case "CustomCallbackAddress":
+		operation_setting.CustomCallbackAddress = value
+	case "EpayId":
+		operation_setting.EpayId = value
+	case "EpayKey":
+		operation_setting.EpayKey = value
+	case "Price":
+		operation_setting.Price, _ = strconv.ParseFloat(value, 64)
+	case "USDExchangeRate":
+		operation_setting.USDExchangeRate, _ = strconv.ParseFloat(value, 64)
+	case "MinTopUp":
+		operation_setting.MinTopUp, _ = strconv.Atoi(value)
+	case "StripeApiSecret":
+		setting.StripeApiSecret = value
+	case "StripeWebhookSecret":
+		setting.StripeWebhookSecret = value
+	case "StripePriceId":
+		setting.StripePriceId = value
+	case "StripeUnitPrice":
+		setting.StripeUnitPrice, _ = strconv.ParseFloat(value, 64)
+	case "StripeMinTopUp":
+		setting.StripeMinTopUp, _ = strconv.Atoi(value)
+	case "StripePromotionCodesEnabled":
+		setting.StripePromotionCodesEnabled = value == "true"
+	case "CreemApiKey":
+		setting.CreemApiKey = value
+	case "CreemProducts":
+		setting.CreemProducts = value
+	case "CreemTestMode":
+		setting.CreemTestMode = value == "true"
+	case "CreemWebhookSecret":
+		setting.CreemWebhookSecret = value
+	case "WaffoEnabled":
+		setting.WaffoEnabled = value == "true"
+	case "WaffoApiKey":
+		setting.WaffoApiKey = value
+	case "WaffoPrivateKey":
+		setting.WaffoPrivateKey = value
+	case "WaffoPublicCert":
+		setting.WaffoPublicCert = value
+	case "WaffoSandboxPublicCert":
+		setting.WaffoSandboxPublicCert = value
+	case "WaffoSandboxApiKey":
+		setting.WaffoSandboxApiKey = value
+	case "WaffoSandboxPrivateKey":
+		setting.WaffoSandboxPrivateKey = value
+	case "WaffoSandbox":
+		setting.WaffoSandbox = value == "true"
+	case "WaffoMerchantId":
+		setting.WaffoMerchantId = value
+	case "WaffoNotifyUrl":
+		setting.WaffoNotifyUrl = value
+	case "WaffoReturnUrl":
+		setting.WaffoReturnUrl = value
+	case "WaffoSubscriptionReturnUrl":
+		setting.WaffoSubscriptionReturnUrl = value
+	case "WaffoCurrency":
+		setting.WaffoCurrency = value
+	case "WaffoUnitPrice":
+		setting.WaffoUnitPrice, _ = strconv.ParseFloat(value, 64)
+	case "WaffoMinTopUp":
+		setting.WaffoMinTopUp, _ = strconv.Atoi(value)
+	case "WaffoPancakeMerchantID":
+		setting.WaffoPancakeMerchantID = value
+	case "WaffoPancakePrivateKey":
+		setting.WaffoPancakePrivateKey = value
+	case "WaffoPancakeReturnURL":
+		setting.WaffoPancakeReturnURL = value
+	case "WaffoPancakeStoreID":
+		setting.WaffoPancakeStoreID = value
+	case "WaffoPancakeProductID":
+		setting.WaffoPancakeProductID = value
+	case "WaffoPancakeUnitPrice":
+		setting.WaffoPancakeUnitPrice, _ = strconv.ParseFloat(value, 64)
+	case "WaffoPancakeMinTopUp":
+		setting.WaffoPancakeMinTopUp, _ = strconv.Atoi(value)
+	case "TopupGroupRatio":
+		err = common.UpdateTopupGroupRatioByJSONString(value)
+	case "GitHubClientId":
+		common.GitHubClientId = value
+	case "GitHubClientSecret":
+		common.GitHubClientSecret = value
+	case "LinuxDOClientId":
+		common.LinuxDOClientId = value
+	case "LinuxDOClientSecret":
+		common.LinuxDOClientSecret = value
+	case "LinuxDOMinimumTrustLevel":
+		common.LinuxDOMinimumTrustLevel, _ = strconv.Atoi(value)
+	case "Footer":
+		common.Footer = value
+	case "SystemName":
+		common.SystemName = value
+	case "Logo":
+		common.Logo = value
+	case "WeChatServerAddress":
+		common.WeChatServerAddress = value
+	case "WeChatServerToken":
+		common.WeChatServerToken = value
+	case "WeChatAccountQRCodeImageURL":
+		common.WeChatAccountQRCodeImageURL = value
+	case "TelegramBotToken":
+		common.TelegramBotToken = value
+	case "TelegramBotName":
+		common.TelegramBotName = value
+	case "TurnstileSiteKey":
+		common.TurnstileSiteKey = value
+	case "TurnstileSecretKey":
+		common.TurnstileSecretKey = value
+	case "QuotaForNewUser":
+		common.QuotaForNewUser, _ = strconv.Atoi(value)
+	case "QuotaForInviter":
+		common.QuotaForInviter, _ = strconv.Atoi(value)
+	case "QuotaForInvitee":
+		common.QuotaForInvitee, _ = strconv.Atoi(value)
+	case "QuotaRemindThreshold":
+		common.QuotaRemindThreshold, _ = strconv.Atoi(value)
+	case "PreConsumedQuota":
+		common.PreConsumedQuota, _ = strconv.Atoi(value)
+	case "ModelRequestRateLimitCount":
+		setting.ModelRequestRateLimitCount, _ = strconv.Atoi(value)
+	case "ModelRequestRateLimitDurationMinutes":
+		setting.ModelRequestRateLimitDurationMinutes, _ = strconv.Atoi(value)
+	case "ModelRequestRateLimitSuccessCount":
+		setting.ModelRequestRateLimitSuccessCount, _ = strconv.Atoi(value)
+	case "ModelRequestRateLimitGroup":
+		err = setting.UpdateModelRequestRateLimitGroupByJSONString(value)
+	case "RetryTimes":
+		common.RetryTimes, _ = strconv.Atoi(value)
+	case "DataExportInterval":
+		common.DataExportInterval, _ = strconv.Atoi(value)
+	case "DataExportDefaultTime":
+		common.DataExportDefaultTime = value
+	case "ModelRatio":
+		err = ratio_setting.UpdateModelRatioByJSONString(value)
+	case "GroupRatio":
+		err = ratio_setting.UpdateGroupRatioByJSONString(value)
+	case "GroupGroupRatio":
+		err = ratio_setting.UpdateGroupGroupRatioByJSONString(value)
+	case "UserUsableGroups":
+		err = setting.UpdateUserUsableGroupsByJSONString(value)
+	case "CompletionRatio":
+		err = ratio_setting.UpdateCompletionRatioByJSONString(value)
+	case "ModelPrice":
+		err = ratio_setting.UpdateModelPriceByJSONString(value)
+	case "CacheRatio":
+		err = ratio_setting.UpdateCacheRatioByJSONString(value)
+	case "CreateCacheRatio":
+		err = ratio_setting.UpdateCreateCacheRatioByJSONString(value)
+	case "ImageRatio":
+		err = ratio_setting.UpdateImageRatioByJSONString(value)
+	case "AudioRatio":
+		err = ratio_setting.UpdateAudioRatioByJSONString(value)
+	case "AudioCompletionRatio":
+		err = ratio_setting.UpdateAudioCompletionRatioByJSONString(value)
+	case "TopUpLink":
+		common.TopUpLink = value
+	//case "ChatLink":
+	//	common.ChatLink = value
+	//case "ChatLink2":
+	//	common.ChatLink2 = value
+	case "ChannelDisableThreshold":
+		common.ChannelDisableThreshold, _ = strconv.ParseFloat(value, 64)
+	case "QuotaPerUnit":
+		common.QuotaPerUnit, _ = strconv.ParseFloat(value, 64)
+	case "SensitiveWords":
+		setting.SensitiveWordsFromString(value)
+	case "AutomaticDisableKeywords":
+		operation_setting.AutomaticDisableKeywordsFromString(value)
+	case "AutomaticDisableStatusCodes":
+		err = operation_setting.AutomaticDisableStatusCodesFromString(value)
+	case "AutomaticRetryStatusCodes":
+		err = operation_setting.AutomaticRetryStatusCodesFromString(value)
+	case "StreamCacheQueueLength":
+		setting.StreamCacheQueueLength, _ = strconv.Atoi(value)
+	case "PayMethods":
+		err = operation_setting.UpdatePayMethodsByJsonString(value)
+	case "WaffoPayMethods":
+		// WaffoPayMethods is read directly from OptionMap via setting.GetWaffoPayMethods().
+		// The value is already stored in OptionMap at the top of this function (line: common.OptionMap[key] = value).
+		// No additional in-memory variable to update.
+	case "SyslogEnabled":
+		common.SyslogEnabled = value == "true"
+		logger.SyncSyslogFromConfig()
+	case "SyslogNetwork":
+		common.SyslogNetwork = value
+		logger.SyncSyslogFromConfig()
+	case "SyslogAddr":
+		common.SyslogAddr = value
+		logger.SyncSyslogFromConfig()
+	case "SyslogTag":
+		common.SyslogTag = value
+		logger.SyncSyslogFromConfig()
+	}
+	return err
+}
+
 // handleConfigUpdate 处理分层配置更新，返回是否已处理
 func handleConfigUpdate(key, value string) bool {
+	if key == operation_setting.ToolPriceOptionKey {
+		operation_setting.LoadToolPricesFromJSONString(value)
+		return true
+	}
+
 	parts := strings.SplitN(key, ".", 2)
 	if len(parts) != 2 {
 		return false // 不是分层配置
@@ -500,8 +652,10 @@ func handleConfigUpdate(key, value string) bool {
 
 	// 特定配置的后处理
 	if configName == "performance_setting" {
-		// 同步磁盘缓存配置到 common 包
 		performance_setting.UpdateAndSync()
+	} else if configName == "billing_setting" {
+		InvalidatePricingCache()
+		ratio_setting.InvalidateExposedDataCache()
 	}
 
 	return true // 已处理

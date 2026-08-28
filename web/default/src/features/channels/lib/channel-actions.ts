@@ -19,12 +19,14 @@ For commercial licensing, please contact support@quantumnous.com
 import type { QueryClient } from '@tanstack/react-query'
 import i18next from 'i18next'
 import { toast } from 'sonner'
-import { formatCurrencyFromUSD } from '@/lib/currency'
+
 import {
   copyChannel,
   deleteChannel,
   testChannel,
   updateChannel,
+  updateChannelStatus,
+  batchUpdateChannelStatus,
   batchDeleteChannels,
   batchSetChannelTag,
   enableTagChannels,
@@ -34,7 +36,6 @@ import {
   editTagChannels,
   testAllChannels,
   updateAllChannelsBalance,
-  updateChannelBalance,
 } from '../api'
 import { CHANNEL_STATUS, ERROR_MESSAGES, SUCCESS_MESSAGES } from '../constants'
 import type { ChannelTestResponse, CopyChannelParams } from '../types'
@@ -119,7 +120,7 @@ export async function handleEnableChannel(
   onSuccess?: () => void
 ): Promise<void> {
   try {
-    const response = await updateChannel(id, { status: CHANNEL_STATUS.ENABLED })
+    const response = await updateChannelStatus(id, CHANNEL_STATUS.ENABLED)
     if (response.success) {
       toast.success(i18next.t(SUCCESS_MESSAGES.ENABLED))
       queryClient?.invalidateQueries({ queryKey: channelsQueryKeys.lists() })
@@ -141,9 +142,10 @@ export async function handleDisableChannel(
   onSuccess?: () => void
 ): Promise<void> {
   try {
-    const response = await updateChannel(id, {
-      status: CHANNEL_STATUS.MANUAL_DISABLED,
-    })
+    const response = await updateChannelStatus(
+      id,
+      CHANNEL_STATUS.MANUAL_DISABLED
+    )
     if (response.success) {
       toast.success(i18next.t(SUCCESS_MESSAGES.DISABLED))
       queryClient?.invalidateQueries({ queryKey: channelsQueryKeys.lists() })
@@ -357,41 +359,6 @@ export async function handleCopyChannel(
   }
 }
 
-/**
- * Update channel balance
- */
-export async function handleUpdateChannelBalance(
-  id: number,
-  queryClient?: QueryClient,
-  onSuccess?: (balance: number) => void
-): Promise<void> {
-  try {
-    const response = await updateChannelBalance(id)
-    if (response.success && response.balance !== undefined) {
-      const balance = response.balance
-      toast.success(
-        i18next.t('Balance updated: {{balance}}', {
-          balance: formatCurrencyFromUSD(balance, {
-            digitsLarge: 2,
-            digitsSmall: 4,
-            abbreviate: false,
-          }),
-        })
-      )
-      queryClient?.invalidateQueries({ queryKey: channelsQueryKeys.lists() })
-      onSuccess?.(balance)
-    } else {
-      toast.error(response.message || i18next.t('Failed to update balance'))
-    }
-  } catch (_error: unknown) {
-    toast.error(
-      _error instanceof Error
-        ? _error.message
-        : i18next.t('Failed to update balance')
-    )
-  }
-}
-
 // ============================================================================
 // Batch Actions
 // ============================================================================
@@ -441,16 +408,9 @@ export async function handleBatchEnable(
   }
 
   try {
-    // Update each channel individually
-    const promises = ids.map((id) =>
-      updateChannel(id, { status: CHANNEL_STATUS.ENABLED })
-    )
-    const results = await Promise.allSettled(promises)
-
-    const successCount = results.filter(
-      (r) => r.status === 'fulfilled' && r.value.success
-    ).length
-    const failCount = results.length - successCount
+    const response = await batchUpdateChannelStatus(ids, CHANNEL_STATUS.ENABLED)
+    const successCount = response.success ? response.data || 0 : 0
+    const failCount = ids.length - successCount
 
     if (successCount > 0) {
       toast.success(
@@ -460,7 +420,9 @@ export async function handleBatchEnable(
       onSuccess?.()
     }
 
-    if (failCount > 0) {
+    if (!response.success) {
+      toast.error(response.message || i18next.t('Failed to enable channels'))
+    } else if (failCount > 0) {
       toast.error(
         i18next.t('{{count}} channel(s) failed to enable', { count: failCount })
       )
@@ -484,16 +446,12 @@ export async function handleBatchDisable(
   }
 
   try {
-    // Update each channel individually
-    const promises = ids.map((id) =>
-      updateChannel(id, { status: CHANNEL_STATUS.MANUAL_DISABLED })
+    const response = await batchUpdateChannelStatus(
+      ids,
+      CHANNEL_STATUS.MANUAL_DISABLED
     )
-    const results = await Promise.allSettled(promises)
-
-    const successCount = results.filter(
-      (r) => r.status === 'fulfilled' && r.value.success
-    ).length
-    const failCount = results.length - successCount
+    const successCount = response.success ? response.data || 0 : 0
+    const failCount = ids.length - successCount
 
     if (successCount > 0) {
       toast.success(
@@ -503,7 +461,9 @@ export async function handleBatchDisable(
       onSuccess?.()
     }
 
-    if (failCount > 0) {
+    if (!response.success) {
+      toast.error(response.message || i18next.t('Failed to disable channels'))
+    } else if (failCount > 0) {
       toast.error(
         i18next.t('{{count}} channel(s) failed to disable', {
           count: failCount,
@@ -631,7 +591,7 @@ export async function handleDeleteAllDisabled(
 }
 
 /**
- * Fix channel abilities
+ * Repair channel consistency
  */
 export async function handleFixAbilities(
   queryClient?: QueryClient,
@@ -641,18 +601,23 @@ export async function handleFixAbilities(
     const response = await fixChannelAbilities()
     if (response.success && response.data) {
       toast.success(
-        i18next.t('Fixed abilities: {{success}} succeeded, {{fails}} failed', {
-          success: response.data.success,
-          fails: response.data.fails,
-        })
+        i18next.t(
+          'Channel consistency repaired: {{success}} succeeded, {{fails}} failed',
+          {
+            success: response.data.success,
+            fails: response.data.fails,
+          }
+        )
       )
       queryClient?.invalidateQueries({ queryKey: channelsQueryKeys.lists() })
       onSuccess?.(response.data)
     } else {
-      toast.error(response.message || i18next.t('Failed to fix abilities'))
+      toast.error(
+        response.message || i18next.t('Failed to repair channel consistency')
+      )
     }
   } catch {
-    toast.error(i18next.t('Failed to fix abilities'))
+    toast.error(i18next.t('Failed to repair channel consistency'))
   }
 }
 

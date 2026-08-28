@@ -16,13 +16,15 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useState, useMemo } from 'react'
 import { Plus, X } from 'lucide-react'
+import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
+
+import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { StatusBadge } from '@/components/status-badge'
+
 import { safeJsonParseWithValidation } from '../utils/json-parser'
 import { isArray } from '../utils/json-validators'
 
@@ -53,7 +55,7 @@ export function AmountOptionsVisualEditor({
   }, [value, t])
 
   const handleAdd = () => {
-    const amount = Number.parseFloat(newAmount)
+    const amount = parseFloat(newAmount)
     if (isNaN(amount) || amount <= 0) {
       return
     }
@@ -154,7 +156,7 @@ export function AmountOptionsVisualEditor({
             e.stopPropagation()
             handleAdd()
           }}
-          disabled={!newAmount || Number.parseFloat(newAmount) <= 0}
+          disabled={!newAmount || parseFloat(newAmount) <= 0}
           className='w-full sm:w-auto'
         >
           <Plus className='h-4 w-4 sm:mr-2' />

@@ -219,6 +219,11 @@ func (p *CasProvider) GetProviderPrefix() string {
 	return "cas_"
 }
 
+// ProviderUserIDColumn returns the users-table column storing the CAS user ID.
+func (p *CasProvider) ProviderUserIDColumn() string {
+	return "cas_id"
+}
+
 type casAuthFailure struct {
 	Code        string `xml:"code,attr"`
 	Description string `xml:",chardata"`

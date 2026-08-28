@@ -16,15 +16,17 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useEffect, useMemo, useState } from 'react'
-import type { z } from 'zod'
-import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2 } from 'lucide-react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { cn } from '@/lib/utils'
-import { useStatus } from '@/hooks/use-status'
+import type { z } from 'zod'
+
+import { Dialog } from '@/components/dialog'
+import { PasswordInput } from '@/components/password-input'
+import { Turnstile } from '@/components/turnstile'
 import { Button } from '@/components/ui/button'
 import {
   Form,
@@ -36,13 +38,10 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Dialog } from '@/components/dialog'
-import { PasswordInput } from '@/components/password-input'
-import { Turnstile } from '@/components/turnstile'
 import { register, wechatLoginByCode } from '@/features/auth/api'
 import { LegalConsent } from '@/features/auth/components/legal-consent'
 import { OAuthProviders } from '@/features/auth/components/oauth-providers'
-import { getRegisterFormSchema } from '@/features/auth/constants'
+import { registerFormSchema } from '@/features/auth/constants'
 import { useAuthRedirect } from '@/features/auth/hooks/use-auth-redirect'
 import { useEmailVerification } from '@/features/auth/hooks/use-email-verification'
 import { useTurnstile } from '@/features/auth/hooks/use-turnstile'
@@ -50,6 +49,10 @@ import {
   getAffiliateCode,
   saveAffiliateCode,
 } from '@/features/auth/lib/storage'
+import { useStatus } from '@/hooks/use-status'
+import { isAuthBundle } from '@/lib/api'
+import { getServerErrorMessageKey } from '@/lib/server-error-message'
+import { cn } from '@/lib/utils'
 
 export function SignUpForm({
   className,
@@ -62,6 +65,7 @@ export function SignUpForm({
   const [wechatCode, setWeChatCode] = useState('')
   const [isWeChatDialogOpen, setIsWeChatDialogOpen] = useState(false)
   const [isWeChatSubmitting, setIsWeChatSubmitting] = useState(false)
+  const [turnstileWidgetKey, setTurnstileWidgetKey] = useState(0)
   const legalConsentErrorMessage = t('Please agree to the legal terms first')
 
   const { status } = useStatus()
@@ -83,16 +87,8 @@ export function SignUpForm({
     validateTurnstile,
   })
 
-  const ldapEnabled = Boolean(
-    status?.ldap_login ?? status?.data?.ldap_login
-  )
-  const registerSchema = useMemo(
-    () => getRegisterFormSchema(ldapEnabled),
-    [ldapEnabled]
-  )
-
-  const form = useForm<z.infer<typeof registerSchema>>({
-    resolver: zodResolver(registerSchema),
+  const form = useForm<z.infer<typeof registerFormSchema>>({
+    resolver: zodResolver(registerFormSchema),
     defaultValues: {
       username: '',
       email: '',
@@ -142,7 +138,7 @@ export function SignUpForm({
     }
   }, [])
 
-  async function onSubmit(data: z.infer<typeof registerSchema>) {
+  async function onSubmit(data: z.infer<typeof registerFormSchema>) {
     if (requiresLegalConsent && !agreedToLegal) {
       toast.error(legalConsentErrorMessage)
       return
@@ -187,7 +183,10 @@ export function SignUpForm({
   }
 
   async function handleSendVerificationCode() {
-    await sendCode(emailValue || '')
+    if (await sendCode(emailValue || '')) {
+      setTurnstileToken('')
+      setTurnstileWidgetKey((current) => current + 1)
+    }
   }
 
   const handleOpenWeChatDialog = () => {
@@ -216,29 +215,29 @@ export function SignUpForm({
     setIsWeChatSubmitting(true)
     try {
       const res = await wechatLoginByCode(wechatCode)
-      if (res?.success) {
-        await handleLoginSuccess(res.data as { id?: number } | null)
+      if (res?.success && isAuthBundle(res.data)) {
+        await handleLoginSuccess(res.data)
         toast.success(t('Signed in via WeChat'))
         handleWeChatDialogChange(false)
       } else {
+        if (getServerErrorMessageKey(res)) return
         toast.error(res?.message || t('Login failed'))
       }
-    } catch {
+    } catch (error: unknown) {
+      if (getServerErrorMessageKey(error)) return
       toast.error(t('Login failed'))
     } finally {
       setIsWeChatSubmitting(false)
     }
   }
 
-  let verificationButtonContent
+  let verificationCodeAction: ReactNode = t('Send code')
   if (isActive) {
-    verificationButtonContent = t('Resend ({{seconds}}s)', {
+    verificationCodeAction = t('Resend ({{seconds}}s)', {
       seconds: secondsLeft,
     })
   } else if (isSendingCode) {
-    verificationButtonContent = <Loader2 className='h-4 w-4 animate-spin' />
-  } else {
-    verificationButtonContent = t('Send code')
+    verificationCodeAction = <Loader2 className='h-4 w-4 animate-spin' />
   }
 
   return (
@@ -341,7 +340,7 @@ export function SignUpForm({
                 }
                 onClick={handleSendVerificationCode}
               >
-                {verificationButtonContent}
+                {verificationCodeAction}
               </Button>
             </div>
           </>
@@ -351,6 +350,7 @@ export function SignUpForm({
         {isTurnstileEnabled && (
           <div className='mt-2'>
             <Turnstile
+              key={turnstileWidgetKey}
               siteKey={turnstileSiteKey}
               onVerify={setTurnstileToken}
             />

@@ -16,7 +16,6 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import type { ColumnDef, RowSelectionState } from '@tanstack/react-table'
 import {
@@ -26,9 +25,13 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { useIsMobile } from '@/hooks/use-mobile'
+
+import { DataTableView, useDataTable } from '@/components/data-table'
+import { Dialog } from '@/components/dialog'
+import { StatusBadge } from '@/components/status-badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
@@ -45,9 +48,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { DataTableView, useDataTable } from '@/components/data-table'
-import { Dialog } from '@/components/dialog'
-import { StatusBadge } from '@/components/status-badge'
+import { useDebounce } from '@/hooks/use-debounce'
+import { useIsMobile } from '@/hooks/use-mobile'
+
 import { applyUpstreamOverwrite } from '../../api'
 import { modelsQueryKeys, vendorsQueryKeys } from '../../lib'
 import type { SyncOverwritePayload } from '../../types'
@@ -115,6 +118,7 @@ export function UpstreamConflictDialog({
   } = useModels()
   const isMobile = useIsMobile()
   const [search, setSearch] = useState('')
+  const debouncedSearch = useDebounce(search, 200)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
   const [pageSize, setPageSize] = useState(10)
@@ -147,7 +151,7 @@ export function UpstreamConflictDialog({
 
   const totalModels = upstreamConflicts.length
   const totalFields = conflictRows.length
-  const normalizedSearch = search.trim().toLowerCase()
+  const normalizedSearch = debouncedSearch.trim().toLowerCase()
 
   const { matchingModelNames, visibleRowIds } = useMemo(() => {
     if (!normalizedSearch) {

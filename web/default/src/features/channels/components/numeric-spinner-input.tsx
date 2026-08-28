@@ -16,14 +16,16 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useState, useEffect, useRef } from 'react'
 import { Minus, Plus } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { useState, useEffect, useRef } from 'react'
+
 import { Label } from '@/components/ui/label'
+import { cn } from '@/lib/utils'
 
 interface NumericSpinnerInputProps {
   value: number | null | undefined
   onChange: (value: number) => void
+  onCommit?: () => void
   min?: number
   max?: number
   step?: number
@@ -35,6 +37,7 @@ interface NumericSpinnerInputProps {
 export function NumericSpinnerInput({
   value,
   onChange,
+  onCommit,
   min = 0,
   max,
   step = 1,
@@ -95,7 +98,7 @@ export function NumericSpinnerInput({
   const commitValue = () => {
     setEditing(false)
     const num = Number(localValue)
-    if (isNaN(num) || localValue === '' || localValue === '-') {
+    if (Number.isNaN(num) || localValue === '' || localValue === '-') {
       setLocalValue(String(value ?? 0))
       return
     }
@@ -106,10 +109,23 @@ export function NumericSpinnerInput({
     }
   }
 
+  const handleControlBlur = (e: React.FocusEvent<HTMLDivElement>) => {
+    if (
+      e.relatedTarget instanceof Node &&
+      e.currentTarget.contains(e.relatedTarget)
+    ) {
+      return
+    }
+    onCommit?.()
+  }
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault()
-      commitValue()
+      // Blurring routes Enter through the same focusout path as clicking
+      // away (input onBlur -> commitValue, container onBlur -> onCommit),
+      // so commit and onCommit each fire exactly once.
+      inputRef.current?.blur()
     } else if (e.key === 'Escape') {
       setEditing(false)
       setLocalValue(String(value ?? 0))
@@ -125,6 +141,7 @@ export function NumericSpinnerInput({
         <Label className='text-muted-foreground mr-1.5 text-xs'>{label}</Label>
       )}
       <div
+        onBlur={handleControlBlur}
         className={cn(
           'group/spinner border-input inline-flex h-7 items-center gap-0 rounded-md border transition-colors',
           !disabled && 'hover:bg-muted/60',

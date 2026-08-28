@@ -16,13 +16,23 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useEffect, useMemo } from 'react'
-import { z } from 'zod'
-import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useMemo } from 'react'
+import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+import { z } from 'zod'
+
+import {
+  SideDrawerSection,
+  sideDrawerContentClassName,
+  sideDrawerFooterClassName,
+  sideDrawerFormClassName,
+  sideDrawerHeaderClassName,
+} from '@/components/drawer-layout'
+import { JsonCodeEditor } from '@/components/json-code-editor'
+import { MultiSelect } from '@/components/multi-select'
 import { Button } from '@/components/ui/button'
 import {
   Form,
@@ -50,15 +60,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { Textarea } from '@/components/ui/textarea'
-import {
-  SideDrawerSection,
-  sideDrawerContentClassName,
-  sideDrawerFooterClassName,
-  sideDrawerFormClassName,
-  sideDrawerHeaderClassName,
-} from '@/components/drawer-layout'
-import { MultiSelect } from '@/components/multi-select'
+
 import {
   checkClusterNameAvailability,
   createDeployment,
@@ -194,7 +196,7 @@ export function CreateDeploymentDrawer({
         map.set(key, { label: String(name), value: key })
       }
     })
-    return [...map.values()]
+    return Array.from(map.values())
   }, [replicasData])
 
   const { data: priceData, isLoading: _isLoadingPrice } = useQuery({
@@ -458,10 +460,12 @@ export function CreateDeploymentDrawer({
                     <FormItem>
                       <FormLabel>{t('Hardware type')}</FormLabel>
                       <Select
-                        items={hardwareOptions.map((opt) => ({
+                        items={[
+                          ...hardwareOptions.map((opt) => ({
                             value: opt.value,
                             label: opt.label,
-                          }))}
+                          })),
+                        ]}
                         value={field.value}
                         onValueChange={(v) => field.onChange(v)}
                         disabled={isLoadingHardware}
@@ -698,10 +702,14 @@ export function CreateDeploymentDrawer({
                     <FormItem>
                       <FormLabel>{t('Environment variables (JSON)')}</FormLabel>
                       <FormControl>
-                        <Textarea
-                          className='min-h-24 font-mono text-xs'
+                        <JsonCodeEditor
+                          value={field.value || ''}
+                          onChange={field.onChange}
+                          name={field.name}
+                          onBlur={field.onBlur}
+                          textareaRef={field.ref}
                           placeholder='{"KEY":"VALUE"}'
-                          {...field}
+                          heightClassName='h-40 min-h-40 max-h-40'
                         />
                       </FormControl>
                       <FormMessage />
@@ -718,10 +726,14 @@ export function CreateDeploymentDrawer({
                         {t('Secret environment variables (JSON)')}
                       </FormLabel>
                       <FormControl>
-                        <Textarea
-                          className='min-h-24 font-mono text-xs'
+                        <JsonCodeEditor
+                          value={field.value || ''}
+                          onChange={field.onChange}
+                          name={field.name}
+                          onBlur={field.onBlur}
+                          textareaRef={field.ref}
                           placeholder='{"SECRET":"VALUE"}'
-                          {...field}
+                          heightClassName='h-40 min-h-40 max-h-40'
                         />
                       </FormControl>
                       <FormMessage />

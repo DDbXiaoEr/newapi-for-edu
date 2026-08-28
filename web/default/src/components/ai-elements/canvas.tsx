@@ -16,8 +16,9 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import type { ReactNode } from 'react'
 import { Background, ReactFlow, type ReactFlowProps } from '@xyflow/react'
+import type { ReactNode } from 'react'
+
 import '@xyflow/react/dist/style.css'
 import { Controls } from './controls'
 
@@ -31,7 +32,7 @@ export const Canvas = ({ children, ...props }: CanvasProps) => (
     fitView
     panOnDrag={false}
     panOnScroll
-    selectionOnDrag
+    selectionOnDrag={true}
     zoomOnDoubleClick={false}
     {...props}
   >

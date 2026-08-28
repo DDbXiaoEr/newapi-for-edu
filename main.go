@@ -2,13 +2,17 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"embed"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -19,9 +23,12 @@ import (
 	"github.com/QuantumNous/new-api/middleware"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/oauth"
+	perfmetrics "github.com/QuantumNous/new-api/pkg/perf_metrics"
 	"github.com/QuantumNous/new-api/relay"
+	kitutil "github.com/QuantumNous/new-api/relaykit/relayconvert/kitutil"
 	"github.com/QuantumNous/new-api/router"
 	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/new-api/service/authz"
 	_ "github.com/QuantumNous/new-api/setting/performance_setting"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 
@@ -43,6 +50,10 @@ var indexPage []byte
 
 func main() {
 	startTime := time.Now()
+	kitutil.SetLogging(common.SysLog, func(message string) {
+		logger.LogError(nil, message)
+	})
+	kitutil.SetSystemErrorLogging(common.SysError)
 
 	err := InitResources()
 	if err != nil {
@@ -57,6 +68,8 @@ func main() {
 	if common.DebugEnabled {
 		common.SysLog("running in debug mode")
 	}
+
+	kitutil.Debug.Store(common.DebugEnabled)
 
 	defer func() {
 		err := model.CloseDB()
@@ -91,8 +104,15 @@ func main() {
 		go model.SyncChannelCache(common.SyncFrequency)
 	}
 
+	// Warm pricing after channel cache initialization so Advanced Custom
+	// endpoint inference can read cached route settings on first request.
+	model.GetPricing()
+
 	// 热更新配置
 	go model.SyncOptions(common.SyncFrequency)
+
+	// 周期性重载授权策略，保证多节点/多 master 部署下权限变更能传播到每个实例
+	go authz.StartPolicySync(common.SyncFrequency)
 
 	// 数据看板
 	go model.UpdateQuotaData()
@@ -105,15 +125,19 @@ func main() {
 		go controller.AutomaticallyUpdateChannels(frequency)
 	}
 
-	go controller.AutomaticallyTestChannels()
-
 	// Codex credential auto-refresh check every 10 minutes, refresh when expires within 1 day
 	service.StartCodexCredentialAutoRefreshTask()
 
 	// Subscription quota reset task (daily/weekly/monthly/custom)
 	service.StartSubscriptionQuotaResetTask()
 
-	// Wire task polling adaptor factory (breaks service -> relay import cycle)
+	// Report this process as a system instance so the System Info page can show
+	// all currently alive nodes in multi-instance deployments.
+	service.StartSystemInstanceReporter()
+
+	// Wire task polling adaptor factory (breaks service -> relay import cycle).
+	// Must run before the system task runner starts: the async_task_poll handler
+	// calls service.RunTaskPollingOnce, which needs this factory set.
 	service.GetTaskAdaptorFunc = func(platform constant.TaskPlatform) service.TaskPollingAdaptor {
 		a := relay.GetTaskAdaptor(platform)
 		if a == nil {
@@ -122,17 +146,14 @@ func main() {
 		return a
 	}
 
-	// Channel upstream model update check task
-	controller.StartChannelUpstreamModelUpdateTask()
+	// Register the periodic channel test, upstream model update, and async task
+	// polling (Midjourney / Suno / video) jobs as scheduled system tasks
+	// (DB-lease dedup across masters + run history), then start the runner that
+	// schedules and executes them. Master-only execution and the UpdateTask
+	// switch are enforced inside the runner and each handler's Enabled().
+	controller.RegisterScheduledSystemTasks()
+	service.StartSystemTaskRunner()
 
-	if common.IsMasterNode && constant.UpdateTask {
-		gopool.Go(func() {
-			controller.UpdateMidjourneyTaskBulk()
-		})
-		gopool.Go(func() {
-			controller.UpdateTaskBulk()
-		})
-	}
 	if os.Getenv("BATCH_UPDATE_ENABLED") == "true" {
 		common.BatchUpdateEnabled = true
 		common.SysLog("batch update enabled with interval " + strconv.Itoa(common.BatchUpdateInterval) + "s")
@@ -154,6 +175,10 @@ func main() {
 
 	// Initialize HTTP server
 	server := gin.New()
+	if err := middleware.ConfigureTrustedProxies(server); err != nil {
+		common.FatalLog("failed to configure trusted proxies: " + err.Error())
+		return
+	}
 	server.Use(gin.CustomRecovery(func(c *gin.Context, err any) {
 		common.SysLog(fmt.Sprintf("panic detected: %v", err))
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -166,14 +191,15 @@ func main() {
 	// This will cause SSE not to work!!!
 	//server.Use(gzip.Gzip(gzip.DefaultCompression))
 	server.Use(middleware.RequestId())
-	server.Use(middleware.PoweredBy())
+	server.Use(middleware.Version())
 	server.Use(middleware.I18n())
 	middleware.SetUpLogger(server)
+
 	// Initialize session store
 	var store sessions.Store
 	if common.RedisEnabled {
 		opt := common.RDB.Options()
-		s, redisErr := redisstore.NewStoreWithDB(10, "tcp", opt.Addr, opt.Username, opt.Password, strconv.Itoa(opt.DB), []byte(common.SessionSecret))
+		s, redisErr := redisstore.NewStoreWithDB(10, "tcp", opt.Addr, opt.Password, strconv.Itoa(opt.DB), []byte(common.SessionSecret))
 		if redisErr != nil {
 			common.FatalLog("failed to create Redis session store: " + redisErr.Error())
 		}
@@ -195,19 +221,47 @@ func main() {
 	InjectGoogleAnalytics()
 
 	// 设置路由
-	router.SetRouter(server, buildFS, indexPage)
+	router.SetRouter(server, router.WebAssets{
+		BuildFS:   buildFS,
+		IndexPage: indexPage,
+	})
 	var port = os.Getenv("PORT")
 	if port == "" {
 		port = strconv.Itoa(*common.Port)
 	}
 
-	// Log startup success message
+	srv := &http.Server{
+		Addr:    ":" + port,
+		Handler: server,
+	}
+
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			common.FatalLog("failed to start HTTP server: " + err.Error())
+		}
+	}()
+
+	time.Sleep(100 * time.Millisecond)
+
 	common.LogStartupSuccess(startTime, port)
 
-	err = server.Run(":" + port)
-	if err != nil {
-		common.FatalLog("failed to start HTTP server: " + err.Error())
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	sig := <-quit
+	common.SysLog(fmt.Sprintf("received signal: %v, shutting down...", sig))
+
+	// SSE streams may run for minutes; give them time to finish before forced exit
+	shutdownTimeout := time.Duration(common.GetEnvOrDefault("SHUTDOWN_TIMEOUT_SECONDS", 120)) * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		common.SysError(fmt.Sprintf("server forced to shutdown: %v", err))
 	}
+	// 内存中的看板数据保存入库，避免重启丢失未落库数据 (issue #5679)
+	if common.DataExportEnabled {
+		model.SaveQuotaDataCache()
+	}
+	common.SysLog("server exited")
 }
 
 func InjectUmamiAnalytics() {
@@ -225,8 +279,9 @@ func InjectUmamiAnalytics() {
 		analyticsInjectBuilder.WriteString("\"></script>")
 	}
 	analyticsInjectBuilder.WriteString("<!--Umami QuantumNous-->\n")
-	analyticsInject := analyticsInjectBuilder.String()
-	indexPage = bytes.ReplaceAll(indexPage, []byte("<!--umami-->\n"), []byte(analyticsInject))
+	analyticsInject := []byte(analyticsInjectBuilder.String())
+	placeholder := []byte("<!--umami-->\n")
+	indexPage = bytes.ReplaceAll(indexPage, placeholder, analyticsInject)
 }
 
 func InjectGoogleAnalytics() {
@@ -247,104 +302,93 @@ func InjectGoogleAnalytics() {
 		analyticsInjectBuilder.WriteString("</script>")
 	}
 	analyticsInjectBuilder.WriteString("<!--Google Analytics QuantumNous-->\n")
-	analyticsInject := analyticsInjectBuilder.String()
-	indexPage = bytes.ReplaceAll(indexPage, []byte("<!--Google Analytics-->\n"), []byte(analyticsInject))
+	analyticsInject := []byte(analyticsInjectBuilder.String())
+	placeholder := []byte("<!--Google Analytics-->\n")
+	indexPage = bytes.ReplaceAll(indexPage, placeholder, analyticsInject)
 }
 
 func InitResources() error {
-	var err error
-	var stepStart time.Time
-
-	stepStart = time.Now()
-	err = godotenv.Load(".env")
+	// Initialize resources here if needed
+	// This is a placeholder function for future resource initialization
+	err := godotenv.Load(".env")
 	if err != nil {
 		if common.DebugEnabled {
 			common.SysLog("No .env file found, using default environment variables. If needed, please create a .env file and set the relevant variables.")
 		}
 	}
-	common.LogModInitTime("load .env file", stepStart)
 
-	stepStart = time.Now()
+	// 加载环境变量
 	common.InitEnv()
-	common.LogModInitTime("init env vars", stepStart)
 
-	stepStart = time.Now()
 	logger.SetupLogger()
-	common.LogModInitTime("setup logger", stepStart)
 
-	stepStart = time.Now()
+	// Initialize model settings
 	ratio_setting.InitRatioSettings()
-	common.LogModInitTime("init ratio settings", stepStart)
 
-	stepStart = time.Now()
 	service.InitHttpClient()
-	common.LogModInitTime("init http client", stepStart)
 
-	stepStart = time.Now()
 	service.InitTokenEncoders()
-	common.LogModInitTime("init token encoders", stepStart)
 
-	stepStart = time.Now()
+	// Initialize SQL Database
 	err = model.InitDB()
 	if err != nil {
 		common.FatalLog("failed to initialize database: " + err.Error())
 		return err
 	}
-	common.LogModInitTime("init main database", stepStart)
+	if err = authz.Init(model.DB); err != nil {
+		common.FatalLog("failed to initialize authorization: " + err.Error())
+		return err
+	}
 
-	stepStart = time.Now()
 	model.CheckSetup()
-	common.LogModInitTime("check setup", stepStart)
 
-	stepStart = time.Now()
+	// Initialize options, should after model.InitDB()
+	if common.IsMasterNode {
+		if err := model.MigrateRetiredFrontendOptions(); err != nil {
+			common.SysError("failed to migrate retired frontend options: " + err.Error())
+		}
+	}
 	model.InitOptionMap()
-	common.LogModInitTime("init option map", stepStart)
 
-	stepStart = time.Now()
+	// 清理旧的磁盘缓存文件
 	common.CleanupOldCacheFiles()
-	common.LogModInitTime("cleanup old cache files", stepStart)
 
-	stepStart = time.Now()
-	model.GetPricing()
-	common.LogModInitTime("get pricing", stepStart)
-
-	stepStart = time.Now()
+	// Initialize SQL Database
 	err = model.InitLogDB()
 	if err != nil {
 		return err
 	}
-	common.LogModInitTime("init log database", stepStart)
 
-	stepStart = time.Now()
+	// Initialize Redis
 	err = common.InitRedisClient()
 	if err != nil {
 		return err
 	}
-	common.LogModInitTime("init redis client", stepStart)
 
-	stepStart = time.Now()
+	perfmetrics.Init()
+
+	// 启动系统监控
 	common.StartSystemMonitor()
-	common.LogModInitTime("start system monitor", stepStart)
 
-	stepStart = time.Now()
+	// Initialize i18n
 	err = i18n.Init()
 	if err != nil {
 		common.SysError("failed to initialize i18n: " + err.Error())
+		// Don't return error, i18n is not critical
 	} else {
 		common.SysLog("i18n initialized with languages: " + strings.Join(i18n.SupportedLanguages(), ", "))
 	}
-	common.LogModInitTime("init i18n", stepStart)
-
-	stepStart = time.Now()
+	// Register user language loader for lazy loading
 	i18n.SetUserLangLoader(model.GetUserLanguage)
-	common.LogModInitTime("set user lang loader", stepStart)
 
-	stepStart = time.Now()
+	// Load custom OAuth providers from database
 	err = oauth.LoadCustomProviders()
 	if err != nil {
 		common.SysError("failed to load custom OAuth providers: " + err.Error())
+		// Don't return error, custom OAuth is not critical
 	}
-	common.LogModInitTime("load oauth providers", stepStart)
+
+	service.StartAuthArtifactCleanup()
 
 	return nil
 }

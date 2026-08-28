@@ -16,19 +16,21 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useState, useEffect, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Loader2, AlertCircle } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+
+import { Dialog } from '@/components/dialog'
+import { MultiSelect } from '@/components/multi-select'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
-import { Dialog } from '@/components/dialog'
-import { MultiSelect } from '@/components/multi-select'
+
 import {
   getTagModels,
   editTagChannels,
@@ -71,7 +73,7 @@ export function TagBatchEditDialog({
   const groupOptions = useMemo(() => {
     if (!groupsData?.data) return []
     const allGroups = new Set([...groupsData.data, ...groups])
-    return [...allGroups].map((group) => ({
+    return Array.from(allGroups).map((group) => ({
       value: group,
       label: group,
     }))
@@ -119,7 +121,7 @@ export function TagBatchEditDialog({
     if (modelMapping.trim()) {
       try {
         JSON.parse(modelMapping)
-      } catch {
+      } catch (_error) {
         toast.error(t('Model mapping must be valid JSON'))
         return
       }

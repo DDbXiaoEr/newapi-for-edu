@@ -16,16 +16,23 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useCallback } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+
 import { sendChatCompletion } from '../api'
-import { MESSAGE_STATUS, ERROR_MESSAGES } from '../constants'
+import { ERROR_MESSAGES } from '../constants'
 import {
+  applyStreamingChunk,
   buildChatCompletionPayload,
   updateAssistantMessageWithError,
   updateLastAssistantMessage,
-  processStreamingContent,
-  finalizeMessage,
+  parseRequestErrorDetails,
+  applyChatCompletionResponse,
+  completeAssistantMessage,
+  hasChatCompletionChoice,
+  isAssistantMessageFinal,
+  isAssistantMessagePending,
 } from '../lib'
 import type { Message, PlaygroundConfig, ParameterEnabled } from '../types'
 import { useStreamRequest } from './use-stream-request'
@@ -36,6 +43,26 @@ interface UseChatHandlerOptions {
   onMessageUpdate: (updater: (prev: Message[]) => Message[]) => void
 }
 
+const KNOWN_ERROR_MESSAGES = new Set<string>(Object.values(ERROR_MESSAGES))
+const STREAM_UPDATE_FLUSH_MS = 50
+
+type PendingStreamChunks = {
+  generation: number
+  content: string
+  reasoning: string
+}
+
+function mergePendingStreamChunk(
+  currentChunk: string,
+  nextChunk: string
+): string {
+  if (!currentChunk || !nextChunk.startsWith(currentChunk)) {
+    return currentChunk + nextChunk
+  }
+
+  return nextChunk
+}
+
 /**
  * Hook for handling chat message sending and receiving
  */
@@ -44,81 +71,201 @@ export function useChatHandler({
   parameterEnabled,
   onMessageUpdate,
 }: UseChatHandlerOptions) {
+  const { t } = useTranslation()
   const { sendStreamRequest, stopStream, isStreaming } = useStreamRequest()
+  const [isRequesting, setIsRequesting] = useState(false)
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const requestGenerationRef = useRef(0)
+  const pendingStreamChunksRef = useRef<PendingStreamChunks>({
+    generation: 0,
+    content: '',
+    reasoning: '',
+  })
+  const streamFlushTimerRef = useRef<number | null>(null)
 
-  // Handle stream update
-  const handleStreamUpdate = useCallback(
-    (type: 'reasoning' | 'content', chunk: string) => {
-      onMessageUpdate((prev) =>
-        updateLastAssistantMessage(prev, (message) => {
-          if (message.status === MESSAGE_STATUS.ERROR) return message
+  const discardPendingStreamUpdates = useCallback((generation: number) => {
+    if (streamFlushTimerRef.current !== null) {
+      window.clearTimeout(streamFlushTimerRef.current)
+      streamFlushTimerRef.current = null
+    }
+    pendingStreamChunksRef.current = {
+      generation,
+      content: '',
+      reasoning: '',
+    }
+  }, [])
 
-          if (type === 'reasoning') {
-            // Direct API reasoning_content
-            return {
-              ...message,
-              reasoning: {
-                content: (message.reasoning?.content || '') + chunk,
-                duration: 0,
-              },
-              isReasoningStreaming: true,
-              status: MESSAGE_STATUS.STREAMING,
-            }
+  const flushStreamUpdates = useCallback(
+    (generation: number) => {
+      if (generation !== requestGenerationRef.current) return
+      if (streamFlushTimerRef.current !== null) {
+        window.clearTimeout(streamFlushTimerRef.current)
+        streamFlushTimerRef.current = null
+      }
+
+      const pendingChunks = pendingStreamChunksRef.current
+      if (pendingChunks.generation !== generation) return
+      if (!pendingChunks.reasoning && !pendingChunks.content) {
+        return
+      }
+
+      pendingStreamChunksRef.current = {
+        generation,
+        content: '',
+        reasoning: '',
+      }
+      onMessageUpdate((prev) => {
+        if (generation !== requestGenerationRef.current) return prev
+        return updateLastAssistantMessage(prev, (message) => {
+          let updatedMessage = message
+
+          if (pendingChunks.reasoning) {
+            updatedMessage = applyStreamingChunk(
+              updatedMessage,
+              'reasoning',
+              pendingChunks.reasoning
+            )
           }
 
-          // Content streaming: handle <think> tags
-          return {
-            ...processStreamingContent(message, chunk),
-            status: MESSAGE_STATUS.STREAMING,
+          if (pendingChunks.content) {
+            updatedMessage = applyStreamingChunk(
+              updatedMessage,
+              'content',
+              pendingChunks.content
+            )
           }
+
+          return updatedMessage
         })
-      )
+      })
     },
     [onMessageUpdate]
   )
 
-  // Handle stream complete
-  const handleStreamComplete = useCallback(() => {
-    onMessageUpdate((prev) =>
-      updateLastAssistantMessage(prev, (message) =>
-        message.status === MESSAGE_STATUS.COMPLETE ||
-        message.status === MESSAGE_STATUS.ERROR
-          ? message
-          : { ...finalizeMessage(message), status: MESSAGE_STATUS.COMPLETE }
+  const scheduleStreamFlush = useCallback(
+    (generation: number) => {
+      if (generation !== requestGenerationRef.current) return
+      if (streamFlushTimerRef.current !== null) {
+        return
+      }
+
+      streamFlushTimerRef.current = window.setTimeout(() => {
+        flushStreamUpdates(generation)
+      }, STREAM_UPDATE_FLUSH_MS)
+    },
+    [flushStreamUpdates]
+  )
+
+  useEffect(
+    () => () => {
+      requestGenerationRef.current += 1
+      if (streamFlushTimerRef.current !== null) {
+        window.clearTimeout(streamFlushTimerRef.current)
+      }
+      abortControllerRef.current?.abort()
+      abortControllerRef.current = null
+    },
+    []
+  )
+
+  const getDisplayError = useCallback(
+    (error: string) => {
+      if (KNOWN_ERROR_MESSAGES.has(error)) {
+        return t(error)
+      }
+
+      const connectionClosedSuffix = `: ${ERROR_MESSAGES.CONNECTION_CLOSED}`
+      if (error.endsWith(connectionClosedSuffix)) {
+        return `${error.slice(0, -ERROR_MESSAGES.CONNECTION_CLOSED.length)}${t(
+          ERROR_MESSAGES.CONNECTION_CLOSED
+        )}`
+      }
+
+      return error
+    },
+    [t]
+  )
+
+  // Handle stream update
+  const handleStreamUpdate = useCallback(
+    (generation: number, type: 'reasoning' | 'content', chunk: string) => {
+      if (generation !== requestGenerationRef.current) return
+      if (pendingStreamChunksRef.current.generation !== generation) return
+      pendingStreamChunksRef.current[type] = mergePendingStreamChunk(
+        pendingStreamChunksRef.current[type],
+        chunk
       )
-    )
-  }, [onMessageUpdate])
+      scheduleStreamFlush(generation)
+    },
+    [scheduleStreamFlush]
+  )
+
+  // Handle stream complete
+  const handleStreamComplete = useCallback(
+    (generation: number) => {
+      if (generation !== requestGenerationRef.current) return
+      flushStreamUpdates(generation)
+      setIsRequesting(false)
+      onMessageUpdate((prev) => {
+        if (generation !== requestGenerationRef.current) return prev
+        return updateLastAssistantMessage(prev, (message) =>
+          isAssistantMessageFinal(message)
+            ? message
+            : completeAssistantMessage(message)
+        )
+      })
+    },
+    [flushStreamUpdates, onMessageUpdate]
+  )
 
   // Handle stream error
   const handleStreamError = useCallback(
-    (error: string, errorCode?: string) => {
-      toast.error(error)
-      onMessageUpdate((prev) =>
-        updateAssistantMessageWithError(prev, error, errorCode)
-      )
+    (generation: number, error: string, errorCode?: string) => {
+      if (generation !== requestGenerationRef.current) return
+      flushStreamUpdates(generation)
+      setIsRequesting(false)
+      const displayError = getDisplayError(error)
+      toast.error(displayError)
+      const errorTitle = t(ERROR_MESSAGES.API_REQUEST_ERROR)
+      onMessageUpdate((prev) => {
+        if (generation !== requestGenerationRef.current) return prev
+        return updateAssistantMessageWithError(
+          prev,
+          displayError,
+          errorCode,
+          errorTitle
+        )
+      })
     },
-    [onMessageUpdate]
+    [flushStreamUpdates, getDisplayError, onMessageUpdate, t]
   )
 
   // Send streaming chat request
   const sendStreamingChat = useCallback(
     (messages: Message[]) => {
+      const generation = requestGenerationRef.current + 1
+      requestGenerationRef.current = generation
+      abortControllerRef.current?.abort()
+      abortControllerRef.current = null
+      discardPendingStreamUpdates(generation)
+      setIsRequesting(true)
       const payload = buildChatCompletionPayload(
         messages,
         config,
         parameterEnabled
       )
-      sendStreamRequest(
+      void sendStreamRequest(
         payload,
-        handleStreamUpdate,
-        handleStreamComplete,
-        handleStreamError
+        (type, chunk) => handleStreamUpdate(generation, type, chunk),
+        () => handleStreamComplete(generation),
+        (error, errorCode) => handleStreamError(generation, error, errorCode)
       )
     },
     [
       config,
       parameterEnabled,
       sendStreamRequest,
+      discardPendingStreamUpdates,
       handleStreamUpdate,
       handleStreamComplete,
       handleStreamError,
@@ -133,45 +280,69 @@ export function useChatHandler({
         config,
         parameterEnabled
       )
+      const generation = requestGenerationRef.current + 1
+      const abortController = new AbortController()
+
+      requestGenerationRef.current = generation
+      stopStream()
+      discardPendingStreamUpdates(generation)
+      abortControllerRef.current?.abort()
+      abortControllerRef.current = abortController
 
       try {
-        const response = await sendChatCompletion(payload)
-        const choice = response.choices?.[0]
-        if (!choice) return
-
-        onMessageUpdate((prev) =>
-          updateLastAssistantMessage(prev, (message) => ({
-            ...finalizeMessage(
-              {
-                ...message,
-                versions: [
-                  {
-                    ...message.versions[0],
-                    content: choice.message?.content || '',
-                  },
-                ],
-              },
-              choice.message?.reasoning_content
-            ),
-            status: MESSAGE_STATUS.COMPLETE,
-          }))
+        setIsRequesting(true)
+        const response = await sendChatCompletion(
+          payload,
+          abortController.signal
         )
-      } catch (error: unknown) {
-        const err = error as {
-          response?: {
-            data?: { message?: string; error?: { code?: string } }
-          }
-          message?: string
+        if (
+          abortController.signal.aborted ||
+          requestGenerationRef.current !== generation
+        ) {
+          return
         }
-        handleStreamError(
-          err?.response?.data?.message ||
-            err?.message ||
-            ERROR_MESSAGES.API_REQUEST_ERROR,
-          err?.response?.data?.error?.code || undefined
-        )
+
+        if (!hasChatCompletionChoice(response)) {
+          handleStreamError(generation, ERROR_MESSAGES.API_REQUEST_ERROR)
+          return
+        }
+
+        onMessageUpdate((prev) => {
+          if (requestGenerationRef.current !== generation) return prev
+          return updateLastAssistantMessage(prev, (message) => {
+            const updatedMessage = applyChatCompletionResponse(
+              message,
+              response
+            )
+
+            return updatedMessage ?? message
+          })
+        })
+      } catch (error: unknown) {
+        if (
+          abortController.signal.aborted ||
+          requestGenerationRef.current !== generation
+        ) {
+          return
+        }
+
+        const { errorCode, errorMessage } = parseRequestErrorDetails(error)
+        handleStreamError(generation, errorMessage, errorCode)
+      } finally {
+        if (requestGenerationRef.current === generation) {
+          abortControllerRef.current = null
+          setIsRequesting(false)
+        }
       }
     },
-    [config, parameterEnabled, onMessageUpdate, handleStreamError]
+    [
+      config,
+      parameterEnabled,
+      stopStream,
+      discardPendingStreamUpdates,
+      onMessageUpdate,
+      handleStreamError,
+    ]
   )
 
   // Send chat request (stream or non-stream based on config)
@@ -188,20 +359,33 @@ export function useChatHandler({
 
   // Stop generation
   const stopGeneration = useCallback(() => {
+    const stoppedGeneration = requestGenerationRef.current
+    flushStreamUpdates(stoppedGeneration)
+    const idleGeneration = stoppedGeneration + 1
+    requestGenerationRef.current = idleGeneration
+    discardPendingStreamUpdates(idleGeneration)
     stopStream()
-    onMessageUpdate((prev) =>
-      updateLastAssistantMessage(prev, (message) =>
-        message.status === MESSAGE_STATUS.LOADING ||
-        message.status === MESSAGE_STATUS.STREAMING
-          ? { ...finalizeMessage(message), status: MESSAGE_STATUS.COMPLETE }
+    abortControllerRef.current?.abort()
+    abortControllerRef.current = null
+    setIsRequesting(false)
+    onMessageUpdate((prev) => {
+      if (requestGenerationRef.current !== idleGeneration) return prev
+      return updateLastAssistantMessage(prev, (message) =>
+        isAssistantMessagePending(message)
+          ? completeAssistantMessage(message)
           : message
       )
-    )
-  }, [stopStream, onMessageUpdate])
+    })
+  }, [
+    stopStream,
+    flushStreamUpdates,
+    discardPendingStreamUpdates,
+    onMessageUpdate,
+  ])
 
   return {
     sendChat,
     stopGeneration,
-    isGenerating: isStreaming,
+    isGenerating: isStreaming || isRequesting,
   }
 }

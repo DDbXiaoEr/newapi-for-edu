@@ -22,6 +22,14 @@ func Marshal(v any) ([]byte, error) {
 	return json.Marshal(v)
 }
 
+func IndentJson(data []byte) ([]byte, error) {
+	var buffer bytes.Buffer
+	if err := json.Indent(&buffer, data, "", "  "); err != nil {
+		return nil, err
+	}
+	return buffer.Bytes(), nil
+}
+
 func GetJsonType(data json.RawMessage) string {
 	trimmed := bytes.TrimSpace(data)
 	if len(trimmed) == 0 {
@@ -42,4 +50,20 @@ func GetJsonType(data json.RawMessage) string {
 	default:
 		return "number"
 	}
+}
+
+// JsonRawMessageToString returns JSON strings as their decoded value and other JSON values as raw text.
+func JsonRawMessageToString(data json.RawMessage) string {
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) {
+		return ""
+	}
+	if trimmed[0] != '"' {
+		return string(trimmed)
+	}
+	var value string
+	if err := Unmarshal(trimmed, &value); err != nil {
+		return string(trimmed)
+	}
+	return value
 }

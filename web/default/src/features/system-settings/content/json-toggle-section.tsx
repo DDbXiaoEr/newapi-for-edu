@@ -16,11 +16,13 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useEffect, useMemo, useRef } from 'react'
-import * as z from 'zod'
-import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useEffect, useMemo, useRef } from 'react'
+import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
+import * as z from 'zod'
+
+import { JsonCodeEditor } from '@/components/json-code-editor'
 import {
   Form,
   FormControl,
@@ -31,7 +33,7 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Switch } from '@/components/ui/switch'
-import { Textarea } from '@/components/ui/textarea'
+
 import { SettingsAccordion } from '../components/settings-accordion'
 import {
   SettingsForm,
@@ -197,7 +199,16 @@ export function JsonToggleSection({
               <FormItem>
                 <FormLabel>{textareaLabel}</FormLabel>
                 <FormControl>
-                  <Textarea rows={12} placeholder={placeholder} {...field} />
+                  <JsonCodeEditor
+                    value={field.value}
+                    onChange={field.onChange}
+                    name={field.name}
+                    onBlur={field.onBlur}
+                    textareaRef={field.ref}
+                    placeholder={placeholder}
+                    heightClassName='h-72 min-h-72 max-h-72'
+                    aria-invalid={Boolean(form.formState.errors.json)}
+                  />
                 </FormControl>
                 {textareaDescription && (
                   <FormDescription>{t(textareaDescription)}</FormDescription>
