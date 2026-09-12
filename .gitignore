@@ -1,20 +1,32 @@
 # Build binaries
-newapi
+/newapi
 new-api
 newapi-edu
 newapi-edu-pure
+build
 build/
 
-# Build artifacts
+# IDE / editor
+.idea
+.review
+.vscode
+.zed
+.history
+
+# Runtime data
+upload
 *.exe
-*.dll
-*.so
-*.dylib
-*.a
-*.o
-*.obj
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+logs
+.env
+one-api
 
 # Frontend build
+web/dist
+web/node_modules
 web/dist/
 web/node_modules/
 web/classic/dist/
@@ -23,6 +35,14 @@ web/default/dist/
 web/default/node_modules/
 web/.vite/
 web/.output/
+
+# Build artifacts
+*.dll
+*.so
+*.dylib
+*.a
+*.o
+*.obj
 
 # Runtime
 one-api.db
@@ -41,6 +61,16 @@ vendor/
 .DS_Store
 Thumbs.db
 
+# Caches
+tiktoken_cache
+.eslintcache
+.gocache
+.gomodcache/
+.cache
+.plans
+.claude
+.cursor
+
 # Environment files
 .env
 .env.local
@@ -48,3 +78,10 @@ Thumbs.db
 
 # Startup script
 start.sh
+
+# Local-only live probes and scratch test workspaces.
+.local-tests/
+relaykit/relayconvert/chat_responses_live_local_test.go
+service/openaicompat/chat_responses_live_local_test.go
+go.work
+go.work.sum

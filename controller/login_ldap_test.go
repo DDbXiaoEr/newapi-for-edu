@@ -46,7 +46,7 @@ func setupLoginControllerTestDB(t *testing.T) *gorm.DB {
 	model.DB = db
 	model.LOG_DB = db
 
-	if err := db.AutoMigrate(&model.User{}, &model.Log{}, &model.TwoFA{}, &model.TwoFABackupCode{}, &model.UserSession{}, &model.AuthFlow{}); err != nil {
+	if err := db.AutoMigrate(&model.User{}, &model.Log{}, &model.TwoFA{}, &model.TwoFABackupCode{}, &model.UserSession{}, &model.AuthFlow{}, &model.PasskeyCredential{}); err != nil {
 		t.Fatalf("failed to migrate login test tables: %v", err)
 	}
 
@@ -458,7 +458,7 @@ func TestLoginLDAPSuccessStillRequiresTwoFA(t *testing.T) {
 	var response struct {
 		Success bool `json:"success"`
 		Data    struct {
-			RequireTwoFA bool `json:"require_2fa"`
+			RequireVerification bool `json:"require_verification"`
 		} `json:"data"`
 	}
 	if err := common.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
@@ -467,7 +467,7 @@ func TestLoginLDAPSuccessStillRequiresTwoFA(t *testing.T) {
 	if !response.Success {
 		t.Fatalf("expected success response, got body: %s", recorder.Body.String())
 	}
-	if !response.Data.RequireTwoFA {
+	if !response.Data.RequireVerification {
 		t.Fatalf("expected LDAP login to still require 2FA")
 	}
 
@@ -519,15 +519,15 @@ func TestLoginLDAPSuccessThenVerify2FACompletesLogin(t *testing.T) {
 	var loginResponse struct {
 		Success bool `json:"success"`
 		Data    struct {
-			RequireTwoFA bool   `json:"require_2fa"`
-			FlowToken    string `json:"flow_token"`
+			RequireVerification bool   `json:"require_verification"`
+			FlowToken           string `json:"flow_token"`
 		} `json:"data"`
 	}
 	if err := common.Unmarshal(loginRecorder.Body.Bytes(), &loginResponse); err != nil {
 		t.Fatalf("failed to decode login response: %v", err)
 	}
-	if !loginResponse.Success || !loginResponse.Data.RequireTwoFA {
-		t.Fatalf("expected require_2fa response, got body: %s", loginRecorder.Body.String())
+	if !loginResponse.Success || !loginResponse.Data.RequireVerification {
+		t.Fatalf("expected require_verification response, got body: %s", loginRecorder.Body.String())
 	}
 	if loginResponse.Data.FlowToken == "" {
 		t.Fatalf("expected flow_token in login response")
