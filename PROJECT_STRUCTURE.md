@@ -28,9 +28,11 @@ newapi_2_-edu/
 │   └── time_test.sh
 ├── common/
 │   ├── account_password.go
+│   ├── advanced_custom_presets.go
 │   ├── api_type.go
 │   ├── api_type_task_plugin_test.go
 │   ├── audio.go
+│   ├── audio_case_test.go
 │   ├── body_storage.go
 │   ├── body_storage_test.go
 │   ├── constants.go
@@ -63,6 +65,7 @@ newapi_2_-edu/
 │   │   └── lua/
 │   │       └── rate_limit.lua
 │   ├── model.go
+│   ├── model_test.go
 │   ├── node_identity.go
 │   ├── page_info.go
 │   ├── password_crypto.go
@@ -74,6 +77,7 @@ newapi_2_-edu/
 │   ├── quota_math.go
 │   ├── quota_math_test.go
 │   ├── rate-limit.go
+│   ├── rate-limit_test.go
 │   ├── redis.go
 │   ├── request_body_limit.go
 │   ├── session_cookie.go
@@ -126,6 +130,10 @@ newapi_2_-edu/
 │   ├── channel_affinity_cache.go
 │   ├── channel_authz.go
 │   ├── channel_authz_test.go
+│   ├── channel_billing_test.go
+│   ├── channel_inference.go
+│   ├── channel_inference_test.go
+│   ├── channel_multi_key_test.go
 │   ├── channel_pin_retry_test.go
 │   ├── channel_task_plugin_bind_test.go
 │   ├── channel_task_plugin_validation_test.go
@@ -187,6 +195,9 @@ newapi_2_-edu/
 │   ├── relay_count_tokens_test.go
 │   ├── relay_error_log_test.go
 │   ├── relay_task_plugin_test.go
+│   ├── request_policy.go
+│   ├── responses_websocket.go
+│   ├── responses_websocket_test.go
 │   ├── return_path.go
 │   ├── return_path_test.go
 │   ├── revalidated_response.go
@@ -203,6 +214,7 @@ newapi_2_-edu/
 │   ├── system_info.go
 │   ├── system_task.go
 │   ├── system_task_handlers.go
+│   ├── system_task_test.go
 │   ├── task.go
 │   ├── task_generic_test.go
 │   ├── task_log_view_test.go
@@ -371,6 +383,7 @@ newapi_2_-edu/
 │   ├── gorm_logger.go
 │   ├── gorm_logger_test.go
 │   ├── json_column_test.go
+│   ├── legacy_dalle_pricing.go
 │   ├── locking.go
 │   ├── locking_test.go
 │   ├── log.go
@@ -388,11 +401,13 @@ newapi_2_-edu/
 │   ├── model_metadata_sync.go
 │   ├── model_owner_test.go
 │   ├── model_pricing_config.go
+│   ├── model_pricing_conversion.go
 │   ├── option.go
 │   ├── option_auto_group_test.go
 │   ├── option_primary_key_migration.go
 │   ├── option_task_plugin_test.go
 │   ├── passkey.go
+│   ├── passkey_option.go
 │   ├── password_crypto.go
 │   ├── payment_method_guard_test.go
 │   ├── perf_metric.go
@@ -408,6 +423,8 @@ newapi_2_-edu/
 │   ├── quota_reserve_test.go
 │   ├── redemption.go
 │   ├── redemption_test.go
+│   ├── request_policy.go
+│   ├── request_policy_test.go
 │   ├── setup.go
 │   ├── subscription.go
 │   ├── subscription_auth_test.go
@@ -467,11 +484,14 @@ newapi_2_-edu/
 │   │   ├── billingexpr_test.go
 │   │   ├── compile.go
 │   │   ├── compile_usage_test.go
+│   │   ├── fixed.go
 │   │   ├── round.go
 │   │   ├── run.go
 │   │   ├── settle.go
 │   │   ├── settle_clamp_test.go
 │   │   ├── task_usage_test.go
+│   │   ├── testdata/
+│   │   │   └── frontend_simulation.json
 │   │   └── types.go
 │   ├── cachex/
 │   │   ├── codec.go
@@ -492,6 +512,7 @@ newapi_2_-edu/
 │   │   ├── fixture.go
 │   │   ├── fixture_test.go
 │   │   ├── icon.go
+│   │   ├── json_state.go
 │   │   ├── model_fold.go
 │   │   ├── protocol_supports_test.go
 │   │   ├── registry.go
@@ -502,10 +523,15 @@ newapi_2_-edu/
 │   │   ├── routing.go
 │   │   ├── routing_test.go
 │   │   └── utils.go
-│   └── perf_metrics/
-│       ├── flush.go
-│       ├── metrics.go
-│       └── types.go
+│   ├── perf_metrics/
+│   │   ├── flush.go
+│   │   ├── metrics.go
+│   │   ├── metrics_test.go
+│   │   ├── outcome.go
+│   │   └── types.go
+│   └── wsmanager/
+│       ├── wsmanager.go
+│       └── wsmanager_test.go
 ├── plugins/
 │   ├── .oxfmtrc.json
 │   ├── .oxlintrc.json
@@ -553,7 +579,9 @@ newapi_2_-edu/
 │   │   ├── adapter.go
 │   │   ├── advancedcustom/
 │   │   │   ├── adaptor.go
-│   │   │   └── adaptor_test.go
+│   │   │   ├── adaptor_test.go
+│   │   │   ├── presets_test.go
+│   │   │   └── rerank.go
 │   │   ├── ai360/
 │   │   │   └── constants.go
 │   │   ├── ali/
@@ -722,7 +750,9 @@ newapi_2_-edu/
 │   │   │   │   ├── adaptor.go
 │   │   │   │   ├── adaptor_test.go
 │   │   │   │   ├── auth.go
-│   │   │   │   └── auth_test.go
+│   │   │   │   ├── auth_test.go
+│   │   │   │   ├── performance_test.go
+│   │   │   │   └── submit_stream.go
 │   │   │   └── taskcommon/
 │   │   │       └── helpers.go
 │   │   ├── tencent/
@@ -784,6 +814,7 @@ newapi_2_-edu/
 │   │   ├── relay_utils.go
 │   │   ├── relay_utils_test.go
 │   │   ├── request_conversion.go
+│   │   ├── response_model.go
 │   │   ├── stream_status.go
 │   │   ├── stream_status_test.go
 │   │   ├── tool_usage.go
@@ -823,9 +854,14 @@ newapi_2_-edu/
 │   ├── relay_adaptor_jsplugin_test.go
 │   ├── relay_task.go
 │   ├── relay_task_test.go
+│   ├── request_billing.go
 │   ├── request_clone_test.go
 │   ├── rerank_handler.go
+│   ├── response_model_test.go
 │   ├── responses_handler.go
+│   ├── responses_request.go
+│   ├── responses_websocket.go
+│   ├── responses_websocket_test.go
 │   ├── task_platform_error_test.go
 │   ├── task_platform_test.go
 │   └── websocket.go
@@ -845,6 +881,7 @@ newapi_2_-edu/
 │   │   ├── gemini_generation_config_test.go
 │   │   ├── gemini_isstream_test.go
 │   │   ├── gemini_response_test.go
+│   │   ├── legacy_dalle_image.go
 │   │   ├── notify.go
 │   │   ├── openai_compaction.go
 │   │   ├── openai_image.go
@@ -864,7 +901,8 @@ newapi_2_-edu/
 │   │   ├── usage_merge.go
 │   │   ├── usage_merge_test.go
 │   │   ├── user_settings.go
-│   │   └── values.go
+│   │   ├── values.go
+│   │   └── values_test.go
 │   ├── go.mod
 │   ├── go.sum
 │   ├── reasonmap/
@@ -954,6 +992,7 @@ newapi_2_-edu/
 │   │   ├── reasoning/
 │   │   │   ├── claude.go
 │   │   │   ├── gemini.go
+│   │   │   ├── gemini_test.go
 │   │   │   ├── intent.go
 │   │   │   ├── intent_test.go
 │   │   │   ├── suffix.go
@@ -1082,6 +1121,7 @@ newapi_2_-edu/
 │   ├── http_transport_policy.go
 │   ├── http_transport_sharded.go
 │   ├── image.go
+│   ├── image_billing.go
 │   ├── ldap.go
 │   ├── ldap_test.go
 │   ├── log_info_generate.go
@@ -1100,8 +1140,13 @@ newapi_2_-edu/
 │   ├── quota.go
 │   ├── quota_saturation_test.go
 │   ├── rankings.go
+│   ├── relay_error.go
+│   ├── relay_error_test.go
 │   ├── request_converter.go
+│   ├── request_policy.go
 │   ├── response_converter.go
+│   ├── responses_usage.go
+│   ├── responses_usage_test.go
 │   ├── return_path.go
 │   ├── return_path_test.go
 │   ├── security_verification.go
@@ -1135,7 +1180,8 @@ newapi_2_-edu/
 │   ├── user_notify.go
 │   ├── violation_fee.go
 │   ├── waffo_pancake.go
-│   └── webhook.go
+│   ├── webhook.go
+│   └── ws_close.go
 ├── setting/
 │   ├── auto_group.go
 │   ├── auto_group_test.go
@@ -1792,6 +1838,10 @@ newapi_2_-edu/
         ├── scripts/
         │   ├── add-copyright.mjs
         │   ├── format-with-protected-headers.mjs
+        │   ├── oxlint/
+        │   │   ├── __tests__/
+        │   │   │   └── intl-locale.test.ts
+        │   │   └── intl-locale.mjs
         │   └── sync-i18n.mjs
         ├── src/
         │   ├── assets/
@@ -1814,7 +1864,8 @@ newapi_2_-edu/
         │   │   │   ├── icon-wechat.tsx
         │   │   │   ├── icon-whatsapp.tsx
         │   │   │   ├── icon-zoom.tsx
-        │   │   │   └── index.ts
+        │   │   │   ├── index.ts
+        │   │   │   └── sglang.svg
         │   │   ├── clerk-full-logo.tsx
         │   │   ├── clerk-logo.tsx
         │   │   ├── custom/
@@ -1828,7 +1879,9 @@ newapi_2_-edu/
         │   │   │   ├── icon-sub2api.tsx
         │   │   │   ├── icon-theme-dark.tsx
         │   │   │   ├── icon-theme-light.tsx
-        │   │   │   └── icon-theme-system.tsx
+        │   │   │   ├── icon-theme-system.tsx
+        │   │   │   ├── icon-wan.tsx
+        │   │   │   └── wan.png
         │   │   └── logo.tsx
         │   ├── components/
         │   │   ├── activity-time-cell.tsx
@@ -1924,8 +1977,11 @@ newapi_2_-edu/
         │   │   │   │   ├── static-data-table.tsx
         │   │   │   │   └── static-row-actions.tsx
         │   │   │   └── toolbar/
+        │   │   │       ├── __tests__/
+        │   │   │       │   └── mobile-filter.test.tsx
         │   │   │       ├── bulk-actions.tsx
         │   │   │       ├── faceted-filter.tsx
+        │   │   │       ├── mobile-filter-panel.tsx
         │   │   │       ├── toolbar.tsx
         │   │   │       ├── view-mode-toggle.tsx
         │   │   │       └── view-options.tsx
@@ -1935,6 +1991,10 @@ newapi_2_-edu/
         │   │   ├── drawer-layout.ts
         │   │   ├── empty-state.tsx
         │   │   ├── error-state.tsx
+        │   │   ├── floating-window/
+        │   │   │   └── __tests__/
+        │   │   │       └── floating-window.test.tsx
+        │   │   ├── floating-window.tsx
         │   │   ├── group-badge.tsx
         │   │   ├── html-content.tsx
         │   │   ├── json-code-editor/
@@ -1990,6 +2050,10 @@ newapi_2_-edu/
         │   │   │   │   └── layout.test.ts
         │   │   │   └── layout.ts
         │   │   ├── model-group-selector.tsx
+        │   │   ├── multi-select/
+        │   │   │   └── __tests__/
+        │   │   │       ├── option-hint.test.tsx
+        │   │   │       └── selection.test.tsx
         │   │   ├── multi-select.tsx
         │   │   ├── navigation-progress.tsx
         │   │   ├── notification-popover.tsx
@@ -2014,6 +2078,7 @@ newapi_2_-edu/
         │   │   └── ui/
         │   │       ├── __tests__/
         │   │       │   ├── combobox.test.tsx
+        │   │       │   ├── label.test.tsx
         │   │       │   └── portal-container.test.tsx
         │   │       ├── accordion.tsx
         │   │       ├── alert-dialog.tsx
@@ -2137,7 +2202,12 @@ newapi_2_-edu/
         │   │   │   │   │   └── otp-form.tsx
         │   │   │   │   └── index.tsx
         │   │   │   ├── passkey/
+        │   │   │   │   ├── __tests__/
+        │   │   │   │   │   └── domain-verification.test.tsx
         │   │   │   │   ├── api.ts
+        │   │   │   │   ├── assertion.ts
+        │   │   │   │   ├── components/
+        │   │   │   │   │   └── passkey-domain-selector.tsx
         │   │   │   │   ├── hooks/
         │   │   │   │   │   └── use-passkey-management.ts
         │   │   │   │   ├── index.ts
@@ -2167,7 +2237,18 @@ newapi_2_-edu/
         │   │   ├── channels/
         │   │   │   ├── api.ts
         │   │   │   ├── components/
+        │   │   │   │   ├── __tests__/
+        │   │   │   │   │   ├── channel-configuration.test.tsx
+        │   │   │   │   │   ├── channel-quick-options.test.tsx
+        │   │   │   │   │   ├── inference-status.test.tsx
+        │   │   │   │   │   ├── model-mapping-batch-dialog.test.tsx
+        │   │   │   │   │   ├── model-mapping-editor.test.tsx
+        │   │   │   │   │   ├── provider-selection.test.tsx
+        │   │   │   │   │   ├── responses-websocket-setting.test.tsx
+        │   │   │   │   │   └── upstream-model-selection.test.tsx
         │   │   │   │   ├── channel-card.tsx
+        │   │   │   │   ├── channel-plugin-extensions.tsx
+        │   │   │   │   ├── channel-quick-options.tsx
         │   │   │   │   ├── channel-row-actions-context.ts
         │   │   │   │   ├── channel-type-badge.test.tsx
         │   │   │   │   ├── channel-type-badge.tsx
@@ -2184,20 +2265,25 @@ newapi_2_-edu/
         │   │   │   │   │   ├── balance-query-dialog.tsx
         │   │   │   │   │   ├── channel-test-dialog.tsx
         │   │   │   │   │   ├── codex-usage-dialog.tsx
+        │   │   │   │   │   ├── configure-models-dialog.tsx
         │   │   │   │   │   ├── copy-channel-dialog.tsx
         │   │   │   │   │   ├── edit-tag-dialog.tsx
         │   │   │   │   │   ├── fetch-models-dialog.tsx
+        │   │   │   │   │   ├── inference-status-dialog.tsx
         │   │   │   │   │   ├── missing-models-confirmation-dialog.tsx
         │   │   │   │   │   ├── multi-key-manage-dialog.tsx
         │   │   │   │   │   ├── multi-key-statistics-card.tsx
         │   │   │   │   │   ├── multi-key-table-row-actions.tsx
         │   │   │   │   │   ├── ollama-models-dialog.tsx
         │   │   │   │   │   ├── param-override-editor-dialog.tsx
+        │   │   │   │   │   ├── passthrough-warning-dialog.tsx
         │   │   │   │   │   ├── status-code-risk-dialog.tsx
         │   │   │   │   │   ├── tag-batch-edit-dialog.tsx
         │   │   │   │   │   └── upstream-update-dialog.tsx
         │   │   │   │   ├── drawers/
+        │   │   │   │   │   ├── channel-configuration.tsx
         │   │   │   │   │   ├── channel-mutate-drawer.tsx
+        │   │   │   │   │   ├── channel-provider-picker.tsx
         │   │   │   │   │   └── sections/
         │   │   │   │   │       ├── channel-advanced-section.tsx
         │   │   │   │   │       ├── channel-api-access-section.tsx
@@ -2206,35 +2292,53 @@ newapi_2_-edu/
         │   │   │   │   │       ├── channel-editor-loading-state.tsx
         │   │   │   │   │       ├── channel-models-section.tsx
         │   │   │   │   │       └── index.ts
+        │   │   │   │   ├── model-mapping-batch-dialog.tsx
         │   │   │   │   ├── model-mapping-editor.tsx
-        │   │   │   │   └── numeric-spinner-input.tsx
+        │   │   │   │   ├── model-redirect-panel.tsx
+        │   │   │   │   ├── numeric-spinner-input.tsx
+        │   │   │   │   ├── responses-websocket-setting.tsx
+        │   │   │   │   └── upstream-model-selection.tsx
         │   │   │   ├── constants.ts
         │   │   │   ├── hooks/
         │   │   │   │   ├── __tests__/
-        │   │   │   │   │   └── channel-key-disclosure.test.tsx
+        │   │   │   │   │   ├── channel-key-disclosure.test.tsx
+        │   │   │   │   │   └── use-redirect-panel-placement.test.tsx
         │   │   │   │   ├── use-channel-key-disclosure.ts
+        │   │   │   │   ├── use-channel-model-discovery.ts
         │   │   │   │   ├── use-channel-mutate-form.ts
-        │   │   │   │   └── use-channel-upstream-updates.ts
+        │   │   │   │   ├── use-channel-upstream-updates.ts
+        │   │   │   │   └── use-redirect-panel-placement.ts
         │   │   │   ├── index.tsx
         │   │   │   ├── lib/
         │   │   │   │   ├── __tests__/
         │   │   │   │   │   ├── channel-field-update.test.ts
         │   │   │   │   │   ├── channel-table-row-id.test.ts
         │   │   │   │   │   ├── channel-type-options.test.ts
+        │   │   │   │   │   ├── header-passthrough.test.ts
+        │   │   │   │   │   ├── inference-status.test.ts
+        │   │   │   │   │   ├── model-mapping-rules.test.ts
+        │   │   │   │   │   ├── model-naming-patterns.test.ts
         │   │   │   │   │   ├── new-api-channel.test.ts
         │   │   │   │   │   └── task-plugin-base-url.test.ts
         │   │   │   │   ├── advanced-custom.ts
         │   │   │   │   ├── channel-actions.ts
+        │   │   │   │   ├── channel-configuration.ts
         │   │   │   │   ├── channel-field-update.ts
         │   │   │   │   ├── channel-form-errors.ts
         │   │   │   │   ├── channel-form.ts
+        │   │   │   │   ├── channel-plugin-extensions.ts
         │   │   │   │   ├── channel-type-config.ts
         │   │   │   │   ├── channel-utils.ts
+        │   │   │   │   ├── header-passthrough.ts
         │   │   │   │   ├── index.ts
+        │   │   │   │   ├── inference-status.ts
         │   │   │   │   ├── model-categories.ts
+        │   │   │   │   ├── model-mapping-rules.ts
         │   │   │   │   ├── model-mapping-validation.ts
+        │   │   │   │   ├── model-naming-patterns.ts
         │   │   │   │   ├── multi-key-utils.ts
         │   │   │   │   ├── ollama-utils.ts
+        │   │   │   │   ├── responses-websocket.ts
         │   │   │   │   ├── status-code-risk-guard.ts
         │   │   │   │   ├── task-plugin-base-url.ts
         │   │   │   │   └── upstream-update-utils.ts
@@ -2373,11 +2477,13 @@ newapi_2_-edu/
         │   │   │   ├── __tests__/
         │   │   │   │   ├── editor-currency.test.tsx
         │   │   │   │   ├── editor-layout.test.tsx
-        │   │   │   │   └── pricing.test.ts
+        │   │   │   │   ├── pricing.test.ts
+        │   │   │   │   └── save-errors.test.tsx
         │   │   │   ├── api.ts
         │   │   │   ├── currency.ts
         │   │   │   ├── model-pricing-panel.tsx
         │   │   │   ├── pricing-amount-input.tsx
+        │   │   │   ├── pricing-conversion-dialog.tsx
         │   │   │   ├── pricing-currency-selector.tsx
         │   │   │   └── pricing.ts
         │   │   ├── models/
@@ -2442,6 +2548,8 @@ newapi_2_-edu/
         │   │   │   ├── types.ts
         │   │   │   └── vendor-api.ts
         │   │   ├── performance-metrics/
+        │   │   │   ├── __tests__/
+        │   │   │   │   └── summary.test.tsx
         │   │   │   ├── api.ts
         │   │   │   ├── lib/
         │   │   │   │   └── format.ts
@@ -2531,6 +2639,7 @@ newapi_2_-edu/
         │   │   │   │   └── task-price-display.test.tsx
         │   │   │   ├── api.ts
         │   │   │   ├── components/
+        │   │   │   │   ├── cached-price-cell.tsx
         │   │   │   │   ├── dynamic-pricing-breakdown.tsx
         │   │   │   │   ├── empty-state.tsx
         │   │   │   │   ├── index.ts
@@ -2554,13 +2663,24 @@ newapi_2_-edu/
         │   │   │   ├── constants.ts
         │   │   │   ├── hooks/
         │   │   │   │   ├── index.ts
+        │   │   │   │   ├── use-billing-time.ts
         │   │   │   │   ├── use-filters.ts
         │   │   │   │   └── use-pricing-data.ts
         │   │   │   ├── index.tsx
         │   │   │   ├── lib/
         │   │   │   │   ├── __tests__/
+        │   │   │   │   │   ├── billing-expression.test.ts
         │   │   │   │   │   └── time-rule-expr.test.ts
         │   │   │   │   ├── billing-expr.ts
+        │   │   │   │   ├── billing-expression/
+        │   │   │   │   │   ├── README.md
+        │   │   │   │   │   ├── condition-display.ts
+        │   │   │   │   │   ├── display.ts
+        │   │   │   │   │   ├── parser.ts
+        │   │   │   │   │   ├── runtime.ts
+        │   │   │   │   │   ├── structure.ts
+        │   │   │   │   │   ├── types.ts
+        │   │   │   │   │   └── visual.ts
         │   │   │   │   ├── billing-mode.ts
         │   │   │   │   ├── breakdown-tier-match.ts
         │   │   │   │   ├── dynamic-price.ts
@@ -2568,6 +2688,7 @@ newapi_2_-edu/
         │   │   │   │   ├── index.ts
         │   │   │   │   ├── mock-stats.ts
         │   │   │   │   ├── model-helpers.ts
+        │   │   │   │   ├── plugin-pricing.ts
         │   │   │   │   ├── price.ts
         │   │   │   │   ├── seed.ts
         │   │   │   │   ├── task-expr.ts
@@ -2711,10 +2832,15 @@ newapi_2_-edu/
         │   │   │   │   └── plan-form.ts
         │   │   │   └── types.ts
         │   │   ├── system-info/
+        │   │   │   ├── __tests__/
+        │   │   │   │   └── system-tasks-panel.test.tsx
         │   │   │   ├── api.ts
         │   │   │   ├── components/
         │   │   │   │   ├── system-instances-panel.tsx
-        │   │   │   │   └── system-tasks-panel.tsx
+        │   │   │   │   ├── system-task-history.tsx
+        │   │   │   │   ├── system-tasks-panel.tsx
+        │   │   │   │   └── system-tasks-table.tsx
+        │   │   │   ├── constants.ts
         │   │   │   ├── index.tsx
         │   │   │   └── types.ts
         │   │   ├── system-settings/
@@ -2723,6 +2849,8 @@ newapi_2_-edu/
         │   │   │   │   └── task-public-address.test.ts
         │   │   │   ├── api.ts
         │   │   │   ├── auth/
+        │   │   │   │   ├── __tests__/
+        │   │   │   │   │   └── passkey-settings.test.tsx
         │   │   │   │   ├── basic-auth-section.tsx
         │   │   │   │   ├── bot-protection-section.tsx
         │   │   │   │   ├── cas-section.tsx
@@ -2778,6 +2906,7 @@ newapi_2_-edu/
         │   │   │   │   │   ├── constants.ts
         │   │   │   │   │   ├── index.tsx
         │   │   │   │   │   ├── rule-editor-dialog.tsx
+        │   │   │   │   │   ├── session-rules-table.tsx
         │   │   │   │   │   └── types.ts
         │   │   │   │   ├── checkin-settings-section.tsx
         │   │   │   │   ├── pricing-section.tsx
@@ -2823,12 +2952,17 @@ newapi_2_-edu/
         │   │   │   ├── models/
         │   │   │   │   ├── __tests__/
         │   │   │   │   │   ├── group-auto-limit-validation.test.ts
+        │   │   │   │   │   ├── plugin-pricing.test.tsx
+        │   │   │   │   │   ├── request-simulation.test.tsx
         │   │   │   │   │   ├── task-pricing-copy.test.tsx
-        │   │   │   │   │   └── tool-price-validation.test.tsx
+        │   │   │   │   │   ├── tool-price-validation.test.tsx
+        │   │   │   │   │   └── visual-billing-editor.test.tsx
+        │   │   │   │   ├── billing-time-fields.tsx
         │   │   │   │   ├── channel-selector-dialog.tsx
         │   │   │   │   ├── claude-settings-card.tsx
         │   │   │   │   ├── conflict-confirm-dialog.tsx
         │   │   │   │   ├── constants.ts
+        │   │   │   │   ├── draft-number-input.tsx
         │   │   │   │   ├── gemini-settings-card.tsx
         │   │   │   │   ├── global-settings-card.tsx
         │   │   │   │   ├── grok-settings-card.tsx
@@ -2845,10 +2979,12 @@ newapi_2_-edu/
         │   │   │   │   ├── model-ratio-visual-editor.tsx
         │   │   │   │   ├── pricing-format.ts
         │   │   │   │   ├── ratio-settings-card.tsx
-        │   │   │   │   ├── routing-reliability-section.tsx
+        │   │   │   │   ├── request-simulation.tsx
         │   │   │   │   ├── section-registry.tsx
+        │   │   │   │   ├── task-plugin-pricing-editor.tsx
         │   │   │   │   ├── task-pricing-matrix.tsx
         │   │   │   │   ├── task-usage-pricing-editor.tsx
+        │   │   │   │   ├── tier-price-fields.tsx
         │   │   │   │   ├── tiered-pricing-editor.tsx
         │   │   │   │   ├── tool-price-settings.tsx
         │   │   │   │   ├── upstream-price-cells.tsx
@@ -2856,7 +2992,10 @@ newapi_2_-edu/
         │   │   │   │   ├── upstream-ratio-sync-helpers.ts
         │   │   │   │   ├── upstream-ratio-sync-table.tsx
         │   │   │   │   ├── upstream-ratio-sync.tsx
-        │   │   │   │   └── utils.ts
+        │   │   │   │   ├── utils.ts
+        │   │   │   │   ├── visual-billing-document-editor.tsx
+        │   │   │   │   ├── visual-condition-tree.css
+        │   │   │   │   └── visual-condition-tree.tsx
         │   │   │   ├── operations/
         │   │   │   │   ├── index.tsx
         │   │   │   │   └── section-registry.tsx
@@ -2864,9 +3003,26 @@ newapi_2_-edu/
         │   │   │   │   ├── rate-limit-dialog.tsx
         │   │   │   │   ├── rate-limit-section.tsx
         │   │   │   │   ├── rate-limit-visual-editor.tsx
-        │   │   │   │   ├── sensitive-words-section.tsx
         │   │   │   │   ├── ssrf-section.tsx
         │   │   │   │   └── token-limit-section.tsx
+        │   │   │   ├── request-policies/
+        │   │   │   │   ├── __tests__/
+        │   │   │   │   │   ├── channel-health-layout.test.tsx
+        │   │   │   │   │   ├── routing.test.tsx
+        │   │   │   │   │   └── settings.test.tsx
+        │   │   │   │   ├── api.ts
+        │   │   │   │   ├── channel-health-section.tsx
+        │   │   │   │   ├── decision-record.tsx
+        │   │   │   │   ├── defaults.ts
+        │   │   │   │   ├── index.tsx
+        │   │   │   │   ├── policy-label.ts
+        │   │   │   │   ├── related-policy-link.tsx
+        │   │   │   │   ├── request-checks-section.tsx
+        │   │   │   │   ├── retry-section.tsx
+        │   │   │   │   ├── routing-form.ts
+        │   │   │   │   ├── routing-section.tsx
+        │   │   │   │   ├── section-registry.tsx
+        │   │   │   │   └── use-save-policy.ts
         │   │   │   ├── security/
         │   │   │   │   ├── index.tsx
         │   │   │   │   └── section-registry.tsx
@@ -2880,6 +3036,16 @@ newapi_2_-edu/
         │   │   │       ├── numeric-field.ts
         │   │   │       ├── route-config.ts
         │   │   │       └── section-registry.ts
+        │   │   ├── system-update/
+        │   │   │   ├── __tests__/
+        │   │   │   │   ├── releases.test.ts
+        │   │   │   │   └── update-checking.test.tsx
+        │   │   │   ├── api.ts
+        │   │   │   ├── releases.ts
+        │   │   │   ├── store.ts
+        │   │   │   ├── system-update-action.tsx
+        │   │   │   ├── system-update-dialog.tsx
+        │   │   │   └── use-system-update.ts
         │   │   ├── task-plugins/
         │   │   │   ├── __tests__/
         │   │   │   │   ├── enabled-option.test.ts
@@ -2888,6 +3054,8 @@ newapi_2_-edu/
         │   │   │   │   ├── marketplace-plugin-logo.test.tsx
         │   │   │   │   ├── marketplace.test.ts
         │   │   │   │   ├── plugin-card.test.tsx
+        │   │   │   │   ├── plugin-changelog-panel.test.tsx
+        │   │   │   │   ├── plugin-changelog.test.ts
         │   │   │   │   ├── plugin-detail-sheet.test.tsx
         │   │   │   │   ├── plugin-icon-file.test.ts
         │   │   │   │   ├── plugin-icon-image.test.tsx
@@ -2907,6 +3075,7 @@ newapi_2_-edu/
         │   │   │   │   ├── marketplace-plugin-card.tsx
         │   │   │   │   ├── marketplace-sources-dialog.tsx
         │   │   │   │   ├── plugin-card.tsx
+        │   │   │   │   ├── plugin-changelog-panel.tsx
         │   │   │   │   ├── plugin-detail-sheet.tsx
         │   │   │   │   ├── plugin-endpoints.tsx
         │   │   │   │   ├── plugin-icon.tsx
@@ -2925,6 +3094,7 @@ newapi_2_-edu/
         │   │   │   ├── lib/
         │   │   │   │   ├── host-protocols.ts
         │   │   │   │   ├── marketplace.ts
+        │   │   │   │   ├── plugin-changelog.ts
         │   │   │   │   ├── plugin-icon-file.ts
         │   │   │   │   ├── plugin-icon.ts
         │   │   │   │   ├── plugin-meta-preview.ts
@@ -2961,6 +3131,7 @@ newapi_2_-edu/
         │   │   │   │   │   ├── log-type-filter.test.tsx
         │   │   │   │   │   ├── mobile-card.test.tsx
         │   │   │   │   │   ├── mobile-filter.test.tsx
+        │   │   │   │   │   ├── model-badge.test.tsx
         │   │   │   │   │   ├── quota-adjustment.test.tsx
         │   │   │   │   │   ├── reject-reason.test.tsx
         │   │   │   │   │   └── usage-facts.test.tsx
@@ -3115,7 +3286,9 @@ newapi_2_-edu/
         │   ├── lib/
         │   │   ├── __tests__/
         │   │   │   ├── http-cache.test.ts
-        │   │   │   └── localized-text.test.ts
+        │   │   │   ├── localized-text.test.ts
+        │   │   │   ├── server-error-notifications.test.ts
+        │   │   │   └── status-query.test.tsx
         │   │   ├── admin-permissions.ts
         │   │   ├── api.ts
         │   │   ├── auth-session-sync.ts
@@ -3141,11 +3314,13 @@ newapi_2_-edu/
         │   │   ├── legacy-route.ts
         │   │   ├── lobe-icon.tsx
         │   │   ├── localized-text.ts
+        │   │   ├── model-provider.ts
         │   │   ├── motion.ts
         │   │   ├── nav-modules.ts
         │   │   ├── oauth.ts
         │   │   ├── passkey.ts
         │   │   ├── password-policy.ts
+        │   │   ├── query-client.ts
         │   │   ├── roles.ts
         │   │   ├── secure-verification.ts
         │   │   ├── server-error-message.test.ts
@@ -3153,6 +3328,7 @@ newapi_2_-edu/
         │   │   ├── session-flag.ts
         │   │   ├── session-hint.ts
         │   │   ├── show-submitted-data.tsx
+        │   │   ├── status-query.ts
         │   │   ├── theme-customization.ts
         │   │   ├── theme-radius.ts
         │   │   ├── time.ts
@@ -3225,6 +3401,9 @@ newapi_2_-edu/
         │   │   │   │   │   ├── $section.tsx
         │   │   │   │   │   └── index.tsx
         │   │   │   │   ├── operations/
+        │   │   │   │   │   ├── $section.tsx
+        │   │   │   │   │   └── index.tsx
+        │   │   │   │   ├── request-policies/
         │   │   │   │   │   ├── $section.tsx
         │   │   │   │   │   └── index.tsx
         │   │   │   │   ├── route.tsx

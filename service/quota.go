@@ -11,7 +11,6 @@ import (
 	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/pkg/billingexpr"
-	perfmetrics "github.com/QuantumNous/new-api/pkg/perf_metrics"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/relaykit/dto"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
@@ -284,16 +283,20 @@ func CalcOpenRouterCacheCreateTokens(usage dto.Usage, priceData types.PriceData)
 }
 
 func PostAudioConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, usage *dto.Usage, extraContent string) {
+	if usage == nil {
+		usage = &dto.Usage{PromptTokens: relayInfo.GetEstimatePromptTokens(), TotalTokens: relayInfo.GetEstimatePromptTokens()}
+	}
 
 	var tieredUsedVars map[string]bool
 	if snap := relayInfo.TieredBillingSnapshot; snap != nil {
-		tieredUsedVars = billingexpr.UsedVars(snap.ExprString)
+		tieredUsedVars = billingexpr.UsedVarsByHash(snap.ExprString, snap.ExprHash)
 	}
 	var tieredResult *billingexpr.TieredResult
 	tieredOk, tieredQuota, tieredRes := TryTieredSettle(relayInfo, BuildTieredTokenParams(usage, false, tieredUsedVars))
 	if tieredOk {
 		tieredResult = tieredRes
 	}
+	fixedPriceBilling := tieredOk && isFixedPriceSettlement(relayInfo, tieredRes)
 
 	useTimeSeconds := time.Now().Unix() - relayInfo.StartTime.Unix()
 	textInputTokens := usage.PromptTokensDetails.TextTokens
@@ -344,7 +347,7 @@ func PostAudioConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, u
 	}
 
 	// record all the consume log even if quota is 0
-	if totalTokens == 0 {
+	if totalTokens == 0 && !fixedPriceBilling {
 		// in this case, must be some error happened
 		// we cannot just return, because we may have to return the pre-consumed quota
 		quota = 0
@@ -384,9 +387,7 @@ func PostAudioConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, u
 		Group:            relayInfo.UsingGroup,
 		Other:            other,
 	})
-	gopool.Go(func() {
-		perfmetrics.RecordRelaySample(relayInfo, true, int64(usage.CompletionTokens))
-	})
+	relayInfo.PerformanceOutputTokens = int64(usage.CompletionTokens)
 }
 
 func PreConsumeTokenQuota(relayInfo *relaycommon.RelayInfo, quota int) error {

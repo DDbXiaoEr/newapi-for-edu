@@ -12,14 +12,12 @@ import (
 	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/pkg/billingexpr"
-	perfmetrics "github.com/QuantumNous/new-api/pkg/perf_metrics"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	relayconstant "github.com/QuantumNous/new-api/relay/constant"
 	"github.com/QuantumNous/new-api/relaykit/dto"
 	"github.com/QuantumNous/new-api/relaykit/types"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 
-	"github.com/bytedance/gopkg/util/gopool"
 	"github.com/gin-gonic/gin"
 	"github.com/shopspring/decimal"
 )
@@ -66,6 +64,7 @@ type textQuotaSummary struct {
 	AudioInputPrice        float64
 	ToolSurchargeItems     []ToolSurchargeItem
 	ToolCallSurchargeQuota decimal.Decimal
+	FixedPriceBilling      bool
 }
 
 // hasBillableUsage reports whether this request should incur any charge.
@@ -73,7 +72,7 @@ type textQuotaSummary struct {
 // surcharge (e.g. /v1/alpha/search returns no usage but bills one web_search
 // call), so token count alone is not sufficient to decide.
 func (s *textQuotaSummary) hasBillableUsage() bool {
-	return s.TotalTokens > 0 || !s.ToolCallSurchargeQuota.IsZero()
+	return s.FixedPriceBilling || s.TotalTokens > 0 || !s.ToolCallSurchargeQuota.IsZero()
 }
 
 func cacheWriteTokensTotal(summary textQuotaSummary) int {
@@ -405,17 +404,30 @@ func PostTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, us
 	summary := calculateTextQuotaSummary(ctx, relayInfo, billingUsage)
 
 	var tieredResult *billingexpr.TieredResult
+	var tieredTokens billingexpr.TokenParams
 	tieredBillingApplied := false
-	if originUsage != nil {
+	snap := relayInfo.TieredBillingSnapshot
+	// Providers normally estimate missing usage before settlement. Preserve the
+	// same prompt estimate when a fixed-price expression reaches us without it;
+	// its conditions must still run and may select a token-priced fallback.
+	if billingUsage == nil && snap != nil && billingexpr.UsesFixedPricingByHash(snap.ExprString, snap.ExprHash) {
+		billingUsage = &dto.Usage{PromptTokens: summary.PromptTokens, CompletionTokens: summary.CompletionTokens, TotalTokens: summary.TotalTokens}
+	}
+	if billingUsage != nil {
 		var tieredUsedVars map[string]bool
 		if snap := relayInfo.TieredBillingSnapshot; snap != nil {
-			tieredUsedVars = billingexpr.UsedVars(snap.ExprString)
+			tieredUsedVars = billingexpr.UsedVarsByHash(snap.ExprString, snap.ExprHash)
 		}
-		tieredOk, tieredQuota, tieredRes := TryTieredSettle(relayInfo, BuildTieredTokenParams(billingUsage, summary.IsClaudeUsageSemantic, tieredUsedVars))
+		tieredTokens = BuildTieredTokenParams(billingUsage, summary.IsClaudeUsageSemantic, tieredUsedVars)
+		tieredOk, tieredQuota, tieredRes := TryTieredSettle(relayInfo, tieredTokens)
 		if tieredOk {
 			tieredBillingApplied = true
 			tieredResult = tieredRes
 			summary.Quota = composeTieredTextQuota(relayInfo, summary, tieredQuota, tieredRes)
+			summary.FixedPriceBilling = isFixedPriceSettlement(relayInfo, tieredRes)
+			if summary.FixedPriceBilling {
+				summary.AudioInputPrice = 0
+			}
 		}
 	}
 
@@ -516,6 +528,7 @@ func PostTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, us
 	}
 	if tieredBillingApplied {
 		InjectTieredBillingInfo(other, relayInfo, tieredResult)
+
 	}
 
 	attachQuotaSaturation(ctx, relayInfo, other)
@@ -534,7 +547,5 @@ func PostTextConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, us
 		Group:            relayInfo.UsingGroup,
 		Other:            other,
 	})
-	gopool.Go(func() {
-		perfmetrics.RecordRelaySample(relayInfo, true, int64(summary.CompletionTokens))
-	})
+	relayInfo.PerformanceOutputTokens = int64(summary.CompletionTokens)
 }
