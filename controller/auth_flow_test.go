@@ -103,7 +103,7 @@ func TestSecurityLoginCodeCompletesOnce(t *testing.T) {
 					require.NoError(t, common.Unmarshal(result.Data, &bundle))
 					assert.NotEmpty(t, bundle.AccessToken)
 					assert.Equal(t, "password", bundle.Session.LoginMethod)
-					assert.NotEmpty(t, response.Header().Values("Set-Cookie"))
+					assert.Empty(t, response.Header().Values("Set-Cookie"))
 				} else {
 					assert.Empty(t, response.Header().Values("Set-Cookie"))
 				}
@@ -969,7 +969,7 @@ func TestOAuthLoginLegacyGitHubBindingRequiresAccountEvidence(t *testing.T) {
 			if test.expectMigration {
 				assert.Equal(t, existing.Id, result.Data.User.Id)
 				assert.Equal(t, "900001", reloaded.GitHubId)
-				assert.NotEmpty(t, response.Header().Values("Set-Cookie"))
+				assert.Empty(t, response.Header().Values("Set-Cookie"))
 				return
 			}
 			assert.Equal(t, test.existingGitHubID, reloaded.GitHubId, "the existing binding must stay untouched")
@@ -1036,10 +1036,11 @@ func TestOAuthLoginLegacyGitHubBindingMigratesAfterLoginVerification(t *testing.
 				if attempt == 0 && !expectLogin {
 					assert.Equal(t, "ACCOUNT_ALREADY_BOUND", result.Code)
 				}
+				assert.Empty(t, response.Header().Values("Set-Cookie"))
 				if result.Success {
-					assert.NotEmpty(t, response.Header().Values("Set-Cookie"))
-				} else {
-					assert.Empty(t, response.Header().Values("Set-Cookie"))
+					var bundle service.AuthBundle
+					require.NoError(t, common.Unmarshal(result.Data, &bundle))
+					assert.NotEmpty(t, bundle.AccessToken)
 				}
 			}
 			require.NoError(t, model.DB.First(&reloaded, existing.Id).Error)

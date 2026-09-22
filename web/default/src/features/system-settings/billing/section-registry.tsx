@@ -25,6 +25,7 @@ import { PaymentSettingsSection } from '../integrations/payment-settings-section
 import { RatioSettingsCard } from '../models/ratio-settings-card'
 import type { BillingSettings } from '../types'
 import { createSectionRegistry } from '../utils/section-registry'
+import { GroupChannelBindingSection } from './group-channel-binding-section'
 
 const getModelDefaults = (settings: BillingSettings) => ({
   ModelPrice: settings.ModelPrice,
@@ -128,6 +129,11 @@ const BILLING_SECTIONS = [
         visibleTabs={['groups']}
       />
     ),
+  },
+  {
+    id: 'group-channel-binding',
+    titleKey: 'Group Channel Binding',
+    build: () => <GroupChannelBindingSection />,
   },
   {
     id: 'payment',

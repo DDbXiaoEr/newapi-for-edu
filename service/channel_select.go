@@ -303,7 +303,15 @@ func SelectChannelForRequest(c *gin.Context, modelName string, retry *RetryParam
 				FilterKind: kind, Channel: channel,
 			}
 		}
-		return channel, "", nil
+		usingGroup := common.GetContextKeyString(c, constant.ContextKeyUsingGroup)
+		selectGroup, allowed := resolvePinnedGroup(c, usingGroup, modelName, pin.ChannelId)
+		if !allowed {
+			return nil, selectGroup, &ChannelSelectError{
+				StatusCode: http.StatusForbidden, Code: types.ErrorCode("channel_not_allowed_for_group"), MessageID: i18n.MsgDistributorChannelNotBound,
+				Params: map[string]any{"Group": usingGroup, "Model": modelName, "ChannelId": pin.ChannelId},
+			}
+		}
+		return channel, selectGroup, nil
 	}
 
 	usingGroup := retry.TokenGroup
@@ -374,6 +382,25 @@ func SelectChannelForRequest(c *gin.Context, modelName string, retry *RetryParam
 		}
 	}
 	return channel, selectGroup, nil
+}
+
+// resolvePinnedGroup validates a pinned channel against the effective
+// group(s). A non-auto group must allow the channel (explicit binding or legacy
+// membership). For "auto" the channel must be allowed for at least one of the
+// request's auto groups, and the first matching group is returned so billing
+// attributes the request correctly.
+func resolvePinnedGroup(c *gin.Context, usingGroup, modelName string, channelID int) (string, bool) {
+	if usingGroup != "auto" {
+		return usingGroup, model.ChannelAllowedForGroup(usingGroup, modelName, channelID)
+	}
+	userGroup := common.GetContextKeyString(c, constant.ContextKeyUserGroup)
+	for _, group := range GetRequestAutoGroups(c, userGroup) {
+		if model.ChannelAllowedForGroup(group, modelName, channelID) {
+			common.SetContextKey(c, constant.ContextKeyAutoGroup, group)
+			return group, true
+		}
+	}
+	return usingGroup, false
 }
 
 // Origin-task pins report a fixed code so task polling can tell a retired

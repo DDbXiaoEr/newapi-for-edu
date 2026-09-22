@@ -6,11 +6,10 @@
 
 ```
 newapi_2_-edu/
+├── .dockerignore
 ├── .gitignore
 ├── AGENTS.md
 ├── CLAUDE.md
-├── Dockerfile.allinone
-├── Dockerfile.backend
 ├── LICENSE
 ├── Makefile
 ├── NEWAPIREADME.md
@@ -50,6 +49,7 @@ newapi_2_-edu/
 │   ├── endpoint_defaults.go
 │   ├── endpoint_type.go
 │   ├── env.go
+│   ├── env_test.go
 │   ├── etag.go
 │   ├── gin.go
 │   ├── go-channel.go
@@ -80,7 +80,6 @@ newapi_2_-edu/
 │   ├── rate-limit_test.go
 │   ├── redis.go
 │   ├── request_body_limit.go
-│   ├── session_cookie.go
 │   ├── ssrf_protection.go
 │   ├── ssrf_protection_test.go
 │   ├── str.go
@@ -143,12 +142,15 @@ newapi_2_-edu/
 │   ├── channel_upstream_update_test.go
 │   ├── checkin.go
 │   ├── codex_oauth.go
+│   ├── codex_oauth_test.go
 │   ├── codex_usage.go
 │   ├── console_migrate.go
 │   ├── custom_oauth.go
 │   ├── deployment.go
 │   ├── email_binding.go
 │   ├── group.go
+│   ├── group_channel.go
+│   ├── group_channel_test.go
 │   ├── image.go
 │   ├── log.go
 │   ├── login_ldap_test.go
@@ -251,6 +253,9 @@ newapi_2_-edu/
 │   ├── generate-certs.sh
 │   └── nginx.conf
 ├── docker-compose.yml
+├── docker/
+│   ├── Dockerfile.allinone
+│   └── Dockerfile.backend
 ├── docs/
 │   ├── channel/
 │   │   └── other_setting.md
@@ -318,8 +323,6 @@ newapi_2_-edu/
 ├── middleware/
 │   ├── audit.go
 │   ├── auth.go
-│   ├── auth_origin.go
-│   ├── auth_origin_test.go
 │   ├── auth_test.go
 │   ├── body_cleanup.go
 │   ├── cache.go
@@ -382,6 +385,8 @@ newapi_2_-edu/
 │   ├── frontend_option_migration_test.go
 │   ├── gorm_logger.go
 │   ├── gorm_logger_test.go
+│   ├── group_channel.go
+│   ├── group_channel_test.go
 │   ├── json_column_test.go
 │   ├── legacy_dalle_pricing.go
 │   ├── locking.go
@@ -1096,6 +1101,7 @@ newapi_2_-edu/
 │   ├── channel_affinity_usage_cache_test.go
 │   ├── channel_select.go
 │   ├── channel_select_auto_groups_test.go
+│   ├── channel_select_binding_test.go
 │   ├── channel_select_test.go
 │   ├── codex_channel_models.go
 │   ├── codex_credential_refresh.go
@@ -1197,6 +1203,8 @@ newapi_2_-edu/
 │   ├── console_setting/
 │   │   ├── config.go
 │   │   └── validation.go
+│   ├── group_channel_setting/
+│   │   └── group_channel.go
 │   ├── midjourney.go
 │   ├── model_setting/
 │   │   ├── claude.go
@@ -1785,6 +1793,7 @@ newapi_2_-edu/
     │   │   │   │   │   ├── UpstreamRatioSync.jsx
     │   │   │   │   │   ├── components/
     │   │   │   │   │   │   ├── AutoGroupList.jsx
+    │   │   │   │   │   │   ├── GroupChannelBinding.jsx
     │   │   │   │   │   │   ├── GroupGroupRatioRules.jsx
     │   │   │   │   │   │   ├── GroupSpecialUsableRules.jsx
     │   │   │   │   │   │   ├── GroupTable.jsx
@@ -2874,6 +2883,7 @@ newapi_2_-edu/
         │   │   │   │   ├── passkey-section.tsx
         │   │   │   │   └── section-registry.tsx
         │   │   │   ├── billing/
+        │   │   │   │   ├── group-channel-binding-section.tsx
         │   │   │   │   ├── index.tsx
         │   │   │   │   └── section-registry.tsx
         │   │   │   ├── components/
@@ -3326,7 +3336,6 @@ newapi_2_-edu/
         │   │   ├── server-error-message.test.ts
         │   │   ├── server-error-message.ts
         │   │   ├── session-flag.ts
-        │   │   ├── session-hint.ts
         │   │   ├── show-submitted-data.tsx
         │   │   ├── status-query.ts
         │   │   ├── theme-customization.ts

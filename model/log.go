@@ -107,6 +107,12 @@ func clickHouseLogOrder(prefix string) string {
 	return prefix + "created_at desc, " + prefix + "request_id desc"
 }
 
+// logTableColumn qualifies a column with the effective log table name so the
+// same queries work for the default "logs" table and a custom ClickHouse table.
+func logTableColumn(column string) string {
+	return logTableName() + "." + column
+}
+
 func assignDisplayLogIds(logs []*Log, startIdx int) {
 	for i := range logs {
 		logs[i].Id = startIdx + i + 1
@@ -466,43 +472,43 @@ func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName
 	if logType == LogTypeUnknown {
 		tx = LOG_DB
 	} else {
-		tx = LOG_DB.Where("logs.type = ?", logType)
+		tx = LOG_DB.Where(logTableColumn("type")+" = ?", logType)
 	}
 
-	if tx, err = applyExplicitLogTextFilter(tx, "logs.model_name", modelName); err != nil {
+	if tx, err = applyExplicitLogTextFilter(tx, logTableColumn("model_name"), modelName); err != nil {
 		return nil, 0, err
 	}
-	if tx, err = applyExplicitLogTextFilter(tx, "logs.username", username); err != nil {
+	if tx, err = applyExplicitLogTextFilter(tx, logTableColumn("username"), username); err != nil {
 		return nil, 0, err
 	}
 	if tokenName != "" {
-		tx = tx.Where("logs.token_name = ?", tokenName)
+		tx = tx.Where(logTableColumn("token_name")+" = ?", tokenName)
 	}
 	if requestId != "" {
-		tx = tx.Where("logs.request_id = ?", requestId)
+		tx = tx.Where(logTableColumn("request_id")+" = ?", requestId)
 	}
 	if upstreamRequestId != "" {
-		tx = tx.Where("logs.upstream_request_id = ?", upstreamRequestId)
+		tx = tx.Where(logTableColumn("upstream_request_id")+" = ?", upstreamRequestId)
 	}
 	if startTimestamp != 0 {
-		tx = tx.Where("logs.created_at >= ?", startTimestamp)
+		tx = tx.Where(logTableColumn("created_at")+" >= ?", startTimestamp)
 	}
 	if endTimestamp != 0 {
-		tx = tx.Where("logs.created_at <= ?", endTimestamp)
+		tx = tx.Where(logTableColumn("created_at")+" <= ?", endTimestamp)
 	}
 	if channel != 0 {
-		tx = tx.Where("logs.channel_id = ?", channel)
+		tx = tx.Where(logTableColumn("channel_id")+" = ?", channel)
 	}
 	if group != "" {
-		tx = tx.Where("logs."+logGroupCol+" = ?", group)
+		tx = tx.Where(logTableColumn(logGroupCol)+" = ?", group)
 	}
 	err = tx.Model(&Log{}).Count(&total).Error
 	if err != nil {
 		return nil, 0, err
 	}
-	order := "logs.created_at desc, logs.id desc"
+	order := logTableColumn("created_at") + " desc, " + logTableColumn("id") + " desc"
 	if common.UsingLogDatabase(common.DatabaseTypeClickHouse) {
-		order = clickHouseLogOrder("logs.")
+		order = clickHouseLogOrder(logTableName() + ".")
 	}
 	err = tx.Order(order).Limit(num).Offset(startIdx).Find(&logs).Error
 	if err != nil {
@@ -560,40 +566,40 @@ const logSearchCountLimit = 10000
 func GetUserLogs(userId int, logType int, startTimestamp int64, endTimestamp int64, modelName string, tokenName string, startIdx int, num int, group string, requestId string, upstreamRequestId string) (logs []*Log, total int64, err error) {
 	var tx *gorm.DB
 	if logType == LogTypeUnknown {
-		tx = LOG_DB.Where("logs.user_id = ?", userId)
+		tx = LOG_DB.Where(logTableColumn("user_id")+" = ?", userId)
 	} else {
-		tx = LOG_DB.Where("logs.user_id = ? and logs.type = ?", userId, logType)
+		tx = LOG_DB.Where(logTableColumn("user_id")+" = ? and "+logTableColumn("type")+" = ?", userId, logType)
 	}
 
-	if tx, err = applyExplicitLogTextFilter(tx, "logs.model_name", modelName); err != nil {
+	if tx, err = applyExplicitLogTextFilter(tx, logTableColumn("model_name"), modelName); err != nil {
 		return nil, 0, err
 	}
 	if tokenName != "" {
-		tx = tx.Where("logs.token_name = ?", tokenName)
+		tx = tx.Where(logTableColumn("token_name")+" = ?", tokenName)
 	}
 	if requestId != "" {
-		tx = tx.Where("logs.request_id = ?", requestId)
+		tx = tx.Where(logTableColumn("request_id")+" = ?", requestId)
 	}
 	if upstreamRequestId != "" {
-		tx = tx.Where("logs.upstream_request_id = ?", upstreamRequestId)
+		tx = tx.Where(logTableColumn("upstream_request_id")+" = ?", upstreamRequestId)
 	}
 	if startTimestamp != 0 {
-		tx = tx.Where("logs.created_at >= ?", startTimestamp)
+		tx = tx.Where(logTableColumn("created_at")+" >= ?", startTimestamp)
 	}
 	if endTimestamp != 0 {
-		tx = tx.Where("logs.created_at <= ?", endTimestamp)
+		tx = tx.Where(logTableColumn("created_at")+" <= ?", endTimestamp)
 	}
 	if group != "" {
-		tx = tx.Where("logs."+logGroupCol+" = ?", group)
+		tx = tx.Where(logTableColumn(logGroupCol)+" = ?", group)
 	}
 	err = tx.Model(&Log{}).Limit(logSearchCountLimit).Count(&total).Error
 	if err != nil {
 		common.SysError("failed to count user logs: " + err.Error())
 		return nil, 0, errors.New("查询日志失败")
 	}
-	order := "logs.id desc"
+	order := logTableColumn("id") + " desc"
 	if common.UsingLogDatabase(common.DatabaseTypeClickHouse) {
-		order = clickHouseLogOrder("logs.")
+		order = clickHouseLogOrder(logTableName() + ".")
 	}
 	err = tx.Order(order).Limit(num).Offset(startIdx).Find(&logs).Error
 	if err != nil {
@@ -612,10 +618,10 @@ type Stat struct {
 }
 
 func SumUsedQuota(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, channel int, group string) (stat Stat, err error) {
-	tx := LOG_DB.Table("logs").Select("COALESCE(sum(quota), 0) quota")
+	tx := LOG_DB.Table(logTableName()).Select("COALESCE(sum(quota), 0) quota")
 
 	// 为rpm和tpm创建单独的查询
-	rpmTpmQuery := LOG_DB.Table("logs").Select("count(*) rpm, COALESCE(sum(prompt_tokens), 0) + COALESCE(sum(completion_tokens), 0) tpm")
+	rpmTpmQuery := LOG_DB.Table(logTableName()).Select("count(*) rpm, COALESCE(sum(prompt_tokens), 0) + COALESCE(sum(completion_tokens), 0) tpm")
 
 	if tx, err = applyExplicitLogTextFilter(tx, "username", username); err != nil {
 		return stat, err
@@ -674,7 +680,7 @@ func SumUsedQuota(logType int, startTimestamp int64, endTimestamp int64, modelNa
 }
 
 func SumUsedToken(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string) (token int) {
-	tx := LOG_DB.Table("logs").Select("COALESCE(sum(prompt_tokens), 0) + COALESCE(sum(completion_tokens), 0)")
+	tx := LOG_DB.Table(logTableName()).Select("COALESCE(sum(prompt_tokens), 0) + COALESCE(sum(completion_tokens), 0)")
 	if username != "" {
 		tx = tx.Where("username = ?", username)
 	}
@@ -723,7 +729,7 @@ func DeleteOldLogBatch(ctx context.Context, targetTimestamp int64, limit int) (i
 			return 0, nil
 		}
 		if err := LOG_DB.WithContext(ctx).Exec(
-			"ALTER TABLE logs DELETE WHERE created_at < ? SETTINGS mutations_sync = 1",
+			"ALTER TABLE "+logTableName()+" DELETE WHERE created_at < ? SETTINGS mutations_sync = 1",
 			targetTimestamp,
 		).Error; err != nil {
 			return 0, err

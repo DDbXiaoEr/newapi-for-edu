@@ -35,9 +35,6 @@ import (
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 
 	"github.com/bytedance/gopkg/util/gopool"
-	"github.com/gin-contrib/sessions"
-	"github.com/gin-contrib/sessions/cookie"
-	redisstore "github.com/gin-contrib/sessions/redis"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 
@@ -202,28 +199,6 @@ func main() {
 	server.Use(middleware.I18n())
 	middleware.SetUpLogger(server)
 
-	// Initialize session store
-	var store sessions.Store
-	if common.RedisEnabled {
-		opt := common.RDB.Options()
-		s, redisErr := redisstore.NewStoreWithDB(10, "tcp", opt.Addr, opt.Password, strconv.Itoa(opt.DB), []byte(common.SessionSecret))
-		if redisErr != nil {
-			common.FatalLog("failed to create Redis session store: " + redisErr.Error())
-		}
-		store = s
-		common.SysLog("Redis session store initialized")
-	} else {
-		store = cookie.NewStore([]byte(common.SessionSecret))
-	}
-	store.Options(sessions.Options{
-		Path:     "/",
-		MaxAge:   2592000, // 30 days
-		HttpOnly: true,
-		Secure:   false,
-		SameSite: http.SameSiteStrictMode,
-	})
-	server.Use(sessions.Sessions("session", store))
-
 	InjectUmamiAnalytics()
 	InjectGoogleAnalytics()
 
@@ -322,6 +297,10 @@ func InitResources() error {
 		if common.DebugEnabled {
 			common.SysLog("No .env file found, using default environment variables. If needed, please create a .env file and set the relevant variables.")
 		}
+	}
+
+	if err := common.CheckRequiredEnvVars(); err != nil {
+		return err
 	}
 
 	// 加载环境变量

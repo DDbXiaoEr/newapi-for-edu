@@ -11,6 +11,14 @@ func IsChannelEnabledForGroupModel(group string, modelName string, channelID int
 	if group == "" || modelName == "" || channelID <= 0 {
 		return false
 	}
+	// A bound group only accepts its explicitly bound channels, regardless of
+	// each channel's own Group field.
+	if ids, ok := groupBoundChannelIDs(group); ok {
+		if !slices.Contains(ids, channelID) {
+			return false
+		}
+		return channelSupportsModelForGroup(channelID, modelName)
+	}
 	if !common.MemoryCacheEnabled {
 		return isChannelEnabledForGroupModelDB(group, modelName, channelID)
 	}

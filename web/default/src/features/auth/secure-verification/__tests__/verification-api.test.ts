@@ -307,14 +307,15 @@ it.each(['proof', 'flow'] as const)(
   }
 )
 
-it('refreshes an expiring login token before submitting a one-time proof', async () => {
+it('submits a one-time proof with the stored token and never calls a refresh endpoint', async () => {
   useAuthStore.getState().auth.setBundle({
     ...sessionBundle,
     access_expires_at: Math.floor(Date.now() / 1000) + 10,
   })
   const order: string[] = []
-  mockRefreshResponse({ ...sessionBundle, access_token: 'fresh-access' }, () =>
-    order.push('refresh')
+  const refresh = mockRefreshResponse(
+    { ...sessionBundle, access_token: 'fresh-access' },
+    () => order.push('refresh')
   )
   const adapter = vi.fn(async (config: InternalAxiosRequestConfig) => {
     order.push('action')
@@ -332,10 +333,11 @@ it('refreshes an expiring login token before submitting a one-time proof', async
     {},
     { headers: { 'X-Security-Proof': 'one-use-proof' } }
   )
-  expect(order).toEqual(['refresh', 'action'])
+  expect(order).toEqual(['action'])
+  expect(refresh).not.toHaveBeenCalled()
   expect(adapter).toHaveBeenCalledTimes(1)
   expect(adapter.mock.calls[0]?.[0].headers.Authorization).toBe(
-    'Bearer fresh-access'
+    'Bearer access-token'
   )
 })
 

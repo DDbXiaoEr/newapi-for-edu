@@ -16,8 +16,6 @@ import (
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting/system_setting"
 
-	"github.com/gin-contrib/sessions"
-	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
@@ -89,8 +87,6 @@ func performLoginRequest(t *testing.T, body string) (*httptest.ResponseRecorder,
 
 	recorder := httptest.NewRecorder()
 	router := gin.New()
-	store := cookie.NewStore([]byte("login-test-secret"))
-	router.Use(sessions.Sessions("new-api-session", store))
 	router.POST("/api/user/login", Login)
 
 	request := httptest.NewRequest(http.MethodPost, "/api/user/login", bytes.NewBufferString(body))
@@ -107,18 +103,6 @@ func fetchUserByID(t *testing.T, id int) *model.User {
 		t.Fatalf("failed to fetch user by id %d: %v", id, err)
 	}
 	return user
-}
-
-func getSessionCookie(t *testing.T, recorder *httptest.ResponseRecorder, cookieName string) *http.Cookie {
-	t.Helper()
-
-	for _, cookie := range recorder.Result().Cookies() {
-		if cookie.Name == cookieName {
-			return cookie
-		}
-	}
-	t.Fatalf("session cookie %q not found in response", cookieName)
-	return nil
 }
 
 func TestLoginLocalPasswordSuccessSkipsLDAP(t *testing.T) {
@@ -506,8 +490,6 @@ func TestLoginLDAPSuccessThenVerify2FACompletesLogin(t *testing.T) {
 	}
 
 	router := gin.New()
-	store := cookie.NewStore([]byte("login-test-secret"))
-	router.Use(sessions.Sessions("new-api-session", store))
 	router.POST("/api/user/login", Login)
 	router.POST("/api/user/2fa/login", Verify2FALogin)
 

@@ -36,8 +36,6 @@ var SessionSecret = uuid.New().String()
 var CryptoSecret = uuid.New().String()
 var JWTSecret = uuid.New().String()
 var JWTExpirationSeconds = 7 * 24 * 60 * 60 // 7 days
-var SessionCookieSecure = false
-var SessionCookieTrustedURLs []string
 
 const (
 	DefaultUserSessionActiveLimit           = 50

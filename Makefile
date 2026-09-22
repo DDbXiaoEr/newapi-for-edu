@@ -1,7 +1,10 @@
-.PHONY: all prepare build clean dev test backend frontend
+.PHONY: all prepare build clean dev test backend frontend docker-backend docker-backend-arm64 docker-allinone docker-allinone-arm64
 
 VERSION := $(shell git describe --tags --always --dirty)
 BUILD_DIR := build
+IMAGE ?= newapi-edu-pure
+ALLINONE_IMAGE ?= newapi-edu
+IMAGE_TAG ?= latest
 
 # Default target builds both
 all: build
@@ -56,6 +59,25 @@ build-backend-linux-arm64: build-frontend
 
 build-linux: build-backend-linux
 	@echo "Linux build complete"
+
+# Pure-backend (API only) Docker image based on debian:bullseye-v1.4.1.
+# The binary is cross-compiled for linux/amd64; build context is the repo root.
+docker-backend: build-backend-pure-linux
+	@echo "Building pure-backend image $(IMAGE):$(IMAGE_TAG)..."
+	docker build -f docker/Dockerfile.backend -t $(IMAGE):$(IMAGE_TAG) .
+
+docker-backend-arm64: build-backend-pure-linux-arm64
+	@echo "Building pure-backend image $(IMAGE):$(IMAGE_TAG) (arm64)..."
+	docker buildx build --platform linux/arm64 --build-arg PURE_BINARY=build/newapi-edu-pure-arm64 -f docker/Dockerfile.backend -t $(IMAGE):$(IMAGE_TAG) .
+
+# All-in-one Docker image with the frontend embedded (built from main.go).
+docker-allinone: build-backend-linux
+	@echo "Building all-in-one image $(ALLINONE_IMAGE):$(IMAGE_TAG)..."
+	docker build -f docker/Dockerfile.allinone -t $(ALLINONE_IMAGE):$(IMAGE_TAG) .
+
+docker-allinone-arm64: build-backend-linux-arm64
+	@echo "Building all-in-one image $(ALLINONE_IMAGE):$(IMAGE_TAG) (arm64)..."
+	docker buildx build --platform linux/arm64 --build-arg APP_BINARY=build/newapi-edu-arm64 -f docker/Dockerfile.allinone -t $(ALLINONE_IMAGE):$(IMAGE_TAG) .
 
 # Frontend-specific targets (using make -C)
 prepare-frontend:

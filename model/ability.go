@@ -41,6 +41,11 @@ func GetAllEnableAbilityWithChannels() ([]AbilityWithChannel, error) {
 }
 
 func GetGroupEnabledModels(group string) []string {
+	// A bound group exposes only the models served by its bound channels, so
+	// the group list can never exceed what the bound channels actually support.
+	if ids, ok := groupBoundChannelIDs(group); ok {
+		return boundGroupEnabledModels(ids)
+	}
 	var models []string
 	// Find distinct models
 	DB.Table("abilities").Where(commonGroupCol+" = ? and enabled = ?", group, true).Distinct("model").Pluck("model", &models)
@@ -111,11 +116,22 @@ func GetChannel(
 	retry int,
 	filters []dto.ChannelFilter,
 ) (*Channel, error) {
+	// A bound group is authoritative: candidates come from the explicit binding
+	// instead of the abilities table.
+	if ids, ok := groupBoundChannelIDs(group); ok {
+		return selectChannelFromAbilities(boundAbilitiesForModel(ids, model), model, retry, filters)
+	}
 	var abilities []Ability
 	err := DB.Where(commonGroupCol+" = ? and model = ? and enabled = ?", group, model, true).Order("priority DESC, weight DESC").Find(&abilities).Error
 	if err != nil {
 		return nil, err
 	}
+	return selectChannelFromAbilities(abilities, model, retry, filters)
+}
+
+// selectChannelFromAbilities applies request filters and the priority/weight
+// selection to a candidate ability set.
+func selectChannelFromAbilities(abilities []Ability, model string, retry int, filters []dto.ChannelFilter) (*Channel, error) {
 	abilities = filterAbilitiesByConstraints(abilities, model, filters)
 	if len(abilities) > 0 {
 		priorities := make([]int64, 0)
@@ -159,7 +175,7 @@ func GetChannel(
 	} else {
 		return nil, nil
 	}
-	err = DB.First(&channel, "id = ?", channel.Id).Error
+	err := DB.First(&channel, "id = ?", channel.Id).Error
 	return &channel, err
 }
 

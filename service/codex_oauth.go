@@ -31,13 +31,6 @@ type CodexOAuthTokenResult struct {
 	ExpiresAt    time.Time
 }
 
-type CodexOAuthAuthorizationFlow struct {
-	State        string
-	Verifier     string
-	Challenge    string
-	AuthorizeURL string
-}
-
 func RefreshCodexOAuthToken(ctx context.Context, refreshToken string) (*CodexOAuthTokenResult, error) {
 	return RefreshCodexOAuthTokenWithProxy(ctx, refreshToken, "")
 }
@@ -129,25 +122,12 @@ func ExchangeCodexAuthorizationCodeWithProxy(ctx context.Context, code string, v
 	return exchangeCodexAuthorizationCode(ctx, client, codexOAuthTokenURL, codexOAuthClientID, code, verifier, codexOAuthRedirectURI)
 }
 
-func CreateCodexOAuthAuthorizationFlow() (*CodexOAuthAuthorizationFlow, error) {
-	state, err := createStateHex(16)
-	if err != nil {
-		return nil, err
-	}
-	verifier, challenge, err := generatePKCEPair()
-	if err != nil {
-		return nil, err
-	}
-	u, err := buildCodexAuthorizeURL(state, challenge)
-	if err != nil {
-		return nil, err
-	}
-	return &CodexOAuthAuthorizationFlow{
-		State:        state,
-		Verifier:     verifier,
-		Challenge:    challenge,
-		AuthorizeURL: u,
-	}, nil
+func CreateCodexOAuthPKCE() (verifier string, challenge string, err error) {
+	return generatePKCEPair()
+}
+
+func CodexOAuthAuthorizeURL(state string, challenge string) (string, error) {
+	return buildCodexAuthorizeURL(state, challenge)
 }
 
 func exchangeCodexAuthorizationCode(
@@ -227,17 +207,6 @@ func buildCodexAuthorizeURL(state string, challenge string) (string, error) {
 	q.Set("originator", "codex_cli_rs")
 	u.RawQuery = q.Encode()
 	return u.String(), nil
-}
-
-func createStateHex(nBytes int) (string, error) {
-	if nBytes <= 0 {
-		return "", errors.New("invalid state bytes length")
-	}
-	b := make([]byte, nBytes)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("%x", b), nil
 }
 
 func generatePKCEPair() (verifier string, challenge string, err error) {

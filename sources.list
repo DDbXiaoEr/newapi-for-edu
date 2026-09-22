@@ -1,8 +1,10 @@
-deb https://mirrors.aliyun.com/debian/ bullseye main non-free contrib
-deb-src https://mirrors.aliyun.com/debian/ bullseye main non-free contrib
-deb https://mirrors.aliyun.com/debian-security/ bullseye-security main
-deb-src https://mirrors.aliyun.com/debian-security/ bullseye-security main
-deb https://mirrors.aliyun.com/debian/ bullseye-updates main non-free contrib
-deb-src https://mirrors.aliyun.com/debian/ bullseye-updates main non-free contrib
-#deb https://mirrors.aliyun.com/debian/ bullseye-backports main non-free contrib
-#deb-src https://mirrors.aliyun.com/debian/ bullseye-backports main non-free contrib
+# Debian 11 (bullseye) is end-of-life: the bullseye-security and bullseye-updates
+# pools referenced by the original list no longer exist on the mirrors, so apt
+# installs fail with 404. HTTP is used deliberately: this list is also copied
+# into the build image to bootstrap ca-certificates before any TLS trust exists.
+deb http://mirrors.aliyun.com/debian/ bullseye main non-free contrib
+deb-src http://mirrors.aliyun.com/debian/ bullseye main non-free contrib
+deb http://mirrors.aliyun.com/debian/ bullseye-updates main non-free contrib
+deb-src http://mirrors.aliyun.com/debian/ bullseye-updates main non-free contrib
+#deb http://mirrors.aliyun.com/debian/ bullseye-backports main non-free contrib
+#deb-src http://mirrors.aliyun.com/debian/ bullseye-backports main non-free contrib

@@ -137,6 +137,49 @@ func normalizeClickHouseDSN(dsn string) string {
 	return parsed.String()
 }
 
+const defaultLogTableName = "logs"
+
+// clickHouseLogTableName returns the ClickHouse log table name configured via
+// LOG_SQL_CLICKHOUSE_TABLE. The name is interpolated into table DDL and
+// mutations, so only simple unqualified identifiers are accepted; anything
+// else falls back to the default with a warning.
+func clickHouseLogTableName() string {
+	name := strings.TrimSpace(os.Getenv("LOG_SQL_CLICKHOUSE_TABLE"))
+	if name == "" {
+		return defaultLogTableName
+	}
+	if !isValidLogTableName(name) {
+		common.SysError(fmt.Sprintf("invalid LOG_SQL_CLICKHOUSE_TABLE %q, expected [A-Za-z_][A-Za-z0-9_]*, using %q", name, defaultLogTableName))
+		return defaultLogTableName
+	}
+	return name
+}
+
+// logTableName returns the table name used by log queries. A custom ClickHouse
+// table only applies when ClickHouse is the log store; otherwise the standard
+// "logs" table is used.
+func logTableName() string {
+	if common.UsingLogDatabase(common.DatabaseTypeClickHouse) {
+		return clickHouseLogTableName()
+	}
+	return defaultLogTableName
+}
+
+func isValidLogTableName(name string) bool {
+	if name == "" {
+		return false
+	}
+	for i, r := range name {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r == '_':
+		case r >= '0' && r <= '9' && i > 0:
+		default:
+			return false
+		}
+	}
+	return true
+}
+
 func chooseDB(envName string, isLog bool) (*gorm.DB, common.DatabaseType, error) {
 	dsn := os.Getenv(envName)
 	if dsn != "" {
@@ -145,7 +188,7 @@ func chooseDB(envName string, isLog bool) (*gorm.DB, common.DatabaseType, error)
 				return nil, "", fmt.Errorf("%s does not support ClickHouse; use SQLite, MySQL, or PostgreSQL for the primary database and LOG_SQL_DSN for ClickHouse logs", envName)
 			}
 			common.SysLog("using ClickHouse as log database")
-			db, err := gorm.Open(clickhouse.Open(normalizeClickHouseDSN(dsn)), newGormConfig(false))
+			db, err := gorm.Open(clickhouse.Open(normalizeClickHouseDSN(dsn)), newClickHouseLogGormConfig())
 			return db, common.DatabaseTypeClickHouse, err
 		}
 		if strings.HasPrefix(dsn, "postgres://") || strings.HasPrefix(dsn, "postgresql://") {
@@ -435,7 +478,7 @@ func clickHouseLogTTLClause(ttlDays int) string {
 
 func clickHouseLogCreateTableSQL(ttlDays int) string {
 	return fmt.Sprintf(`
-CREATE TABLE IF NOT EXISTS logs (
+CREATE TABLE IF NOT EXISTS %s (
 	id Int64 DEFAULT 0,
 	user_id Int32 DEFAULT 0,
 	created_at Int64 DEFAULT 0,
@@ -459,13 +502,14 @@ CREATE TABLE IF NOT EXISTS logs (
 )
 ENGINE = MergeTree()
 PARTITION BY toYYYYMM(toDateTime(created_at))
-ORDER BY (created_at, request_id)%s`, clickHouseLogTTLClause(ttlDays))
+ORDER BY (created_at, request_id)%s`, clickHouseLogTableName(), clickHouseLogTTLClause(ttlDays))
 }
 
 func syncClickHouseLogTTL(ttlDays int) error {
+	table := clickHouseLogTableName()
 	expression := clickHouseLogTTLExpression(ttlDays)
 	if expression != "" {
-		return LOG_DB.Exec("ALTER TABLE logs MODIFY TTL " + expression).Error
+		return LOG_DB.Exec("ALTER TABLE " + table + " MODIFY TTL " + expression).Error
 	}
 
 	hasTTL, err := clickHouseLogTableHasTTL()
@@ -475,12 +519,12 @@ func syncClickHouseLogTTL(ttlDays int) error {
 	if !hasTTL {
 		return nil
 	}
-	return LOG_DB.Exec("ALTER TABLE logs REMOVE TTL").Error
+	return LOG_DB.Exec("ALTER TABLE " + table + " REMOVE TTL").Error
 }
 
 func clickHouseLogTableHasTTL() (bool, error) {
 	var createTableSQL string
-	if err := LOG_DB.Raw("SHOW CREATE TABLE logs").Scan(&createTableSQL).Error; err != nil {
+	if err := LOG_DB.Raw("SHOW CREATE TABLE " + clickHouseLogTableName()).Scan(&createTableSQL).Error; err != nil {
 		return false, err
 	}
 	return clickHouseCreateTableHasTTL(createTableSQL), nil

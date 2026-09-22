@@ -135,7 +135,6 @@ func TestSecurityAccountDeletionAcceptsEitherFactorAndRevokesSessions(t *testing
 			var result securityEnrollmentResponse
 			require.NoError(t, common.Unmarshal(response.Body.Bytes(), &result))
 			require.True(t, result.Success, response.Body.String())
-			assert.Contains(t, response.Header().Get("Set-Cookie"), "Max-Age=0")
 			assert.Contains(t, response.Header().Get("Cache-Control"), "no-store")
 			var deleted model.User
 			require.NoError(t, model.DB.Unscoped().First(&deleted, user.Id).Error)
@@ -146,8 +145,6 @@ func TestSecurityAccountDeletionAcceptsEitherFactorAndRevokesSessions(t *testing
 			otherIdentity, err := service.ParseAccessToken(otherSession.AccessToken)
 			require.NoError(t, err)
 			_, _, err = service.ValidateLoginSession(otherIdentity)
-			assert.Error(t, err)
-			_, _, err = service.RefreshLoginSession(otherSession.RefreshToken, otherIdentity.SessionID, "127.0.0.1", "second-session")
 			assert.Error(t, err)
 			count, err := model.CountActiveUserSessions(user.Id, time.Now().Unix())
 			require.NoError(t, err)
@@ -443,9 +440,9 @@ func TestSecurityAccountProfileReadsPasswordStatusInOneQuery(t *testing.T) {
 			assert.NotContains(t, result.Data, "access_token")
 			assert.NotContains(t, result.Data, "remark")
 
-			bundle, err := service.CreateLoginSession(user.Id, "profile-test", "127.0.0.1", "profile-test")
+			_, err = service.CreateLoginSession(user.Id, "profile-test", "127.0.0.1", "profile-test")
 			require.NoError(t, err)
-			_, refreshed, err := service.RefreshLoginSession(bundle.RefreshToken, "", "127.0.0.1", "profile-test")
+			refreshed, err := model.GetSelfUserById(user.Id)
 			require.NoError(t, err)
 			assert.Equal(t, hasPassword, refreshed.HasPassword)
 			assert.Empty(t, refreshed.Password)

@@ -3,12 +3,14 @@ package model
 import (
 	"os"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm/schema"
 )
 
 func TestIsClickHouseDSN(t *testing.T) {
@@ -77,6 +79,17 @@ func TestClickHouseLogTTLClause(t *testing.T) {
 	assert.Equal(t, "\nTTL toDateTime(created_at) + INTERVAL 7 DAY DELETE", clickHouseLogTTLClause(7))
 }
 
+func TestClickHouseAuditLogCreateTableSQL(t *testing.T) {
+	sql := clickHouseAuditLogCreateTableSQL()
+	assert.Contains(t, sql, "CREATE TABLE IF NOT EXISTS audit_logs")
+	assert.Contains(t, sql, "other String DEFAULT ''")
+	assert.NotContains(t, sql, "other JSON")
+	assert.Contains(t, sql, "ENGINE = MergeTree()")
+	assert.Contains(t, sql, "PARTITION BY toYYYYMM(toDateTime(created_at))")
+	assert.Contains(t, sql, "ORDER BY (created_at, event_id)")
+	assert.NotContains(t, sql, "TTL ")
+}
+
 func TestClickHouseLogCreateTableSQL(t *testing.T) {
 	withoutTTL := clickHouseLogCreateTableSQL(0)
 	assert.Contains(t, withoutTTL, "CREATE TABLE IF NOT EXISTS logs")
@@ -88,6 +101,61 @@ func TestClickHouseLogCreateTableSQL(t *testing.T) {
 	withTTL := clickHouseLogCreateTableSQL(30)
 	assert.Contains(t, withTTL, "ORDER BY (created_at, request_id)")
 	assert.Contains(t, withTTL, "TTL toDateTime(created_at) + INTERVAL 30 DAY DELETE")
+}
+
+func TestClickHouseLogTableName(t *testing.T) {
+	t.Run("default", func(t *testing.T) {
+		t.Setenv("LOG_SQL_CLICKHOUSE_TABLE", "")
+		assert.Equal(t, "logs", clickHouseLogTableName())
+	})
+	t.Run("custom", func(t *testing.T) {
+		t.Setenv("LOG_SQL_CLICKHOUSE_TABLE", "token_usage_logs")
+		assert.Equal(t, "token_usage_logs", clickHouseLogTableName())
+	})
+	t.Run("trims whitespace", func(t *testing.T) {
+		t.Setenv("LOG_SQL_CLICKHOUSE_TABLE", "  token_usage_logs  ")
+		assert.Equal(t, "token_usage_logs", clickHouseLogTableName())
+	})
+	t.Run("invalid falls back", func(t *testing.T) {
+		for _, invalid := range []string{"logs; DROP TABLE x", "logs-archive", "1logs", "logs archive", "`logs`"} {
+			t.Setenv("LOG_SQL_CLICKHOUSE_TABLE", invalid)
+			assert.Equalf(t, "logs", clickHouseLogTableName(), "value=%q", invalid)
+		}
+	})
+}
+
+func TestLogTableNameTracksLogDatabase(t *testing.T) {
+	t.Setenv("LOG_SQL_CLICKHOUSE_TABLE", "token_usage_logs")
+	originalType := common.LogDatabaseType()
+	t.Cleanup(func() { common.SetLogDatabaseType(originalType) })
+
+	common.SetLogDatabaseType(common.DatabaseTypeSQLite)
+	assert.Equal(t, "logs", logTableName())
+
+	common.SetLogDatabaseType(common.DatabaseTypeClickHouse)
+	assert.Equal(t, "token_usage_logs", logTableName())
+}
+
+func TestClickHouseLogCreateTableSQLUsesCustomTable(t *testing.T) {
+	t.Setenv("LOG_SQL_CLICKHOUSE_TABLE", "token_usage_logs")
+	sql := clickHouseLogCreateTableSQL(0)
+	assert.Contains(t, sql, "CREATE TABLE IF NOT EXISTS token_usage_logs")
+	assert.NotContains(t, sql, "IF NOT EXISTS logs ")
+}
+
+func TestClickHouseLogNamingStrategy(t *testing.T) {
+	t.Setenv("LOG_SQL_CLICKHOUSE_TABLE", "token_usage_logs")
+	strategy := clickHouseLogNamingStrategy{}
+	assert.Equal(t, "token_usage_logs", strategy.TableName("Log"))
+	assert.Equal(t, "token_usage_logs", strategy.TableName("logs"))
+	assert.Equal(t, "audit_logs", strategy.TableName("AuditLog"))
+}
+
+func TestClickHouseLogNamingStrategyResolvesModelTable(t *testing.T) {
+	t.Setenv("LOG_SQL_CLICKHOUSE_TABLE", "token_usage_logs")
+	parsed, err := schema.Parse(&Log{}, &sync.Map{}, clickHouseLogNamingStrategy{})
+	require.NoError(t, err)
+	assert.Equal(t, "token_usage_logs", parsed.Table)
 }
 
 func TestClickHouseCreateTableHasTTL(t *testing.T) {

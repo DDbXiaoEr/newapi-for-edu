@@ -16,7 +16,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func TestAuthLogoutRejectsRefreshCookieSessionMismatch(t *testing.T) {
+func TestAuthLogoutRejectsSessionMismatch(t *testing.T) {
 	previousDB := model.DB
 	previousRedis := common.RedisEnabled
 	previousSecret := common.SessionSecret
@@ -47,8 +47,7 @@ func TestAuthLogoutRejectsRefreshCookieSessionMismatch(t *testing.T) {
 	c, _ := gin.CreateTestContext(recorder)
 	c.Request = httptest.NewRequest(http.MethodPost, "/api/user/auth/logout", nil)
 	c.Request.Header.Set("Authorization", "Bearer "+sessionA.AccessToken)
-	c.Request.Header.Set("X-Auth-Session", sessionA.Session.SID)
-	c.Request.AddCookie(&http.Cookie{Name: service.RefreshCookieName, Value: sessionB.RefreshToken})
+	c.Request.Header.Set("X-Auth-Session", sessionB.Session.SID)
 
 	AuthLogout(c)
 

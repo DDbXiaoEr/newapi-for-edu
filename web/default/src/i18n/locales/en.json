@@ -6704,6 +6704,18 @@
     "Local check": "Local check",
     "Responses WebSocket": "Responses WebSocket",
     "Cross-group retry": "Cross-group retry",
+    "Group Channel Binding": "Group Channel Binding",
+    "Failed to load group channel bindings": "Failed to load group channel bindings",
+    "Bind a user group to specific channels. Keys in a bound group only route through the bound channels; unbound groups keep each channel's own group settings.": "Bind a user group to specific channels. Keys in a bound group only route through the bound channels; unbound groups keep each channel's own group settings.",
+    "Select group": "Select group",
+    "Bindable Channels": "Bindable Channels",
+    "Available models after binding": "Available models after binding",
+    "Models lost after binding": "Models lost after binding",
+    "Save binding": "Save binding",
+    "Clear binding": "Clear binding",
+    "No channel selected. Saving will clear this group's binding.": "No channel selected. Saving will clear this group's binding.",
+    "Binding cleared for this group": "Binding cleared for this group",
+    "Group channel binding saved": "Group channel binding saved",
     "Request policy decisions": "Request policy decisions"
   }
 }

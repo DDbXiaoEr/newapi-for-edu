@@ -1,0 +1,32 @@
+# All-in-one image: API + embedded frontend (built from main.go).
+#
+# Build (context is the repository root):
+#   make docker-allinone
+# or manually:
+#   make build-backend-linux          # builds web/default and embeds it
+#   docker build -f docker/Dockerfile.allinone -t newapi-edu:latest .
+#
+# The container refuses to start unless every variable listed in
+# REQUIRED_ENV_VARS is set. It defaults to the main database and the ClickHouse
+# log database, so an unconfigured container fails fast. Override the list with
+# -e REQUIRED_ENV_VARS=... (or set it empty to disable the check).
+FROM debian:bullseye-v1.4.1
+
+# Aliyun HTTP mirror (bullseye is EOL; the security/updates pools were removed).
+# Installs the CA bundle and tzdata needed for outbound HTTPS and local time.
+COPY sources.list /etc/apt/sources.list
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates tzdata \
+    && rm -rf /var/lib/apt/lists/*
+
+# Binary inside the build context (produced by make build-backend-linux).
+ARG APP_BINARY=build/newapi-edu
+
+# Required env vars are enforced by the binary at startup (common.CheckRequiredEnvVars).
+ENV REQUIRED_ENV_VARS="SQL_DSN,LOG_SQL_DSN"
+
+WORKDIR /data
+COPY ${APP_BINARY} /newapi-edu
+
+EXPOSE 3000
+ENTRYPOINT ["/newapi-edu"]

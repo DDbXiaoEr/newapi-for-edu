@@ -23,7 +23,6 @@ import {
   applyAuthRotation,
   clearAuthentication,
   getFreshAuthHeaders,
-  refreshAuthentication,
 } from '@/lib/auth-session'
 import { handleServerError } from '@/lib/handle-server-error'
 import {
@@ -97,47 +96,17 @@ api.interceptors.response.use(
     const status = error?.response?.status
 
     if (status === 401) {
-      if (config && !config.skipAuthRefresh && !config.authRetry) {
-        config.authRetry = true
-        const outcome = await refreshAuthentication()
-        if (outcome.kind === 'authenticated') {
-          const token = useAuthStore.getState().auth.accessToken
-          if (token) {
-            config.headers = {
-              ...config.headers,
-              Authorization: `Bearer ${token}`,
-            }
-          }
-          return api.request(config)
-        }
-
-        if (outcome.kind === 'anonymous' || outcome.kind === 'out_of_sync') {
-          if (!skipErrorHandler) {
-            handleServerError({
-              message: t('Session expired!'),
-              [safeServerErrorMessage]: true,
-              cause: error,
-            })
-          }
-          redirectToSignIn()
-        }
-      } else if (config?.authRetry) {
-        clearAuthentication(false)
-        if (!skipErrorHandler) {
-          handleServerError({
-            message: t('Session expired!'),
-            [safeServerErrorMessage]: true,
-            cause: error,
-          })
-        }
-        redirectToSignIn()
-      } else if (!skipErrorHandler) {
+      // No refresh token to trade in: a 401 means the token is gone, expired
+      // or revoked, so drop local state and send the user back to sign-in.
+      clearAuthentication(false)
+      if (!skipErrorHandler) {
         handleServerError({
           message: t('Session expired!'),
           [safeServerErrorMessage]: true,
           cause: error,
         })
       }
+      redirectToSignIn()
     }
     if (axios.isAxiosError(error)) error.message = getServerErrorMessage(error)
     throw error

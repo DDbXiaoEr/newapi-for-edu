@@ -35,6 +35,7 @@ const CodexOAuthModal = ({ visible, onCancel, onSuccess }) => {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [authorizeUrl, setAuthorizeUrl] = useState('');
+  const [flowToken, setFlowToken] = useState('');
   const [input, setInput] = useState('');
 
   const startOAuth = async () => {
@@ -58,6 +59,7 @@ const CodexOAuthModal = ({ visible, onCancel, onSuccess }) => {
         throw new Error(t('响应缺少授权链接'));
       }
       setAuthorizeUrl(url);
+      setFlowToken(res?.data?.data?.flow_token || '');
       window.open(url, '_blank', 'noopener,noreferrer');
       showSuccess(t('已打开授权页面'));
     } catch (error) {
@@ -77,7 +79,7 @@ const CodexOAuthModal = ({ visible, onCancel, onSuccess }) => {
     try {
       const res = await API.post(
         '/api/channel/codex/oauth/complete',
-        { input },
+        { input, flow_token: flowToken },
         { skipErrorHandler: true },
       );
       if (!res?.data?.success) {
@@ -104,6 +106,7 @@ const CodexOAuthModal = ({ visible, onCancel, onSuccess }) => {
   useEffect(() => {
     if (!visible) return;
     setAuthorizeUrl('');
+    setFlowToken('');
     setInput('');
   }, [visible]);
 

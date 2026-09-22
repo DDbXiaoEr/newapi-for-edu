@@ -345,7 +345,6 @@ func setupLoginAtAuthVersion(user *model.User, expectedAuthVersion int64, c *gin
 func writeLoginResponse(c *gin.Context, user *model.User, bundle *service.AuthBundle) {
 	c.Set("login_method", bundle.Session.LoginMethod)
 	model.UpdateUserLastLoginAt(user.Id)
-	service.WriteRefreshCookie(c, bundle.RefreshToken)
 	setAuthNoStore(c)
 	recordLoginAudit(user, c)
 	c.JSON(http.StatusOK, gin.H{
@@ -1107,7 +1106,6 @@ func DeleteSelf(c *gin.Context) {
 		return
 	}
 	succeeded = true
-	service.ClearRefreshCookie(c)
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",

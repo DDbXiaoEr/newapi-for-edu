@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+	"gorm.io/gorm/schema"
 )
 
 const (
@@ -27,6 +28,27 @@ func newGormConfig(prepareStmt bool) *gorm.Config {
 		PrepareStmt: prepareStmt,
 		Logger:      newGormLogger(os.Stdout),
 	}
+}
+
+// clickHouseLogNamingStrategy maps the Log model onto the table configured via
+// LOG_SQL_CLICKHOUSE_TABLE for the ClickHouse log store only. All other models
+// (e.g. audit_logs) keep their default names.
+type clickHouseLogNamingStrategy struct {
+	schema.NamingStrategy
+}
+
+func (n clickHouseLogNamingStrategy) TableName(original string) string {
+	name := n.NamingStrategy.TableName(original)
+	if name == defaultLogTableName {
+		return clickHouseLogTableName()
+	}
+	return name
+}
+
+func newClickHouseLogGormConfig() *gorm.Config {
+	config := newGormConfig(false)
+	config.NamingStrategy = clickHouseLogNamingStrategy{}
+	return config
 }
 
 func newGormLogger(w io.Writer) logger.Interface {

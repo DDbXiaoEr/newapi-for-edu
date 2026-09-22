@@ -17,11 +17,9 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import type { QueryClient } from '@tanstack/react-query'
-import axios from 'axios'
 import { t } from 'i18next'
 
 import { publishAuthSessionEvent } from '@/lib/auth-session-sync'
-import { hasSessionHint } from '@/lib/session-hint'
 import {
   useAuthStore,
   type AuthBootstrapState,
@@ -67,17 +65,7 @@ export class AuthRotationError extends Error {
   }
 }
 
-const authClient = axios.create({
-  baseURL: '',
-  withCredentials: true,
-  headers: {
-    // no-store forbids storage; no-cache also revalidates any older cached response.
-    'Cache-Control': 'no-cache, no-store',
-  },
-})
-
 const refreshRaceDelays = [80, 200, 500] as const
-let refreshPromise: Promise<RefreshOutcome> | null = null
 let authEpoch = 0
 
 class AuthRefreshSupersededError extends Error {
@@ -204,10 +192,6 @@ export function clearAuthenticatedClientState(
   clearAuthentication(synchronizeTabs)
 }
 
-function waitForRefreshRace(delay: number): Promise<void> {
-  return new Promise((resolve) => globalThis.setTimeout(resolve, delay))
-}
-
 export function createRefreshRunner(
   runtime: AuthRefreshRuntime
 ): () => Promise<RefreshOutcome> {
@@ -273,73 +257,18 @@ export function createRefreshRunner(
   return () => run(0, true)
 }
 
-async function requestRefresh(
-  expectedSID?: string
-): Promise<AuthRefreshHTTPResponse> {
-  try {
-    const response = await authClient.post(
-      '/api/user/auth/refresh',
-      undefined,
-      {
-        headers: expectedSID ? { 'X-Auth-Session': expectedSID } : undefined,
-      }
-    )
-    return { status: response.status, data: response.data }
-  } catch (error: unknown) {
-    if (!axios.isAxiosError(error)) return { status: 0, error }
-    return {
-      status: error.response?.status ?? 0,
-      data: error.response?.data,
-      error,
-    }
-  }
-}
-
-function runRefresh(refreshEpoch: number): Promise<RefreshOutcome> {
-  return createRefreshRunner({
-    request: requestRefresh,
-    getExpectedSID: () => useAuthStore.getState().auth.session?.sid,
-    parseBundle: (value) => (isAuthBundle(value) ? value : null),
-    acceptBundle: (bundle) => applyAuthBundle(bundle, false),
-    clear: (synchronizeTabs, bootstrapState) => {
-      if (!synchronizeTabs && bootstrapState === 'idle') {
-        useAuthStore.getState().auth.reset('idle')
-        return
-      }
-      clearAuthentication(synchronizeTabs, bootstrapState)
-    },
-    markTransient: () => useAuthStore.getState().auth.setBootstrapState('idle'),
-    wait: waitForRefreshRace,
-    isCurrent: () => authEpoch === refreshEpoch,
-  })()
-}
-
-async function performRefreshWithBrowserLock(
-  refreshEpoch: number
-): Promise<RefreshOutcome> {
-  try {
-    if (typeof navigator === 'undefined' || !navigator.locks) {
-      return runRefresh(refreshEpoch)
-    }
-    return navigator.locks.request(
-      'new-api:auth-refresh',
-      { mode: 'exclusive' },
-      () => runRefresh(refreshEpoch)
-    )
-  } catch (error: unknown) {
-    useAuthStore.getState().auth.setBootstrapState('idle')
-    return { kind: 'transient_error', error }
-  }
-}
-
+/**
+ * Resolve authentication from the persisted/in-memory bundle.
+ *
+ * The refresh endpoint and its HttpOnly cookie are gone: the access token is
+ * now the long-lived credential itself, so there is nothing left to exchange
+ * and no network call to make. The name is kept for callers that still treat
+ * "refresh" as "make sure we have a usable token".
+ */
 export function refreshAuthentication(): Promise<RefreshOutcome> {
-  if (!refreshPromise) {
-    const refreshEpoch = authEpoch
-    refreshPromise = performRefreshWithBrowserLock(refreshEpoch).finally(() => {
-      refreshPromise = null
-    })
-  }
-  return refreshPromise
+  const bundle = currentValidAuthBundle()
+  if (bundle) return Promise.resolve({ kind: 'authenticated', bundle })
+  return Promise.resolve({ kind: 'anonymous' })
 }
 
 function currentValidAuthBundle(): AuthBundle | null {
@@ -363,12 +292,11 @@ function currentValidAuthBundle(): AuthBundle | null {
 }
 
 /**
- * Resolve authentication from memory, or from the server when memory is empty.
+ * Resolve authentication from the persisted bundle in localStorage.
  *
- * Use this wherever the answer decides what the user sees: route guards that
- * redirect on the result, and the sign-in page. It contacts the server on a
- * cold cache even when no session hint is present, so a usable Refresh Cookie
- * is always honoured.
+ * There is no server round trip any more: a valid, unexpired token in local
+ * storage is the whole answer. A stale/expired bundle is cleared so the user
+ * lands on the sign-in page instead of an authenticated shell that 401s.
  */
 export async function resolveAuthentication(): Promise<RefreshOutcome> {
   const bundle = currentValidAuthBundle()
@@ -378,32 +306,20 @@ export async function resolveAuthentication(): Promise<RefreshOutcome> {
   }
 
   const auth = useAuthStore.getState().auth
-  const hasStaleSession = Boolean(auth.user && auth.session)
-  if (auth.bootstrapState === 'complete' && !hasStaleSession) {
-    return { kind: 'anonymous' }
+  if (auth.accessToken || auth.user || auth.session) {
+    clearAuthentication(false)
+  } else {
+    auth.setBootstrapState('complete')
   }
-
-  auth.setBootstrapState('checking')
-  return refreshAuthentication()
+  return { kind: 'anonymous' }
 }
 
 /**
- * Resolve authentication on the public boot path, skipping a refresh that the
- * server's session hint says would fail.
- *
- * The skip leaves `bootstrapState` at `idle` rather than `complete`: a missing
- * hint is not a server verdict, so it must not be recorded as a finished
- * anonymous check. `resolveAuthentication` therefore still reaches the network
- * later, which is what lets a hintless visitor holding a valid Refresh Cookie
- * recover the moment authentication actually matters.
+ * Public boot path. With the refresh cookie gone there is nothing to probe, so
+ * this is just resolveAuthentication; kept as a separate name for the route
+ * boot sequence.
  */
 export async function bootstrapAuthentication(): Promise<RefreshOutcome> {
-  if (!currentValidAuthBundle() && !hasSessionHint()) {
-    const auth = useAuthStore.getState().auth
-    if (!auth.user && !auth.session) {
-      return { kind: 'anonymous' }
-    }
-  }
   return resolveAuthentication()
 }
 
@@ -420,31 +336,12 @@ export function getCommonHeaders(): Record<string, string> {
 
 export async function getFreshAuthHeaders(): Promise<Record<string, string>> {
   const auth = useAuthStore.getState().auth
-  const refreshBefore = Math.floor(Date.now() / 1000) + 60
   if (
     auth.accessToken &&
     auth.accessExpiresAt &&
-    auth.accessExpiresAt > refreshBefore
+    auth.accessExpiresAt > Math.floor(Date.now() / 1000)
   ) {
     return getCommonHeaders()
-  }
-
-  const outcome = await refreshAuthentication()
-  if (outcome.kind === 'authenticated') {
-    return getCommonHeaders()
-  }
-
-  const current = useAuthStore.getState().auth
-  if (
-    current.accessToken &&
-    current.accessExpiresAt &&
-    current.accessExpiresAt > Math.floor(Date.now() / 1000)
-  ) {
-    return getCommonHeaders()
-  }
-
-  if (outcome.kind === 'transient_error') {
-    throw new Error(t('Request failed'), { cause: outcome.error })
   }
   throw new Error(t('Session expired!'))
 }

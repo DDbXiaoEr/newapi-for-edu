@@ -6704,6 +6704,18 @@
     "Local check": "本地检查",
     "Responses WebSocket": "Responses WebSocket",
     "Cross-group retry": "跨分组重试",
+    "Group Channel Binding": "分组渠道绑定",
+    "Failed to load group channel bindings": "加载分组渠道绑定失败",
+    "Bind a user group to specific channels. Keys in a bound group only route through the bound channels; unbound groups keep each channel's own group settings.": "将用户分组绑定到指定渠道后，该分组内的密钥使用模型时只会走绑定的渠道；未绑定则沿用渠道自身的分组设置。",
+    "Select group": "选择分组",
+    "Bindable Channels": "可绑定的渠道",
+    "Available models after binding": "绑定后可用模型",
+    "Models lost after binding": "绑定后将会丢失的模型",
+    "Save binding": "保存绑定",
+    "Clear binding": "取消绑定",
+    "No channel selected. Saving will clear this group's binding.": "未选择渠道，保存后将取消该分组的绑定。",
+    "Binding cleared for this group": "已取消该分组的渠道绑定",
+    "Group channel binding saved": "分组渠道绑定已保存",
     "Request policy decisions": "请求策略决策"
   }
 }

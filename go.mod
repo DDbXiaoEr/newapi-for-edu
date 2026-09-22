@@ -71,7 +71,6 @@ require (
 require (
 	github.com/ClickHouse/ch-go v0.71.0 // indirect
 	github.com/bmatcuk/doublestar/v4 v4.6.1 // indirect
-	github.com/boj/redistore v0.0.0-20180917114910-cd5dcc76aeff // indirect
 	github.com/casbin/govaluate v1.10.0 // indirect
 	github.com/dlclark/regexp2/v2 v2.2.2 // indirect
 	github.com/go-asn1-ber/asn1-ber v1.5.8 // indirect
@@ -80,11 +79,7 @@ require (
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/go-sourcemap/sourcemap v2.1.3+incompatible // indirect
 	github.com/goccy/go-yaml v1.19.2 // indirect
-	github.com/gomodule/redigo v2.0.0+incompatible // indirect
 	github.com/google/pprof v0.0.0-20250317173921-a4b03ec1a45e // indirect
-	github.com/gorilla/context v1.1.2 // indirect
-	github.com/gorilla/securecookie v1.1.2 // indirect
-	github.com/gorilla/sessions v1.2.1 // indirect
 	github.com/hashicorp/go-version v1.8.0 // indirect
 	github.com/paulmach/orb v0.12.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.25 // indirect
@@ -145,7 +140,7 @@ require (
 	github.com/jfreymuth/vorbis v1.0.2 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
-	github.com/json-iterator/go v1.1.12 // indirect
+	github.com/json-iterator/go v1.1.12
 	github.com/klauspost/cpuid/v2 v2.4.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/mattn/go-isatty v0.0.23 // indirect
@@ -160,7 +155,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_golang v1.22.0 // indirect
 	github.com/prometheus/client_model v0.6.1 // indirect
-	github.com/prometheus/common v0.62.0 // indirect
+	github.com/prometheus/common v0.62.0
 	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/samber/go-singleflightx v0.3.2 // indirect
@@ -184,7 +179,6 @@ require (
 require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.46.0
 	github.com/QuantumNous/new-api/relaykit v0.0.0
-	github.com/gin-contrib/sessions v0.0.5
 	github.com/go-ldap/ldap/v3 v3.4.14
 )
 
