@@ -276,6 +276,16 @@ export const STATIC_I18N_KEYS = [
   'Failed to delete user',
   'No user selected',
 
+  // Groups
+  'Group settings',
+  'Group members',
+  'Available users',
+  'Pending add',
+  'Pending remove',
+  'Save group members',
+  'Group members updated',
+  'Failed to update group members',
+
   // Redemption codes
   'Unused',
   'Disabled',

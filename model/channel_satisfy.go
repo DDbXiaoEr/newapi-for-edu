@@ -11,9 +11,9 @@ func IsChannelEnabledForGroupModel(group string, modelName string, channelID int
 	if group == "" || modelName == "" || channelID <= 0 {
 		return false
 	}
-	// A bound group only accepts its explicitly bound channels, regardless of
+	// A pinned model only accepts its explicitly bound channels, regardless of
 	// each channel's own Group field.
-	if ids, ok := groupBoundChannelIDs(group); ok {
+	if ids, ok := groupBoundChannelIDs(group, modelName); ok {
 		if !slices.Contains(ids, channelID) {
 			return false
 		}

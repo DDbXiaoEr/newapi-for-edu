@@ -116,6 +116,8 @@ func TestLegacyLogOtherVisibilityIsRoleSeparated(t *testing.T) {
 		assert.Equal(t, 11, logs[0].Id)
 		assert.Equal(t, 77, logs[0].ChannelId)
 		assert.Empty(t, logs[0].ChannelName)
+		require.NoError(t, FillUserLogChannelNames(logs))
+		assert.Empty(t, logs[0].ChannelName)
 		parsed, err := common.StrToMap(logs[0].Other)
 		require.NoError(t, err)
 		assert.Equal(t, "/v1/chat/completions", parsed["request_path"])

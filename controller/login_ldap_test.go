@@ -14,6 +14,7 @@ import (
 	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/QuantumNous/new-api/setting/system_setting"
 
 	"github.com/gin-gonic/gin"
@@ -239,6 +240,54 @@ func TestLoginFallsBackToLDAPAndUpdatesLocalPassword(t *testing.T) {
 	}
 }
 
+func TestLoginCachesShortLDAPPasswordForExistingUser(t *testing.T) {
+	db := setupLoginControllerTestDB(t)
+	user := seedLoginUser(t, db, "alice", "old-password", common.UserStatusEnabled)
+
+	originalAuthenticateLDAP := authenticateLDAP
+	originalLDAPSettings := *system_setting.GetLDAPSettings()
+	t.Cleanup(func() {
+		authenticateLDAP = originalAuthenticateLDAP
+		*system_setting.GetLDAPSettings() = originalLDAPSettings
+	})
+
+	system_setting.GetLDAPSettings().Enabled = true
+	authenticateLDAP = func(ctx context.Context, identifier string, password string) (*service.LDAPUser, error) {
+		if password != "shortpw" {
+			t.Fatalf("unexpected password %q", password)
+		}
+		return &service.LDAPUser{Username: "alice"}, nil
+	}
+
+	recorder, _ := performLoginRequest(t, `{"username":"alice","password":"shortpw"}`)
+	var response struct {
+		Success bool `json:"success"`
+	}
+	if err := common.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if !response.Success {
+		t.Fatalf("expected successful LDAP login with short directory password, got body: %s", recorder.Body.String())
+	}
+
+	storedUser := fetchUserByID(t, user.Id)
+	if !common.ValidatePasswordAndHash("shortpw", storedUser.Password) {
+		t.Fatalf("expected local password cache to accept short directory password")
+	}
+
+	authenticateLDAP = func(ctx context.Context, identifier string, password string) (*service.LDAPUser, error) {
+		t.Fatalf("expected subsequent login to use cached local password")
+		return nil, nil
+	}
+	recorder, _ = performLoginRequest(t, `{"username":"alice","password":"shortpw"}`)
+	if err := common.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatalf("failed to decode second response: %v", err)
+	}
+	if !response.Success {
+		t.Fatalf("expected cached short password to log in locally, got body: %s", recorder.Body.String())
+	}
+}
+
 func TestLoginDisabledUserRejectsLDAPFallback(t *testing.T) {
 	db := setupLoginControllerTestDB(t)
 	user := seedLoginUser(t, db, "alice", "old-password", common.UserStatusDisabled)
@@ -324,6 +373,103 @@ func TestLoginCreatesUserFromLDAPWhenLocalUserDoesNotExist(t *testing.T) {
 	}
 	if !common.ValidatePasswordAndHash("directory-password", user.Password) {
 		t.Fatalf("expected created user password to match directory password")
+	}
+	if user.Group != "default" {
+		t.Fatalf("expected default group when no assignment rule matches, got %q", user.Group)
+	}
+}
+
+func TestLoginAssignsLDAPGroupFromAttributeRule(t *testing.T) {
+	_ = setupLoginControllerTestDB(t)
+
+	originalAuthenticateLDAP := authenticateLDAP
+	originalLDAPSettings := *system_setting.GetLDAPSettings()
+	originalRatios := ratio_setting.GroupRatio2JSONString()
+	t.Cleanup(func() {
+		authenticateLDAP = originalAuthenticateLDAP
+		*system_setting.GetLDAPSettings() = originalLDAPSettings
+		if err := ratio_setting.UpdateGroupRatioByJSONString(originalRatios); err != nil {
+			t.Fatalf("restore group ratios: %v", err)
+		}
+	})
+	if err := ratio_setting.UpdateGroupRatioByJSONString(`{"default":1,"student":1}`); err != nil {
+		t.Fatalf("set group ratios: %v", err)
+	}
+
+	system_setting.GetLDAPSettings().Enabled = true
+	system_setting.GetLDAPSettings().GroupAssignmentRules = []system_setting.GroupAssignmentRule{
+		{Attribute: "uid", Pattern: `^stu-`, Group: "student"},
+	}
+	authenticateLDAP = func(ctx context.Context, identifier string, password string) (*service.LDAPUser, error) {
+		return &service.LDAPUser{
+			Username:    "stu-1001",
+			DisplayName: "Student",
+			Email:       "stu-1001@example.com",
+			Attributes:  map[string][]string{"uid": {"stu-1001"}},
+		}, nil
+	}
+
+	recorder, _ := performLoginRequest(t, `{"username":"stu-1001","password":"directory-password"}`)
+	var response struct {
+		Success bool `json:"success"`
+		Data    struct {
+			User struct {
+				ID int `json:"id"`
+			} `json:"user"`
+		} `json:"data"`
+	}
+	if err := common.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if !response.Success {
+		t.Fatalf("expected successful LDAP login, got body: %s", recorder.Body.String())
+	}
+	user := fetchUserByID(t, response.Data.User.ID)
+	if user.Group != "student" {
+		t.Fatalf("expected assigned group student, got %q", user.Group)
+	}
+}
+
+func TestLoginCreatesUserFromLDAPWithShortPassword(t *testing.T) {
+	_ = setupLoginControllerTestDB(t)
+
+	originalAuthenticateLDAP := authenticateLDAP
+	originalLDAPSettings := *system_setting.GetLDAPSettings()
+	t.Cleanup(func() {
+		authenticateLDAP = originalAuthenticateLDAP
+		*system_setting.GetLDAPSettings() = originalLDAPSettings
+	})
+
+	system_setting.GetLDAPSettings().Enabled = true
+	authenticateLDAP = func(ctx context.Context, identifier string, password string) (*service.LDAPUser, error) {
+		return &service.LDAPUser{
+			Username:    "ldap-short",
+			DisplayName: "LDAP Short",
+			Email:       "ldap-short@example.com",
+		}, nil
+	}
+
+	recorder, _ := performLoginRequest(t, `{"username":"ldap-short","password":"shortpw"}`)
+	var response struct {
+		Success bool   `json:"success"`
+		Message string `json:"message"`
+		Data    struct {
+			User struct {
+				ID       int    `json:"id"`
+				Username string `json:"username"`
+			} `json:"user"`
+		} `json:"data"`
+	}
+	if err := common.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if !response.Success {
+		t.Fatalf("expected successful LDAP auto-create with short password, got body: %s", recorder.Body.String())
+	}
+
+	user := fetchUserByID(t, response.Data.User.ID)
+	if !common.ValidatePasswordAndHash("shortpw", user.Password) {
+		t.Fatalf("expected created user password to match short directory password")
 	}
 }
 

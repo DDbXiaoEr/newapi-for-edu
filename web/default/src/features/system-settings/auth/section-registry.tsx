@@ -123,6 +123,8 @@ const AUTH_SECTIONS = [
           'ldap.start_tls': settings['ldap.start_tls'],
           'ldap.skip_tls_verify': settings['ldap.skip_tls_verify'],
           'ldap.timeout_seconds': settings['ldap.timeout_seconds'],
+          'ldap.group_assignment_rules':
+            settings['ldap.group_assignment_rules'],
         }}
       />
     ),
@@ -143,6 +145,8 @@ const AUTH_SECTIONS = [
           'cas.access_attribute': settings['cas.access_attribute'],
           'cas.access_attribute_value':
             settings['cas.access_attribute_value'],
+          'cas.group_assignment_rules':
+            settings['cas.group_assignment_rules'],
         }}
       />
     ),

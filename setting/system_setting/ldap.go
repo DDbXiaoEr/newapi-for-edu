@@ -3,18 +3,19 @@ package system_setting
 import "github.com/QuantumNous/new-api/setting/config"
 
 type LDAPSettings struct {
-	Enabled              bool   `json:"enabled"`
-	ServerURL            string `json:"server_url"`
-	BindDN               string `json:"bind_dn"`
-	BindPassword         string `json:"bind_password"`
-	BaseDN               string `json:"base_dn"`
-	UserFilter           string `json:"user_filter"`
-	UsernameAttribute    string `json:"username_attribute"`
-	DisplayNameAttribute string `json:"display_name_attribute"`
-	MailAttribute        string `json:"mail_attribute"`
-	StartTLS             bool   `json:"start_tls"`
-	SkipTLSVerify        bool   `json:"skip_tls_verify"`
-	TimeoutSeconds       int    `json:"timeout_seconds"`
+	Enabled              bool                  `json:"enabled"`
+	ServerURL            string                `json:"server_url"`
+	BindDN               string                `json:"bind_dn"`
+	BindPassword         string                `json:"bind_password"`
+	BaseDN               string                `json:"base_dn"`
+	UserFilter           string                `json:"user_filter"`
+	UsernameAttribute    string                `json:"username_attribute"`
+	DisplayNameAttribute string                `json:"display_name_attribute"`
+	MailAttribute        string                `json:"mail_attribute"`
+	StartTLS             bool                  `json:"start_tls"`
+	SkipTLSVerify        bool                  `json:"skip_tls_verify"`
+	TimeoutSeconds       int                   `json:"timeout_seconds"`
+	GroupAssignmentRules []GroupAssignmentRule `json:"group_assignment_rules"`
 }
 
 var defaultLDAPSettings = LDAPSettings{

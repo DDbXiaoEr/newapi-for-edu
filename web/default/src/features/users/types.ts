@@ -109,6 +109,8 @@ export interface GetUsersResponse {
 export interface SearchUsersParams {
   keyword?: string
   group?: string
+  exclude_group?: string
+  exclude_deleted?: boolean
   role?: string
   status?: string
   p?: number

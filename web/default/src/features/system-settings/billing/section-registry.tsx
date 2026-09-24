@@ -42,17 +42,16 @@ const getModelDefaults = (settings: BillingSettings) => ({
   PluginBillingExpr: settings['billing_setting.plugin_billing_expr'],
 })
 
-const getGroupDefaults = (settings: BillingSettings) => ({
-  TopupGroupRatio: settings.TopupGroupRatio,
-  GroupRatio: settings.GroupRatio,
-  UserUsableGroups: settings.UserUsableGroups,
-  GroupGroupRatio: settings.GroupGroupRatio,
-  AutoGroups: settings.AutoGroups,
-  MaxTokenAutoGroups: settings.MaxTokenAutoGroups,
-  DefaultUseAutoGroup: settings.DefaultUseAutoGroup,
-  GroupSpecialUsableGroup:
-    settings['group_ratio_setting.group_special_usable_group'],
-})
+const emptyGroupDefaults = {
+  TopupGroupRatio: '',
+  GroupRatio: '',
+  UserUsableGroups: '',
+  GroupGroupRatio: '',
+  AutoGroups: '',
+  MaxTokenAutoGroups: 5,
+  DefaultUseAutoGroup: false,
+  GroupSpecialUsableGroup: '{}',
+}
 
 const BILLING_SECTIONS = [
   {
@@ -111,22 +110,9 @@ const BILLING_SECTIONS = [
       <RatioSettingsCard
         titleKey='Model Pricing'
         modelDefaults={getModelDefaults(settings)}
-        groupDefaults={getGroupDefaults(settings)}
+        groupDefaults={emptyGroupDefaults}
         toolPricesDefault={settings['tool_price_setting.prices']}
         visibleTabs={['models', 'unset-models', 'tool-prices', 'upstream-sync']}
-      />
-    ),
-  },
-  {
-    id: 'group-pricing',
-    titleKey: 'Group Pricing',
-    build: (settings: BillingSettings) => (
-      <RatioSettingsCard
-        titleKey='Group Pricing'
-        modelDefaults={getModelDefaults(settings)}
-        groupDefaults={getGroupDefaults(settings)}
-        toolPricesDefault={settings['tool_price_setting.prices']}
-        visibleTabs={['groups']}
       />
     ),
   },

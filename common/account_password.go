@@ -45,6 +45,20 @@ func HashAccountPassword(password string) (string, error) {
 	if err := ValidateNewAccountPassword(password); err != nil {
 		return "", err
 	}
+	return hashAccountPasswordUnchecked(password)
+}
+
+// HashCachedAccountPassword stores a password that was already accepted by an
+// external directory. Local length policy must not reject these credentials;
+// only bounds required to hash and later verify are applied.
+func HashCachedAccountPassword(password string) (string, error) {
+	if password == "" || !utf8.ValidString(password) || len(password) > MaxAccountPasswordLength*utf8.UTFMax {
+		return "", ErrAccountPasswordLength
+	}
+	return hashAccountPasswordUnchecked(password)
+}
+
+func hashAccountPasswordUnchecked(password string) (string, error) {
 	switch os.Getenv("ACCOUNT_PASSWORD_HASH_ALGORITHM") {
 	case "bcrypt":
 		if len(password) > 72 {

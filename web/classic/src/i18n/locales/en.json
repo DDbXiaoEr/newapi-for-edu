@@ -3687,16 +3687,14 @@
     "协议": "Protocol",
     "指定渠道使用的 API 协议格式，留空则根据模型自动选择": "Specify the API protocol format for the channel. Leave empty for automatic selection based on model.",
     "分组渠道绑定": "Group Channel Binding",
-    "模型数": "Models",
     "保存绑定": "Save binding",
     "取消绑定": "Clear binding",
     "加载分组渠道绑定失败": "Failed to load group channel bindings",
-    "绑定后可用模型": "Available models after binding",
-    "绑定后将会丢失的模型": "Models lost after binding",
-    "未选择渠道，保存后该分组将取消绑定": "No channel selected. Saving will clear this group's binding.",
-    "已取消该分组的渠道绑定": "Binding cleared for this group",
+    "当前绑定": "Current pins",
+    "未选择渠道，保存后将取消该模型的绑定": "No channel selected. Saving will clear this model's pin.",
+    "已取消该模型的渠道绑定": "Binding cleared for this model",
     "分组渠道绑定已保存": "Group channel binding saved",
-    "将用户分组绑定到指定渠道后，该分组内的密钥使用模型时只会走绑定的渠道。绑定单独保存，不随上方表单一起提交。": "Bind a user group to specific channels; keys in that group only route through the bound channels. The binding is saved separately and is not part of the form above.",
-    "将用户分组绑定到指定渠道后，该分组内的密钥使用模型时只会走绑定的渠道；未绑定则沿用渠道自身的分组设置。": "Bind a user group to specific channels. Keys in a bound group only route through the bound channels; unbound groups keep each channel's own group settings."
+    "为用户分组中的某个模型指定渠道。该分组调用此模型时只会走绑定的渠道。绑定单独保存，不随上方表单一起提交。": "Pin a model in a user group to specific channels. Requests for that model only use the pinned channels. The binding is saved separately and is not part of the form above.",
+    "为用户分组中的某个模型指定渠道。该分组调用此模型时只会走绑定的渠道；未绑定的模型仍按渠道自身的分组设置选择。": "Pin a model in a user group to specific channels. Requests for that model only use the pinned channels; unbound models keep each channel's own group settings."
   }
 }

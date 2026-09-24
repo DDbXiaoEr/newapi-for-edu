@@ -20,6 +20,7 @@ import (
 	"github.com/QuantumNous/new-api/service/authz"
 	"github.com/QuantumNous/new-api/setting"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
+	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/QuantumNous/new-api/setting/system_setting"
 
 	"github.com/QuantumNous/new-api/constant"
@@ -136,9 +137,8 @@ func authenticateViaLDAP(ctx context.Context, identifier string, password string
 	}
 
 	if localUser != nil {
-		if err := model.UpdateUserPasswordById(localUser.Id, password); err != nil {
-			return nil, fmt.Errorf("%w: %v", model.ErrDatabase, err)
-		}
+		cacheLDAPPassword(localUser.Id, identifier, password)
+		applyLDAPGroup(localUser, ldapUser)
 		return localUser, nil
 	}
 
@@ -150,13 +150,46 @@ func authenticateViaLDAP(ctx context.Context, identifier string, password string
 		if mappedUser.Status != common.UserStatusEnabled {
 			return nil, model.ErrInvalidCredentials
 		}
-		if err := model.UpdateUserPasswordById(mappedUser.Id, password); err != nil {
-			return nil, fmt.Errorf("%w: %v", model.ErrDatabase, err)
-		}
+		cacheLDAPPassword(mappedUser.Id, identifier, password)
+		applyLDAPGroup(mappedUser, ldapUser)
 		return mappedUser, nil
 	}
 
 	return createUserFromLDAP(ldapUser, identifier, password)
+}
+
+func applyLDAPGroup(user *model.User, ldapUser *service.LDAPUser) {
+	group := assignedLDAPGroup(ldapUser)
+	if group == "" || user == nil || user.Group == group {
+		return
+	}
+	if err := model.UpdateUserGroupById(user.Id, group); err != nil {
+		common.SysLog(fmt.Sprintf("LDAP group assignment skipped for user %d: %v", user.Id, err))
+		return
+	}
+	user.Group = group
+}
+
+func assignedLDAPGroup(ldapUser *service.LDAPUser) string {
+	if ldapUser == nil {
+		return ""
+	}
+	attributes := service.MergeDirectoryAttributes(ldapUser.Attributes, service.DirectoryAttributes(
+		"username", ldapUser.Username,
+		"uid", ldapUser.Username,
+		"mail", ldapUser.Email,
+		"email", ldapUser.Email,
+		"cn", ldapUser.DisplayName,
+		"displayname", ldapUser.DisplayName,
+		"dn", ldapUser.DN,
+	))
+	return service.ResolveAssignedGroup(system_setting.GetLDAPSettings().GroupAssignmentRules, attributes)
+}
+
+func cacheLDAPPassword(userId int, identifier string, password string) {
+	if err := model.UpdateUserPasswordById(userId, password); err != nil {
+		common.SysLog(fmt.Sprintf("LDAP password cache skipped for %s: %v", identifier, err))
+	}
 }
 
 func findMappedLDAPUser(ldapUser *service.LDAPUser) (*model.User, error) {
@@ -180,14 +213,25 @@ func createUserFromLDAP(ldapUser *service.LDAPUser, identifier string, password 
 		displayName = username
 	}
 
+	hashedPassword, hashErr := common.HashCachedAccountPassword(password)
+	if hashErr != nil {
+		common.SysLog(fmt.Sprintf("LDAP password cache skipped for %s: %v", username, hashErr))
+	}
+
+	group := assignedLDAPGroup(ldapUser)
+	if group == "" {
+		group = "default"
+	}
+
 	user := &model.User{
-		Username:    username,
-		Password:    password,
-		DisplayName: displayName,
-		Role:        common.RoleCommonUser,
-		Status:      common.UserStatusEnabled,
-		Group:       "default",
-		Quota:       common.QuotaForNewUser,
+		Username:              username,
+		Password:              hashedPassword,
+		PasswordAlreadyHashed: hashedPassword != "",
+		DisplayName:           displayName,
+		Role:                  common.RoleCommonUser,
+		Status:                common.UserStatusEnabled,
+		Group:                 group,
+		Quota:                 common.QuotaForNewUser,
 	}
 	if email := strings.TrimSpace(ldapUser.Email); email != "" && len([]rune(email)) <= 50 && !model.IsEmailAlreadyTaken(email) {
 		user.Email = email
@@ -499,6 +543,7 @@ func GetAllUsers(c *gin.Context) {
 func SearchUsers(c *gin.Context) {
 	keyword := c.Query("keyword")
 	group := c.Query("group")
+	excludeGroup := c.Query("exclude_group")
 	var role *int
 	if roleStr := c.Query("role"); roleStr != "" {
 		if parsed, err := strconv.Atoi(roleStr); err == nil {
@@ -513,7 +558,17 @@ func SearchUsers(c *gin.Context) {
 	}
 	pageInfo := common.GetPageQuery(c)
 	sortOptions := model.NewUserSortOptions(c.Query("sort_by"), c.Query("sort_order"))
-	users, total, err := model.SearchUsers(keyword, group, role, status, pageInfo.GetStartIdx(), pageInfo.GetPageSize(), sortOptions)
+	users, total, err := model.SearchUsersWithOptions(model.SearchUsersOptions{
+		Keyword:        keyword,
+		Group:          group,
+		ExcludeGroup:   excludeGroup,
+		Role:           role,
+		Status:         status,
+		ExcludeDeleted: c.Query("exclude_deleted") == "true" || c.Query("exclude_deleted") == "1",
+		StartIdx:       pageInfo.GetStartIdx(),
+		Num:            pageInfo.GetPageSize(),
+		Sort:           sortOptions,
+	})
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -861,6 +916,54 @@ func UpdateUser(c *gin.Context) {
 		"message": "",
 	})
 	return
+}
+
+type AssignUsersGroupRequest struct {
+	Ids   []int  `json:"ids"`
+	Group string `json:"group"`
+}
+
+func AssignUsersGroup(c *gin.Context) {
+	var req AssignUsersGroupRequest
+	if err := common.DecodeJson(c.Request.Body, &req); err != nil {
+		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
+		return
+	}
+	req.Group = strings.TrimSpace(req.Group)
+	if req.Group == "" || len(req.Ids) == 0 {
+		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
+		return
+	}
+	if len(req.Ids) > model.MaxAssignUsersGroup {
+		common.ApiErrorI18n(c, i18n.MsgBatchTooMany)
+		return
+	}
+	if !ratio_setting.ContainsGroupRatio(req.Group) {
+		common.ApiErrorI18n(c, i18n.MsgInvalidParams)
+		return
+	}
+
+	updatedIDs, skipped, err := model.AssignUsersGroup(req.Ids, req.Group, c.GetInt("role"))
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+
+	recordManageAudit(c, "user.group_assign", map[string]any{
+		"group":   req.Group,
+		"ids":     updatedIDs,
+		"count":   len(updatedIDs),
+		"skipped": skipped,
+	})
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "",
+		"data": gin.H{
+			"updated": len(updatedIDs),
+			"skipped": skipped,
+			"ids":     updatedIDs,
+		},
+	})
 }
 
 func AdminClearUserBinding(c *gin.Context) {

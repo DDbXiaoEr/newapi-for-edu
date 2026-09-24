@@ -68,6 +68,7 @@ const defaultAuthSettings: AuthSettings = {
   'cas.email_attribute': '',
   'cas.access_attribute': '',
   'cas.access_attribute_value': '',
+  'cas.group_assignment_rules': '[]',
   TurnstileCheckEnabled: false,
   TurnstileSiteKey: '',
   TurnstileSecretKey: '',
@@ -91,6 +92,7 @@ const defaultAuthSettings: AuthSettings = {
   'ldap.start_tls': false,
   'ldap.skip_tls_verify': false,
   'ldap.timeout_seconds': '5',
+  'ldap.group_assignment_rules': '[]',
 }
 
 export function AuthSettings() {

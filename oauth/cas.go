@@ -24,9 +24,9 @@ func init() {
 type CasProvider struct{}
 
 type casServiceResponse struct {
-	XMLName               xml.Name          `xml:"http://www.yale.edu/tp/cas serviceResponse"`
-	AuthenticationSuccess *casAuthSuccess   `xml:"http://www.yale.edu/tp/cas authenticationSuccess"`
-	AuthenticationFailure *casAuthFailure   `xml:"http://www.yale.edu/tp/cas authenticationFailure"`
+	XMLName               xml.Name        `xml:"http://www.yale.edu/tp/cas serviceResponse"`
+	AuthenticationSuccess *casAuthSuccess `xml:"http://www.yale.edu/tp/cas authenticationSuccess"`
+	AuthenticationFailure *casAuthFailure `xml:"http://www.yale.edu/tp/cas authenticationFailure"`
 }
 
 type casAuthSuccess struct {
@@ -148,8 +148,15 @@ func (p *CasProvider) GetUserInfo(ctx context.Context, token *OAuthToken) (*OAut
 	providerUserID := username
 
 	attrMap := make(map[string]string)
+	attrValues := make(map[string][]string)
 	for _, attr := range casResp.AuthenticationSuccess.Attributes.Entries {
-		attrMap[strings.ToLower(attr.XMLName.Local)] = attr.Value
+		name := strings.ToLower(strings.TrimSpace(attr.XMLName.Local))
+		value := strings.TrimSpace(attr.Value)
+		if name == "" || value == "" {
+			continue
+		}
+		attrMap[name] = value
+		attrValues[name] = append(attrValues[name], value)
 	}
 
 	if settings.UsernameAttribute != "" {
@@ -194,11 +201,27 @@ func (p *CasProvider) GetUserInfo(ctx context.Context, token *OAuthToken) (*OAut
 
 	logger.LogDebug(ctx, "[OAuth-CAS] GetUserInfo success: user=%s, displayName=%s, email=%s", username, displayName, email)
 
+	if username != "" {
+		attrValues["username"] = append(attrValues["username"], username)
+		attrValues["uid"] = append(attrValues["uid"], username)
+	}
+	if displayName != "" {
+		attrValues["displayname"] = append(attrValues["displayname"], displayName)
+		attrValues["cn"] = append(attrValues["cn"], displayName)
+	}
+	if email != "" {
+		attrValues["mail"] = append(attrValues["mail"], email)
+		attrValues["email"] = append(attrValues["email"], email)
+	}
+
 	return &OAuthUser{
 		ProviderUserID: providerUserID,
 		Username:       username,
 		DisplayName:    displayName,
 		Email:          email,
+		Extra: map[string]any{
+			"attributes": attrValues,
+		},
 	}, nil
 }
 

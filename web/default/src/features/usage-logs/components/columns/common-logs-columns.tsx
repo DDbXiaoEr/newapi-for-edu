@@ -340,7 +340,8 @@ function buildTypeDetailSegments(
 export function useCommonLogsColumns(
   isAdmin: boolean,
   isRoot: boolean,
-  showWalletSource = false
+  showWalletSource = false,
+  canViewChannel = isAdmin
 ): ColumnDef<UsageLog>[] {
   const { t } = useTranslation()
   const columns: ColumnDef<UsageLog>[] = [
@@ -377,13 +378,12 @@ export function useCommonLogsColumns(
     },
   ]
 
-  if (isAdmin) {
-    columns.push(
-      {
-        id: 'channel',
-        header: t('Channel'),
-        accessorFn: (row) => row.channel,
-        cell: function ChannelCell({ row }) {
+  if (canViewChannel) {
+    columns.push({
+      id: 'channel',
+      header: t('Channel'),
+      accessorFn: (row) => row.channel,
+      cell: function ChannelCell({ row }) {
           const { sensitiveVisible, setAffinityTarget, setAffinityDialogOpen } =
             useUsageLogsContext()
           const log = row.original
@@ -535,12 +535,15 @@ export function useCommonLogsColumns(
             </TooltipProvider>
           )
         },
-      },
-      {
-        id: 'user',
-        header: t('User'),
-        accessorFn: (row) => row.username,
-        cell: function UserCell({ row }) {
+    })
+  }
+
+  if (isAdmin) {
+    columns.push({
+      id: 'user',
+      header: t('User'),
+      accessorFn: (row) => row.username,
+      cell: function UserCell({ row }) {
           const { sensitiveVisible, setSelectedUserId, setUserInfoDialogOpen } =
             useUsageLogsContext()
           const log = row.original
@@ -589,8 +592,7 @@ export function useCommonLogsColumns(
             </button>
           )
         },
-      }
-    )
+    })
   }
 
   columns.push({

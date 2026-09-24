@@ -54,6 +54,17 @@ func GetUserLogs(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
+	if c.GetInt("role") >= common.RoleAdminUser {
+		if err := model.FillUserLogChannelNames(logs); err != nil {
+			common.ApiError(c, err)
+			return
+		}
+		if c.GetInt("role") < common.RoleRootUser {
+			model.FormatAdminLogs(logs)
+		} else {
+			model.FormatRootLogs(logs)
+		}
+	}
 	pageInfo.SetTotal(int(total))
 	pageInfo.SetItems(logs)
 	common.ApiSuccess(c, pageInfo)

@@ -199,6 +199,7 @@ export type AuthSettings = {
   'cas.email_attribute': string
   'cas.access_attribute': string
   'cas.access_attribute_value': string
+  'cas.group_assignment_rules': string
   TurnstileCheckEnabled: boolean
   TurnstileSiteKey: string
   TurnstileSecretKey: string
@@ -222,6 +223,7 @@ export type AuthSettings = {
   'ldap.start_tls': boolean
   'ldap.skip_tls_verify': boolean
   'ldap.timeout_seconds': string
+  'ldap.group_assignment_rules': string
 }
 
 export type ContentSettings = {

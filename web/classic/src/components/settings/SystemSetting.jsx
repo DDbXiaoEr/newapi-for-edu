@@ -32,7 +32,6 @@ import {
   Radio,
   Select,
 } from '@douyinfe/semi-ui';
-const { Text } = Typography;
 import {
   API,
   removeTrailingSlash,
@@ -44,6 +43,46 @@ import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import CustomOAuthSetting from './CustomOAuthSetting';
 import SettingsSyslog from '../../pages/Setting/Operation/SettingsSyslog';
+
+const { Text } = Typography;
+
+const parseGroupAssignmentEditorValue = (value) => {
+  let rules = [];
+  try {
+    const parsed = typeof value === 'string' ? JSON.parse(value || '[]') : value;
+    if (Array.isArray(parsed)) {
+      rules = parsed
+        .map((rule) => ({
+          attribute: String(rule?.attribute || '').trim(),
+          pattern: String(rule?.pattern || '').trim(),
+          group: String(rule?.group || '').trim(),
+        }))
+        .filter((rule) => rule.attribute && rule.pattern && rule.group);
+    }
+  } catch (e) {
+    rules = [];
+  }
+  return {
+    attribute: rules[0]?.attribute || 'uid',
+    rules:
+      rules.length > 0
+        ? rules.map((rule) => ({ pattern: rule.pattern, group: rule.group }))
+        : [{ pattern: '', group: '' }],
+  };
+};
+
+const stringifyGroupAssignmentEditorValue = (value) => {
+  const attribute = String(value?.attribute || 'uid').trim() || 'uid';
+  return JSON.stringify(
+    (value?.rules || [])
+      .map((rule) => ({
+        attribute,
+        pattern: String(rule?.pattern || '').trim(),
+        group: String(rule?.group || '').trim(),
+      }))
+      .filter((rule) => rule.pattern && rule.group),
+  );
+};
 
 const SystemSetting = () => {
   const { t } = useTranslation();
@@ -144,6 +183,12 @@ const SystemSetting = () => {
   const [domainList, setDomainList] = useState([]);
   const [ipList, setIpList] = useState([]);
   const [allowedPorts, setAllowedPorts] = useState([]);
+  const [groupOptions, setGroupOptions] = useState([]);
+  const [ldapGroupEditor, setLdapGroupEditor] = useState({
+    attribute: 'uid',
+    rules: [{ pattern: '', group: '' }],
+  });
+  const [originLdapGroupRules, setOriginLdapGroupRules] = useState('[]');
 
   const getOptions = async () => {
     setLoading(true);
@@ -217,6 +262,14 @@ const SystemSetting = () => {
           case 'ldap.timeout_seconds':
             item.value = item.value || '5';
             break;
+          case 'ldap.group_assignment_rules': {
+            const editorValue = parseGroupAssignmentEditorValue(item.value);
+            setLdapGroupEditor(editorValue);
+            setOriginLdapGroupRules(
+              stringifyGroupAssignmentEditorValue(editorValue),
+            );
+            return;
+          }
           case 'passkey.origins':
             // origins是逗号分隔的字符串，直接使用
             item.value = item.value || '';
@@ -263,6 +316,16 @@ const SystemSetting = () => {
 
   useEffect(() => {
     getOptions();
+    API.get('/api/group/').then((res) => {
+      const { success, data } = res.data || {};
+      if (success && Array.isArray(data)) {
+        setGroupOptions(
+          data
+            .filter((group) => group && group !== 'auto')
+            .map((group) => ({ label: group, value: group })),
+        );
+      }
+    });
   }, []);
 
   const updateOptions = async (options) => {
@@ -312,6 +375,9 @@ const SystemSetting = () => {
       const newInputs = { ...inputs };
       options.forEach((opt) => {
         newInputs[opt.key] = opt.value;
+        if (opt.key === 'ldap.group_assignment_rules') {
+          setOriginLdapGroupRules(opt.value);
+        }
       });
       setInputs(newInputs);
     } catch (error) {
@@ -671,6 +737,13 @@ const SystemSetting = () => {
         value: inputs['ldap.timeout_seconds'] || '5',
       });
     }
+    const nextLdapGroupRules = stringifyGroupAssignmentEditorValue(ldapGroupEditor);
+    if (originLdapGroupRules !== nextLdapGroupRules) {
+      options.push({
+        key: 'ldap.group_assignment_rules',
+        value: nextLdapGroupRules,
+      });
+    }
 
     if (options.length > 0) {
       await updateOptions(options);
@@ -808,7 +881,7 @@ const SystemSetting = () => {
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '10px',
-                marginTop: '10px',
+               ginTop: '10px',
               }}
             >
               <Card>
@@ -840,7 +913,7 @@ const SystemSetting = () => {
                     description={t(
                       '此代理仅用于图片请求转发，Webhook通知发送等，AI API请求仍然由服务器直接发出，可在渠道设置中单独配置代理',
                     )}
-                    style={{ marginBottom: 20, marginTop: 16 }}
+                    style={{ginBottom: 20,ginTop: 16 }}
                   />
                   <Text>
                     {t('仅支持')}{' '}
@@ -945,7 +1018,7 @@ const SystemSetting = () => {
                             e,
                           )
                         }
-                        style={{ marginBottom: 8 }}
+                        style={{ginBottom: 8 }}
                       >
                         {t('对域名启用 IP 过滤（推荐开启）')}
                       </Form.Checkbox>
@@ -954,7 +1027,7 @@ const SystemSetting = () => {
                       </Text>
                       <Text
                         type='secondary'
-                        style={{ display: 'block', marginBottom: 8 }}
+                        style={{ display: 'block',ginBottom: 8 }}
                       >
                         {t(
                           '支持通配符格式，如：example.com, *.api.example.com',
@@ -973,7 +1046,7 @@ const SystemSetting = () => {
                             'fetch_setting.domain_filter_mode': isWhitelist,
                           }));
                         }}
-                        style={{ marginBottom: 8 }}
+                        style={{ginBottom: 8 }}
                       >
                         <Radio value='whitelist'>{t('白名单')}</Radio>
                         <Radio value='blacklist'>{t('黑名单')}</Radio>
@@ -1004,7 +1077,7 @@ const SystemSetting = () => {
                       </Text>
                       <Text
                         type='secondary'
-                        style={{ display: 'block', marginBottom: 8 }}
+                        style={{ display: 'block',ginBottom: 8 }}
                       >
                         {t('支持CIDR格式，如：8.8.8.8, 192.168.1.0/24')}
                       </Text>
@@ -1021,7 +1094,7 @@ const SystemSetting = () => {
                             'fetch_setting.ip_filter_mode': isWhitelist,
                           }));
                         }}
-                        style={{ marginBottom: 8 }}
+                        style={{ginBottom: 8 }}
                       >
                         <Radio value='whitelist'>{t('白名单')}</Radio>
                         <Radio value='blacklist'>{t('黑名单')}</Radio>
@@ -1050,7 +1123,7 @@ const SystemSetting = () => {
                       <Text strong>{t('允许的端口')}</Text>
                       <Text
                         type='secondary'
-                        style={{ display: 'block', marginBottom: 8 }}
+                        style={{ display: 'block',ginBottom: 8 }}
                       >
                         {t('支持单个端口和端口范围，如：80, 443, 8000-8999')}
                       </Text>
@@ -1069,7 +1142,7 @@ const SystemSetting = () => {
                       />
                       <Text
                         type='secondary'
-                        style={{ display: 'block', marginBottom: 8 }}
+                        style={{ display: 'block',ginBottom: 8 }}
                       >
                         {t('端口配置详细说明')}
                       </Text>
@@ -1211,7 +1284,7 @@ const SystemSetting = () => {
                     description={t(
                       'Passkey 是基于 WebAuthn 标准的无密码身份验证方法，支持指纹、面容、硬件密钥等认证方式',
                     )}
-                    style={{ marginBottom: 20, marginTop: 16 }}
+                    style={{ginBottom: 20,ginTop: 16 }}
                   />
                   <Row
                     gutter={{ xs: 8, sm: 16, md: 24, lg: 24, xl: 24, xxl: 24 }}
@@ -1371,7 +1444,7 @@ const SystemSetting = () => {
                     value={emailDomainWhitelist}
                     onChange={setEmailDomainWhitelist}
                     placeholder={t('输入域名后回车')}
-                    style={{ width: '100%', marginTop: 16 }}
+                    style={{ width: '100%',ginTop: 16 }}
                   />
                   <Form.Input
                     placeholder={t('输入要添加的邮箱域名')}
@@ -1391,7 +1464,7 @@ const SystemSetting = () => {
                   />
                   <Button
                     onClick={submitEmailDomainWhitelist}
-                    style={{ marginTop: 10 }}
+                    style={{ginTop: 10 }}
                   >
                     {t('保存邮箱域名白名单设置')}
                   </Button>
@@ -1468,7 +1541,7 @@ const SystemSetting = () => {
                   <Banner
                     type='info'
                     description={`${t('主页链接填')} ${inputs.ServerAddress ? inputs.ServerAddress : t('网站地址')}，${t('重定向 URL 填')} ${inputs.ServerAddress ? inputs.ServerAddress : t('网站地址')}/oauth/oidc`}
-                    style={{ marginBottom: 20, marginTop: 16 }}
+                    style={{ginBottom: 20,ginTop: 16 }}
                   />
                   <Text>
                     {t(
@@ -1622,6 +1695,99 @@ const SystemSetting = () => {
                       />
                     </Col>
                   </Row>
+                  <div style={{ marginTop: 8 }}>
+                    <Text strong>{t('新用户分组自动分配规则')}</Text>
+                    <div style={{ marginTop: 8, marginBottom: 8 }}>
+                      <Form.Select
+                        label={t('过滤属性')}
+                        extraText={t(
+                          '所有条件共用同一个过滤属性，用户该属性匹配到哪条规则就分配对应分组',
+                        )}
+                        value={ldapGroupEditor.attribute}
+                        optionList={[
+                          { label: 'uid', value: 'uid' },
+                          { label: 'mail', value: 'mail' },
+                          { label: 'cn', value: 'cn' },
+                          { label: 'dn', value: 'dn' },
+                        ]}
+                        onChange={(value) =>
+                          setLdapGroupEditor((prev) => ({
+                            ...prev,
+                            attribute: value,
+                          }))
+                        }
+                        style={{ width: '100%' }}
+                      />
+                    </div>
+                    {ldapGroupEditor.rules.map((rule, index) => (
+                      <Row
+                        key={index}
+                        gutter={8}
+                        align='middle'
+                        style={{ marginBottom: 8 }}
+                      >
+                        <Col span={2}>
+                          <Text type='tertiary'>{index + 1}</Text>
+                        </Col>
+                        <Col span={10}>
+                          <Form.Input
+                            noLabel
+                            placeholder={t('正则表达式，如 ^stu-')}
+                            value={rule.pattern}
+                            onChange={(value) =>
+                              setLdapGroupEditor((prev) => ({
+                                ...prev,
+                                rules: prev.rules.map((item, i) =>
+                                  i === index ? { ...item, pattern: value } : item,
+                                ),
+                              }))
+                            }
+                          />
+                        </Col>
+                        <Col span={9}>
+                          <Form.Select
+                            noLabel
+                            placeholder={t('自动分配分组')}
+                            value={rule.group}
+                            optionList={groupOptions}
+                            onChange={(value) =>
+                              setLdapGroupEditor((prev) => ({
+                                ...prev,
+                                rules: prev.rules.map((item, i) =>
+                                  i === index ? { ...item, group: value } : item,
+                                ),
+                              }))
+                            }
+                            style={{ width: '100%' }}
+                          />
+                        </Col>
+                        <Col span={3}>
+                          <Button
+                            type='danger'
+                            theme='borderless'
+                            onClick={() =>
+                              setLdapGroupEditor((prev) => ({
+                                ...prev,
+                                rules: prev.rules.filter((_, i) => i !== index),
+                              }))
+                            }
+                          >
+                            {t('移除')}
+                          </Button>
+                        </Col>
+                      </Row>
+                    ))}
+                    <Button
+                      onClick={() =>
+                        setLdapGroupEditor((prev) => ({
+                          ...prev,
+                          rules: [...prev.rules, { pattern: '', group: '' }],
+                        }))
+                      }
+                    >
+                      {t('+ 添加条件')}
+                    </Button>
+                  </div>
                   <Row
                     gutter={{ xs: 8, sm: 16, md: 24, lg: 24, xl: 24, xxl: 24 }}
                     style={{ marginTop: 16 }}
@@ -1661,7 +1827,7 @@ const SystemSetting = () => {
                   <Banner
                     type='info'
                     description={`${t('Homepage URL 填')} ${inputs.ServerAddress ? inputs.ServerAddress : t('网站地址')}，${t('Authorization callback URL 填')} ${inputs.ServerAddress ? inputs.ServerAddress : t('网站地址')}/oauth/github`}
-                    style={{ marginBottom: 20, marginTop: 16 }}
+                    style={{ginBottom: 20,ginTop: 16 }}
                   />
                   <Row
                     gutter={{ xs: 8, sm: 16, md: 24, lg: 24, xl: 24, xxl: 24 }}
@@ -1692,7 +1858,7 @@ const SystemSetting = () => {
                   <Banner
                     type='info'
                     description={`${t('Homepage URL 填')} ${inputs.ServerAddress ? inputs.ServerAddress : t('网站地址')}，${t('Authorization callback URL 填')} ${inputs.ServerAddress ? inputs.ServerAddress : t('网站地址')}/oauth/discord`}
-                    style={{ marginBottom: 20, marginTop: 16 }}
+                    style={{ginBottom: 20,ginTop: 16 }}
                   />
                   <Row
                     gutter={{ xs: 8, sm: 16, md: 24, lg: 24, xl: 24, xxl: 24 }}
@@ -1727,8 +1893,8 @@ const SystemSetting = () => {
                       rel='noreferrer'
                       style={{
                         display: 'inline-block',
-                        marginLeft: 4,
-                        marginRight: 4,
+                       ginLeft: 4,
+                       ginRight: 4,
                       }}
                     >
                       {t('点击此处')}
@@ -1738,7 +1904,7 @@ const SystemSetting = () => {
                   <Banner
                     type='info'
                     description={`${t('回调 URL 填')} ${inputs.ServerAddress ? inputs.ServerAddress : t('网站地址')}/oauth/linuxdo`}
-                    style={{ marginBottom: 20, marginTop: 16 }}
+                    style={{ginBottom: 20,ginTop: 16 }}
                   />
                   <Row
                     gutter={{ xs: 8, sm: 16, md: 24, lg: 24, xl: 24, xxl: 24 }}
@@ -1881,7 +2047,7 @@ const SystemSetting = () => {
             </div>
           )}
         </Form>
-        <Card style={{ marginTop: '10px' }}>
+        <Card style={{ginTop: '10px' }}>
           <SettingsSyslog options={inputs} refresh={getOptions} />
         </Card>
       </>

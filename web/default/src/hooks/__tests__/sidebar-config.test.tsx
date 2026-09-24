@@ -180,3 +180,37 @@ describe('audit log sidebar entry', () => {
     expect(titles).toContain('Audit Logs')
   })
 })
+
+describe('groups sidebar entry', () => {
+  it('shows Groups immediately after Users by default', () => {
+    const { result } = sidebarFor()
+    const items =
+      result.current.find((group) => group.id === 'admin')?.items ?? []
+    const usersIndex = items.findIndex((item) => item.title === 'Users')
+    expect(items[usersIndex + 1]).toMatchObject({
+      title: 'Groups',
+      url: '/groups',
+    })
+  })
+
+  it('legacy configurations still show Groups after Users', () => {
+    const { result } = sidebarFor({ admin: { enabled: true, user: true } })
+    const titles = result.current
+      .flatMap((group) => group.items)
+      .map((item) => item.title)
+    expect(titles).toContain('Groups')
+  })
+
+  it.each([
+    [{ admin: { enabled: true, group: false } }, undefined],
+    [{ admin: { enabled: false } }, { admin: { group: true } }],
+    [undefined, { admin: { enabled: true, group: false } }],
+  ])('admin or user disablement hides Groups (%j, %j)', (admin, user) => {
+    const { result } = sidebarFor(admin, user)
+    expect(
+      result.current
+        .flatMap((group) => group.items)
+        .some((item) => item.title === 'Groups')
+    ).toBe(false)
+  })
+})

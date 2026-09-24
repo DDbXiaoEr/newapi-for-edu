@@ -34,6 +34,11 @@ import {
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { FormNavigationGuard } from '../components/form-navigation-guard'
+import { GroupAssignmentRulesEditor } from './group-assignment-rules-editor'
+import {
+  editorValueFromRules,
+  stringifyGroupAssignmentEditorValue,
+} from './group-assignment-rules'
 import {
   SettingsForm,
   SettingsSwitchContent,
@@ -53,6 +58,16 @@ const casSchema = z.object({
     email_attribute: z.string(),
     access_attribute: z.string(),
     access_attribute_value: z.string(),
+    group_assignment_rules: z.object({
+      attribute: z.string(),
+      rules: z.array(
+        z.object({
+          id: z.string(),
+          pattern: z.string(),
+          group: z.string(),
+        })
+      ),
+    }),
   }),
 })
 
@@ -67,6 +82,7 @@ type FlatCasDefaults = {
   'cas.email_attribute': string
   'cas.access_attribute': string
   'cas.access_attribute_value': string
+  'cas.group_assignment_rules': string
 }
 
 const buildFormDefaults = (defaults: FlatCasDefaults): CasFormValues => ({
@@ -79,6 +95,9 @@ const buildFormDefaults = (defaults: FlatCasDefaults): CasFormValues => ({
     email_attribute: defaults['cas.email_attribute'] ?? '',
     access_attribute: defaults['cas.access_attribute'] ?? '',
     access_attribute_value: defaults['cas.access_attribute_value'] ?? '',
+    group_assignment_rules: editorValueFromRules(
+      defaults['cas.group_assignment_rules']
+    ),
   },
 })
 
@@ -91,6 +110,9 @@ const normalizeFormValues = (values: CasFormValues): FlatCasDefaults => ({
   'cas.email_attribute': values.cas.email_attribute,
   'cas.access_attribute': values.cas.access_attribute,
   'cas.access_attribute_value': values.cas.access_attribute_value,
+  'cas.group_assignment_rules': stringifyGroupAssignmentEditorValue(
+    values.cas.group_assignment_rules
+  ),
 })
 
 type CasSectionProps = {
@@ -378,6 +400,23 @@ export function CasSection(props: CasSectionProps) {
                   <FormDescription>
                     {t('Only users with this attribute value can login')}
                   </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name='cas.group_assignment_rules'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('New user group assignment rules')}</FormLabel>
+                  <FormControl>
+                    <GroupAssignmentRulesEditor
+                      value={field.value}
+                      onChange={field.onChange}
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}

@@ -101,8 +101,8 @@ clean-frontend:
 	make -C web/default clean
 
 clean-backend:
-	@echo "Cleaning backend..."
-	rm -rf $(BUILD_DIR)
+	@echo "Cleaning backend binaries..."
+	rm -f $(BUILD_DIR)/newapi-edu $(BUILD_DIR)/newapi-edu-pure $(BUILD_DIR)/newapi-edu-arm64 $(BUILD_DIR)/newapi-edu-pure-arm64
 
 # Test targets
 test:

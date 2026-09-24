@@ -53,7 +53,7 @@ func TestUpdateGroupChannelBindingAPI(t *testing.T) {
 	channel := &model.Channel{Name: "bind-channel", Key: "k", Status: common.ChannelStatusEnabled, Models: "m", Group: "default"}
 	require.NoError(t, db.Create(channel).Error)
 
-	body := fmt.Sprintf(`{"group":"default","channel_ids":[%d]}`, channel.Id)
+	body := fmt.Sprintf(`{"group":"default","model":"gpt-4","channel_ids":[%d]}`, channel.Id)
 	recorder := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(recorder)
 	ctx.Request = httptest.NewRequest(http.MethodPut, "/api/group/channels", strings.NewReader(body))
@@ -62,14 +62,19 @@ func TestUpdateGroupChannelBindingAPI(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, recorder.Code)
 	assert.Contains(t, recorder.Body.String(), `"success":true`)
-	ids, ok := group_channel_setting.GetBoundChannelIDs("default")
+	ids, ok := group_channel_setting.GetBoundChannelIDs("default", "gpt-4")
 	require.True(t, ok)
 	assert.Equal(t, []int{channel.Id}, ids)
 
-	// Reject an unknown group.
 	recorder = httptest.NewRecorder()
 	ctx, _ = gin.CreateTestContext(recorder)
-	ctx.Request = httptest.NewRequest(http.MethodPut, "/api/group/channels", strings.NewReader(`{"group":"missing","channel_ids":[1]}`))
+	ctx.Request = httptest.NewRequest(http.MethodPut, "/api/group/channels", strings.NewReader(`{"group":"missing","model":"gpt-4","channel_ids":[1]}`))
+	UpdateGroupChannelBinding(ctx)
+	assert.Contains(t, recorder.Body.String(), `"success":false`)
+
+	recorder = httptest.NewRecorder()
+	ctx, _ = gin.CreateTestContext(recorder)
+	ctx.Request = httptest.NewRequest(http.MethodPut, "/api/group/channels", strings.NewReader(`{"group":"default","channel_ids":[1]}`))
 	UpdateGroupChannelBinding(ctx)
 	assert.Contains(t, recorder.Body.String(), `"success":false`)
 }

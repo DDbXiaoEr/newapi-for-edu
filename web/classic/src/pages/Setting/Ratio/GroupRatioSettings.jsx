@@ -254,7 +254,7 @@ export default function GroupRatioSettings(props) {
 
       <Form.Section text={t('分组渠道绑定')}>
         <Text type='tertiary' size='small' style={{ display: 'block', marginBottom: 12 }}>
-          {t('将用户分组绑定到指定渠道后，该分组内的密钥使用模型时只会走绑定的渠道。绑定单独保存，不随上方表单一起提交。')}
+          {t('为用户分组中的某个模型指定渠道。该分组调用此模型时只会走绑定的渠道。绑定单独保存，不随上方表单一起提交。')}
         </Text>
         <GroupChannelBinding />
       </Form.Section>

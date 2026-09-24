@@ -21,7 +21,9 @@ func TestResolvePinnedGroupHonorsBinding(t *testing.T) {
 
 	previous := group_channel_setting.GetGroupChannelsCopy()
 	t.Cleanup(func() { group_channel_setting.SetGroupChannels(previous) })
-	group_channel_setting.SetGroupChannels(map[string][]int{"default": {2202}})
+	group_channel_setting.SetGroupChannels(map[string]map[string][]int{
+		"default": {modelName: {2202}},
+	})
 
 	gin.SetMode(gin.TestMode)
 

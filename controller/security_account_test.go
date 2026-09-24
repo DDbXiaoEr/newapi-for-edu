@@ -523,6 +523,11 @@ func TestSecurityAccountPasswordPolicyAndHashCompatibility(t *testing.T) {
 	legacy, err := common.Password2Hash("123456")
 	require.NoError(t, err)
 	assert.True(t, common.ValidatePasswordAndHash("123456", legacy), "login preserves historical passwords without applying new policy")
+	cached, err := common.HashCachedAccountPassword("shortpw")
+	require.NoError(t, err)
+	assert.True(t, common.ValidatePasswordAndHash("shortpw", cached), "directory-cached passwords skip local length policy")
+	_, err = common.HashCachedAccountPassword("")
+	require.Error(t, err)
 	for _, invalid := range []string{"$argon2id$", "$argon2id$v=19$m=4294967295,t=2,p=1$bad$bad", "$argon2id$v=19$m=19456,t=2,p=1$bad$bad"} {
 		assert.False(t, common.ValidatePasswordAndHash("example-password", invalid))
 	}

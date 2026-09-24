@@ -129,7 +129,7 @@ func GetRandomSatisfiedChannel(
 	defer channelSyncLock.RUnlock()
 
 	var channels []int
-	if ids, ok := groupBoundChannelIDs(group); ok {
+	if ids, ok := groupBoundChannelIDs(group, model); ok {
 		channels, _ = filterCandidateIDs(boundCandidateIDsForModelLocked(ids, model), model, filters)
 	} else {
 		// First, try to find channels with the exact model name.

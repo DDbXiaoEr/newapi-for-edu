@@ -71,68 +71,41 @@ func newTokenAutoGroupsAuthenticatedContext(t *testing.T, method string, target 
 	return ctx, recorder
 }
 
-func TestAddTokenEmptyAutoGroupsInheritGlobalAuto(t *testing.T) {
-	tests := []struct {
-		name         string
-		includeField bool
-		value        any
-	}{
-		{name: "omitted"},
-		{name: "null", includeField: true, value: nil},
-		{name: "empty array", includeField: true, value: []string{}},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			configureTokenAutoGroupsTest(t, "5", `["default","vip"]`)
-			user := setupTokenAutoGroupsControllerTest(t)
-			request := baseAutoTokenRequest("create-" + test.name)
-			if test.includeField {
-				request["auto_groups"] = test.value
-			}
-
-			ctx, recorder := newTokenAutoGroupsAuthenticatedContext(t, http.MethodPost, "/api/token/", request, user.Id)
-			AddToken(ctx)
-
-			response := decodeAPIResponse(t, recorder)
-			require.True(t, response.Success, response.Message)
-			var token model.Token
-			require.NoError(t, model.DB.Where("name = ?", request["name"]).First(&token).Error)
-			assert.Empty(t, token.AutoGroups)
-			assert.True(t, token.CrossGroupRetry)
-			payload, err := common.Marshal(buildMaskedTokenResponse(&token))
-			require.NoError(t, err)
-			var responseData map[string]any
-			require.NoError(t, common.Unmarshal(payload, &responseData))
-			assert.Nil(t, responseData["auto_groups"])
-		})
-	}
-}
-
-func TestAddTokenPersistsOrderedAutoGroupsSnapshot(t *testing.T) {
+func TestAddTokenUsesUserGroupAndIgnoresRequestedGroup(t *testing.T) {
 	configureTokenAutoGroupsTest(t, "5", `["default","vip"]`)
 	user := setupTokenAutoGroupsControllerTest(t)
-	request := baseAutoTokenRequest("ordered-snapshot")
+	request := baseAutoTokenRequest("forced-user-group")
 	request["auto_groups"] = []string{"vip", "default"}
 
 	ctx, recorder := newTokenAutoGroupsAuthenticatedContext(t, http.MethodPost, "/api/token/", request, user.Id)
 	AddToken(ctx)
+
+	response := decodeAPIResponse(t, recorder)
+	require.True(t, response.Success, response.Message)
+	var token model.Token
+	require.NoError(t, model.DB.Where("name = ?", "forced-user-group").First(&token).Error)
+	assert.Equal(t, user.Group, token.Group)
+	assert.Empty(t, token.AutoGroups)
+	assert.False(t, token.CrossGroupRetry)
+}
+
+func TestUpdateTokenPersistsOrderedAutoGroupsSnapshot(t *testing.T) {
+	configureTokenAutoGroupsTest(t, "5", `["default","vip"]`)
+	user := setupTokenAutoGroupsControllerTest(t)
+	token := seedToken(t, model.DB, user.Id, "ordered-snapshot", "ordered-snapshot-key")
+	request := baseAutoTokenRequest("ordered-snapshot")
+	request["id"] = token.Id
+	request["status"] = common.TokenStatusEnabled
+	request["auto_groups"] = []string{"vip", "default"}
+
+	ctx, recorder := newTokenAutoGroupsAuthenticatedContext(t, http.MethodPut, "/api/token/", request, user.Id)
+	UpdateToken(ctx)
 	require.True(t, decodeAPIResponse(t, recorder).Success)
 
-	var token model.Token
-	require.NoError(t, model.DB.Where("name = ?", "ordered-snapshot").First(&token).Error)
-	assert.JSONEq(t, `["vip","default"]`, token.AutoGroups)
-
-	getCtx, getRecorder := newTokenAutoGroupsAuthenticatedContext(t, http.MethodGet, "/api/token/"+stringInt(token.Id), nil, user.Id)
-	getCtx.Params = append(getCtx.Params, gin.Param{Key: "id", Value: stringInt(token.Id)})
-	GetToken(getCtx)
-	getResponse := decodeAPIResponse(t, getRecorder)
-	require.True(t, getResponse.Success)
-	var data struct {
-		AutoGroups []string `json:"auto_groups"`
-	}
-	require.NoError(t, common.Unmarshal(getResponse.Data, &data))
-	assert.Equal(t, []string{"vip", "default"}, data.AutoGroups)
+	var updated model.Token
+	require.NoError(t, model.DB.First(&updated, token.Id).Error)
+	assert.JSONEq(t, `["vip","default"]`, updated.AutoGroups)
+	assert.Equal(t, "auto", updated.Group)
 }
 
 func TestUpdateTokenAutoGroupsTriStateAndNonAutoCleanup(t *testing.T) {
@@ -184,7 +157,7 @@ func TestUpdateTokenAutoGroupsTriStateAndNonAutoCleanup(t *testing.T) {
 	}
 }
 
-func TestAddTokenRejectsInvalidAutoGroups(t *testing.T) {
+func TestUpdateTokenRejectsInvalidAutoGroups(t *testing.T) {
 	tests := []struct {
 		name     string
 		maxCount string
@@ -200,17 +173,20 @@ func TestAddTokenRejectsInvalidAutoGroups(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			configureTokenAutoGroupsTest(t, test.maxCount, `["default","vip"]`)
 			user := setupTokenAutoGroupsControllerTest(t)
+			token := seedToken(t, model.DB, user.Id, "invalid-"+test.name, "invalid-"+test.name)
 			request := baseAutoTokenRequest("invalid-" + test.name)
+			request["id"] = token.Id
+			request["status"] = common.TokenStatusEnabled
 			request["auto_groups"] = test.groups
 
-			ctx, recorder := newTokenAutoGroupsAuthenticatedContext(t, http.MethodPost, "/api/token/", request, user.Id)
-			AddToken(ctx)
+			ctx, recorder := newTokenAutoGroupsAuthenticatedContext(t, http.MethodPut, "/api/token/", request, user.Id)
+			UpdateToken(ctx)
 
 			response := decodeAPIResponse(t, recorder)
 			assert.False(t, response.Success)
-			var count int64
-			require.NoError(t, model.DB.Model(&model.Token{}).Count(&count).Error)
-			assert.Zero(t, count)
+			var updated model.Token
+			require.NoError(t, model.DB.First(&updated, token.Id).Error)
+			assert.Empty(t, updated.AutoGroups)
 		})
 	}
 }

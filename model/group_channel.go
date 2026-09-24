@@ -9,27 +9,36 @@ import (
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 )
 
-// groupBoundChannelIDs returns the explicit channel binding for a group.
-// The bool is false when the group is unbound.
-func groupBoundChannelIDs(group string) ([]int, bool) {
-	return group_channel_setting.GetBoundChannelIDs(group)
+// groupBoundChannelIDs returns the explicit channel pin for group+model.
+// Exact name wins, then the routing-normalized name, then a legacy "*" pin.
+func groupBoundChannelIDs(group, model string) ([]int, bool) {
+	if ids, ok := group_channel_setting.GetExactBoundChannelIDs(group, model); ok {
+		return ids, true
+	}
+	normalized := ratio_setting.RoutingMatchModelName(model)
+	if normalized != "" && normalized != model {
+		if ids, ok := group_channel_setting.GetExactBoundChannelIDs(group, normalized); ok {
+			return ids, true
+		}
+	}
+	return group_channel_setting.GetWildcardChannelIDs(group)
 }
 
-// GroupHasBinding reports whether the group has an explicit channel binding.
-func GroupHasBinding(group string) bool {
-	_, ok := groupBoundChannelIDs(group)
+// GroupHasModelBinding reports whether group+model has an explicit channel pin.
+func GroupHasModelBinding(group, model string) bool {
+	_, ok := groupBoundChannelIDs(group, model)
 	return ok
 }
 
 // ChannelAllowedForGroup reports whether channelID may serve modelName for the
-// given group. A bound group uses its explicit channel list (ignoring the
-// channel's own Group field); an unbound group keeps the legacy abilities-based
+// given group. A pinned model uses its explicit channel list (ignoring the
+// channel's own Group field); an unbound model keeps the legacy abilities-based
 // membership.
 func ChannelAllowedForGroup(group, modelName string, channelID int) bool {
 	if group == "" || modelName == "" || channelID <= 0 {
 		return false
 	}
-	if ids, ok := groupBoundChannelIDs(group); ok {
+	if ids, ok := groupBoundChannelIDs(group, modelName); ok {
 		if !slices.Contains(ids, channelID) {
 			return false
 		}
@@ -166,9 +175,17 @@ func GetGroupChannelSummaries() []GroupChannelSummary {
 	return summaries
 }
 
+func anyBoundChannelSupportsModel(ids []int, model string) bool {
+	for _, id := range ids {
+		if channelSupportsModelForGroup(id, model) {
+			return true
+		}
+	}
+	return false
+}
+
 // boundGroupEnabledModels returns the union of models served by the bound
-// enabled channels. A group can therefore never expose a model no bound channel
-// supports.
+// enabled channels.
 func boundGroupEnabledModels(ids []int) []string {
 	modelSet := make(map[string]struct{})
 	if common.MemoryCacheEnabled {
@@ -199,4 +216,35 @@ func boundGroupEnabledModels(ids []int) []string {
 	}
 	sort.Strings(models)
 	return models
+}
+
+func collectGroupEnabledModels(group string) []string {
+	modelSet := make(map[string]struct{})
+	if ids, ok := group_channel_setting.GetWildcardChannelIDs(group); ok {
+		for _, m := range boundGroupEnabledModels(ids) {
+			modelSet[m] = struct{}{}
+		}
+	} else {
+		var models []string
+		DB.Table("abilities").Where(commonGroupCol+" = ? and enabled = ?", group, true).Distinct("model").Pluck("model", &models)
+		for _, m := range models {
+			modelSet[m] = struct{}{}
+		}
+	}
+	for model, ids := range group_channel_setting.GetGroupModelsCopy(group) {
+		if model == group_channel_setting.WildcardModel {
+			continue
+		}
+		if anyBoundChannelSupportsModel(ids, model) {
+			modelSet[model] = struct{}{}
+		} else {
+			delete(modelSet, model)
+		}
+	}
+	out := make([]string, 0, len(modelSet))
+	for m := range modelSet {
+		out = append(out, m)
+	}
+	sort.Strings(out)
+	return out
 }

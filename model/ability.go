@@ -41,15 +41,7 @@ func GetAllEnableAbilityWithChannels() ([]AbilityWithChannel, error) {
 }
 
 func GetGroupEnabledModels(group string) []string {
-	// A bound group exposes only the models served by its bound channels, so
-	// the group list can never exceed what the bound channels actually support.
-	if ids, ok := groupBoundChannelIDs(group); ok {
-		return boundGroupEnabledModels(ids)
-	}
-	var models []string
-	// Find distinct models
-	DB.Table("abilities").Where(commonGroupCol+" = ? and enabled = ?", group, true).Distinct("model").Pluck("model", &models)
-	return models
+	return collectGroupEnabledModels(group)
 }
 
 func GetEnabledModels() []string {
@@ -116,9 +108,9 @@ func GetChannel(
 	retry int,
 	filters []dto.ChannelFilter,
 ) (*Channel, error) {
-	// A bound group is authoritative: candidates come from the explicit binding
-	// instead of the abilities table.
-	if ids, ok := groupBoundChannelIDs(group); ok {
+	// A pinned model is authoritative: candidates come from the explicit binding
+	// instead of the abilities table. Unpinned models keep the legacy path.
+	if ids, ok := groupBoundChannelIDs(group, model); ok {
 		return selectChannelFromAbilities(boundAbilitiesForModel(ids, model), model, retry, filters)
 	}
 	var abilities []Ability

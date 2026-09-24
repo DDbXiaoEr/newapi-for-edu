@@ -14,11 +14,12 @@ import (
 
 type groupChannelBindingRequest struct {
 	Group      string `json:"group"`
+	Model      string `json:"model"`
 	ChannelIDs []int  `json:"channel_ids"`
 }
 
-// GetGroupChannelBindings returns the group -> channels mapping together with
-// the channel list (including supported models) used by the binding editor.
+// GetGroupChannelBindings returns the group -> model -> channels mapping
+// together with the channel list used by the binding editor.
 func GetGroupChannelBindings(c *gin.Context) {
 	bindings := group_channel_setting.GetGroupChannelsCopy()
 	summaries := model.GetGroupChannelSummaries()
@@ -27,18 +28,20 @@ func GetGroupChannelBindings(c *gin.Context) {
 	for _, summary := range summaries {
 		existing[summary.Id] = struct{}{}
 	}
-	staleChannels := make(map[string][]int)
-	for group, ids := range bindings {
-		for _, id := range ids {
-			if _, ok := existing[id]; !ok {
-				staleChannels[group] = append(staleChannels[group], id)
+	staleChannels := make(map[string]map[string][]int)
+	for group, models := range bindings {
+		for modelName, ids := range models {
+			for _, id := range ids {
+				if _, ok := existing[id]; !ok {
+					if staleChannels[group] == nil {
+						staleChannels[group] = make(map[string][]int)
+					}
+					staleChannels[group][modelName] = append(staleChannels[group][modelName], id)
+				}
 			}
 		}
 	}
 
-	// Every group defined in the group ratio is bindable; group_models is the
-	// group's current effective model set (binding-aware) so the editor can show
-	// which models would be lost when a new binding is applied.
 	groups := make([]string, 0)
 	groupModels := make(map[string][]string)
 	for name := range ratio_setting.GetGroupRatioCopy() {
@@ -57,8 +60,8 @@ func GetGroupChannelBindings(c *gin.Context) {
 }
 
 // UpdateGroupChannelBinding sets (or clears, when channel_ids is empty) the
-// explicit channel binding for a single group. It persists through the generic
-// option path so the change hot-reloads.
+// explicit channel pin for a single group+model. It persists through the
+// generic option path so the change hot-reloads.
 func UpdateGroupChannelBinding(c *gin.Context) {
 	var req groupChannelBindingRequest
 	if err := common.DecodeJson(c.Request.Body, &req); err != nil {
@@ -73,6 +76,11 @@ func UpdateGroupChannelBinding(c *gin.Context) {
 	}
 	if !ratio_setting.ContainsGroupRatio(group) {
 		common.ApiErrorMsg(c, "group is not defined in group ratio")
+		return
+	}
+	modelName := strings.TrimSpace(req.Model)
+	if modelName == "" {
+		common.ApiErrorMsg(c, "model is required")
 		return
 	}
 
@@ -100,10 +108,19 @@ func UpdateGroupChannelBinding(c *gin.Context) {
 	sort.Ints(ids)
 
 	bindings := group_channel_setting.GetGroupChannelsCopy()
+	models := bindings[group]
+	if models == nil {
+		models = make(map[string][]int)
+	}
 	if len(ids) == 0 {
+		delete(models, modelName)
+	} else {
+		models[modelName] = ids
+	}
+	if len(models) == 0 {
 		delete(bindings, group)
 	} else {
-		bindings[group] = ids
+		bindings[group] = models
 	}
 
 	payload, err := common.Marshal(bindings)

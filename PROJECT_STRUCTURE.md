@@ -1128,6 +1128,8 @@ newapi_2_-edu/
 │   ├── http_transport_sharded.go
 │   ├── image.go
 │   ├── image_billing.go
+│   ├── group_assignment.go
+│   ├── group_assignment_test.go
 │   ├── ldap.go
 │   ├── ldap_test.go
 │   ├── log_info_generate.go
@@ -1204,7 +1206,8 @@ newapi_2_-edu/
 │   │   ├── config.go
 │   │   └── validation.go
 │   ├── group_channel_setting/
-│   │   └── group_channel.go
+│   │   ├── group_channel.go
+│   │   └── group_channel_test.go
 │   ├── midjourney.go
 │   ├── model_setting/
 │   │   ├── claude.go
@@ -1255,6 +1258,7 @@ newapi_2_-edu/
 │   │   ├── cas.go
 │   │   ├── discord.go
 │   │   ├── fetch_setting.go
+│   │   ├── group_assignment.go
 │   │   ├── ldap.go
 │   │   ├── legal.go
 │   │   ├── oidc.go
@@ -1318,9 +1322,9 @@ newapi_2_-edu/
     │   │   │   │   │   ├── LinuxDoIcon.jsx
     │   │   │   │   │   ├── OIDCIcon.jsx
     │   │   │   │   │   └── WeChatIcon.jsx
-    │   │   │   │   ├── markdown/
+    │   │   │   │   ├──kdown/
     │   │   │   │   │   ├── MarkdownRenderer.jsx
-    │   │   │   │   │   └── markdown.css
+    │   │   │   │   │   └──kdown.css
     │   │   │   │   ├── modals/
     │   │   │   │   │   ├── RiskAcknowledgementModal.jsx
     │   │   │   │   │   └── SecureVerificationModal.jsx
@@ -2125,7 +2129,7 @@ newapi_2_-edu/
         │   │       ├── item.tsx
         │   │       ├── kbd.tsx
         │   │       ├── label.tsx
-        │   │       ├── markdown.tsx
+        │   │       ├──kdown.tsx
         │   │       ├── menubar.tsx
         │   │       ├── native-select.tsx
         │   │       ├── navigation-menu.tsx
@@ -2439,6 +2443,19 @@ newapi_2_-edu/
         │   │   │   ├── lib/
         │   │   │   │   └── icon-mapper.tsx
         │   │   │   └── types.ts
+        │   │   ├── groups/
+        │   │   │   ├── __tests__/
+        │   │   │   │   ├── group-user-transfer.test.tsx
+        │   │   │   │   └── group-users.test.ts
+        │   │   │   ├── api.ts
+        │   │   │   ├── components/
+        │   │   │   │   ├── group-settings-panel.tsx
+        │   │   │   │   ├── group-user-transfer.tsx
+        │   │   │   │   └── group-users-panel.tsx
+        │   │   │   ├── index.tsx
+        │   │   │   ├── lib/
+        │   │   │   │   └── group-users.ts
+        │   │   │   └── types.ts
         │   │   ├── keys/
         │   │   │   ├── api.ts
         │   │   │   ├── components/
@@ -2733,7 +2750,7 @@ newapi_2_-edu/
         │   │   │   │   ├── entity-links.tsx
         │   │   │   │   ├── growth-text.tsx
         │   │   │   │   ├── index.ts
-        │   │   │   │   ├── market-share-section.tsx
+        │   │   │   │   ├──ket-share-section.tsx
         │   │   │   │   ├── model-leaderboard.tsx
         │   │   │   │   ├── models-section.tsx
         │   │   │   │   ├── pulse-section.tsx
@@ -2876,6 +2893,8 @@ newapi_2_-edu/
         │   │   │   │   │   │   ├── use-custom-oauth-mutations.ts
         │   │   │   │   │   │   └── use-custom-oauth-providers.ts
         │   │   │   │   │   └── types.ts
+        │   │   │   │   ├── group-assignment-rules-editor.tsx
+        │   │   │   │   ├── group-assignment-rules.ts
         │   │   │   │   ├── index.tsx
         │   │   │   │   ├── ldap-section.tsx
         │   │   │   │   ├── oauth-callback-url.ts
@@ -2883,6 +2902,8 @@ newapi_2_-edu/
         │   │   │   │   ├── passkey-section.tsx
         │   │   │   │   └── section-registry.tsx
         │   │   │   ├── billing/
+        │   │   │   │   ├── __tests__/
+        │   │   │   │   │   └── group-channel-binding.test.tsx
         │   │   │   │   ├── group-channel-binding-section.tsx
         │   │   │   │   ├── index.tsx
         │   │   │   │   └── section-registry.tsx
@@ -3059,10 +3080,10 @@ newapi_2_-edu/
         │   │   ├── task-plugins/
         │   │   │   ├── __tests__/
         │   │   │   │   ├── enabled-option.test.ts
-        │   │   │   │   ├── marketplace-install-dialog.test.tsx
-        │   │   │   │   ├── marketplace-panel.test.tsx
-        │   │   │   │   ├── marketplace-plugin-logo.test.tsx
-        │   │   │   │   ├── marketplace.test.ts
+        │   │   │   │   ├──ketplace-install-dialog.test.tsx
+        │   │   │   │   ├──ketplace-panel.test.tsx
+        │   │   │   │   ├──ketplace-plugin-logo.test.tsx
+        │   │   │   │   ├──ketplace.test.ts
         │   │   │   │   ├── plugin-card.test.tsx
         │   │   │   │   ├── plugin-changelog-panel.test.tsx
         │   │   │   │   ├── plugin-changelog.test.ts
@@ -3079,11 +3100,11 @@ newapi_2_-edu/
         │   │   │   ├── api.ts
         │   │   │   ├── components/
         │   │   │   │   ├── javascript-viewer.tsx
-        │   │   │   │   ├── marketplace-capabilities.tsx
-        │   │   │   │   ├── marketplace-install-dialog.tsx
-        │   │   │   │   ├── marketplace-panel.tsx
-        │   │   │   │   ├── marketplace-plugin-card.tsx
-        │   │   │   │   ├── marketplace-sources-dialog.tsx
+        │   │   │   │   ├──ketplace-capabilities.tsx
+        │   │   │   │   ├──ketplace-install-dialog.tsx
+        │   │   │   │   ├──ketplace-panel.tsx
+        │   │   │   │   ├──ketplace-plugin-card.tsx
+        │   │   │   │   ├──ketplace-sources-dialog.tsx
         │   │   │   │   ├── plugin-card.tsx
         │   │   │   │   ├── plugin-changelog-panel.tsx
         │   │   │   │   ├── plugin-detail-sheet.tsx
@@ -3103,7 +3124,7 @@ newapi_2_-edu/
         │   │   │   ├── index.tsx
         │   │   │   ├── lib/
         │   │   │   │   ├── host-protocols.ts
-        │   │   │   │   ├── marketplace.ts
+        │   │   │   │   ├──ketplace.ts
         │   │   │   │   ├── plugin-changelog.ts
         │   │   │   │   ├── plugin-icon-file.ts
         │   │   │   │   ├── plugin-icon.ts
@@ -3377,6 +3398,8 @@ newapi_2_-edu/
         │   │   │   │   └── index.tsx
         │   │   │   ├── errors/
         │   │   │   │   └── $error.tsx
+        │   │   │   ├── groups/
+        │   │   │   │   └── index.tsx
         │   │   │   ├── keys/
         │   │   │   │   └── index.tsx
         │   │   │   ├── models/

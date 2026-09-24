@@ -63,6 +63,8 @@ export async function searchUsers(
   const {
     keyword = '',
     group = '',
+    exclude_group = '',
+    exclude_deleted = false,
     role = '',
     status = '',
     p = 1,
@@ -73,6 +75,8 @@ export async function searchUsers(
   const queryParams = new URLSearchParams()
   queryParams.set('keyword', keyword)
   queryParams.set('group', group)
+  if (exclude_group) queryParams.set('exclude_group', exclude_group)
+  if (exclude_deleted) queryParams.set('exclude_deleted', 'true')
   if (role) queryParams.set('role', role)
   if (status) queryParams.set('status', status)
   queryParams.set('p', String(p))

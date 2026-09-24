@@ -56,12 +56,14 @@ import {
 } from '@douyinfe/semi-icons';
 import { useTranslation } from 'react-i18next';
 import { StatusContext } from '../../../../context/Status';
+import { UserContext } from '../../../../context/User';
 
 const { Text, Title } = Typography;
 
 const EditTokenModal = (props) => {
   const { t } = useTranslation();
   const [statusState, statusDispatch] = useContext(StatusContext);
+  const [userState] = useContext(UserContext);
   const [loading, setLoading] = useState(false);
   const isMobile = useIsMobile();
   const formApiRef = useRef(null);
@@ -79,7 +81,7 @@ const EditTokenModal = (props) => {
     model_limits_enabled: false,
     model_limits: [],
     allow_ips: '',
-    group: '',
+    group: userState?.user?.group || '',
     cross_group_retry: false,
     tokenCount: 1,
   });
@@ -282,6 +284,8 @@ const EditTokenModal = (props) => {
         }
         localInputs.model_limits = localInputs.model_limits.join(',');
         localInputs.model_limits_enabled = localInputs.model_limits.length > 0;
+        localInputs.group = userState?.user?.group || '';
+        localInputs.cross_group_retry = false;
         let res = await API.post(`/api/token/`, localInputs);
         const { success, message } = res.data;
         if (success) {
@@ -383,7 +387,7 @@ const EditTokenModal = (props) => {
                     />
                   </Col>
                   <Col span={24}>
-                    {groups.length > 0 ? (
+                    {isEdit && groups.length > 0 ? (
                       <Form.Select
                         field='group'
                         label={t('令牌分组')}
@@ -402,18 +406,21 @@ const EditTokenModal = (props) => {
                         style={{ width: '100%' }}
                       />
                     ) : (
-                      <Form.Select
-                        placeholder={t('管理员未设置用户可选分组')}
-                        disabled
+                      <Form.Input
+                        field='group'
                         label={t('令牌分组')}
-                        style={{ width: '100%' }}
+                        disabled
+                        extraText={t(
+                          '新建令牌固定使用当前用户分组，不可自行选择',
+                        )}
                       />
                     )}
                   </Col>
                   <Col
                     span={24}
                     style={{
-                      display: values.group === 'auto' ? 'block' : 'none',
+                      display:
+                        isEdit && values.group === 'auto' ? 'block' : 'none',
                     }}
                   >
                     <Form.Switch

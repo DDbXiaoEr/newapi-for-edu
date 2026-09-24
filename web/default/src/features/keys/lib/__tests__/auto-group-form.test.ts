@@ -61,12 +61,13 @@ describe('API key Auto group form mapping', () => {
     expect(apiKeySchema.parse(legacyApiKey).auto_groups).toBe(null)
   })
 
-  test('creates an Auto token that inherits the global order', () => {
-    const defaults = getApiKeyFormDefaultValues(true)
+  test('creates a token that inherits the user group', () => {
+    const defaults = getApiKeyFormDefaultValues(true, 'vip')
 
-    expect(defaults.group).toBe('auto')
+    expect(defaults.group).toBe('vip')
     expect(defaults.auto_groups_mode).toBe('inherit')
     expect(defaults.auto_groups).toEqual([])
+    expect(defaults.cross_group_retry).toBe(false)
     expect(transformFormDataToPayload(defaults).auto_groups).toEqual([])
   })
 
@@ -127,6 +128,7 @@ describe('API key Auto group form mapping', () => {
   test('submits a valid custom snapshot in its configured order', () => {
     const custom = {
       ...getApiKeyFormDefaultValues(true),
+      group: 'auto',
       auto_groups_mode: 'custom' as const,
       auto_groups: ['vip', 'default'],
     }
@@ -138,7 +140,10 @@ describe('API key Auto group form mapping', () => {
   })
 
   test('submits an empty array for inheritance and for non-Auto groups', () => {
-    const inherited = getApiKeyFormDefaultValues(true)
+    const inherited = {
+      ...getApiKeyFormDefaultValues(true),
+      group: 'auto',
+    }
     expect(transformFormDataToPayload(inherited).auto_groups).toEqual([])
 
     const nonAuto = {
@@ -154,6 +159,7 @@ describe('API key Auto group form mapping', () => {
   test('rejects snapshots over the configured limit', () => {
     const result = getApiKeyFormSchema(t, 1).safeParse({
       ...getApiKeyFormDefaultValues(true),
+      group: 'auto',
       name: 'limited token',
       auto_groups_mode: 'custom',
       auto_groups: ['default', 'vip'],
@@ -168,6 +174,7 @@ describe('API key Auto group form mapping', () => {
   test('rejects duplicate custom groups', () => {
     const result = getApiKeyFormSchema(t).safeParse({
       ...getApiKeyFormDefaultValues(true),
+      group: 'auto',
       name: 'duplicate token',
       auto_groups_mode: 'custom',
       auto_groups: ['vip', 'vip'],

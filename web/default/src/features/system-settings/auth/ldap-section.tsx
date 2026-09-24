@@ -34,6 +34,11 @@ import {
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { FormNavigationGuard } from '../components/form-navigation-guard'
+import { GroupAssignmentRulesEditor } from './group-assignment-rules-editor'
+import {
+  editorValueFromRules,
+  stringifyGroupAssignmentEditorValue,
+} from './group-assignment-rules'
 import {
   SettingsForm,
   SettingsSwitchContent,
@@ -57,6 +62,16 @@ const ldapSchema = z.object({
     start_tls: z.boolean(),
     skip_tls_verify: z.boolean(),
     timeout_seconds: z.string(),
+    group_assignment_rules: z.object({
+      attribute: z.string(),
+      rules: z.array(
+        z.object({
+          id: z.string(),
+          pattern: z.string(),
+          group: z.string(),
+        })
+      ),
+    }),
   }),
 })
 
@@ -75,6 +90,7 @@ type FlatLdapDefaults = {
   'ldap.start_tls': boolean
   'ldap.skip_tls_verify': boolean
   'ldap.timeout_seconds': string
+  'ldap.group_assignment_rules': string
 }
 
 const buildFormDefaults = (defaults: FlatLdapDefaults): LdapFormValues => ({
@@ -91,6 +107,9 @@ const buildFormDefaults = (defaults: FlatLdapDefaults): LdapFormValues => ({
     start_tls: defaults['ldap.start_tls'],
     skip_tls_verify: defaults['ldap.skip_tls_verify'],
     timeout_seconds: defaults['ldap.timeout_seconds'] || '5',
+    group_assignment_rules: editorValueFromRules(
+      defaults['ldap.group_assignment_rules']
+    ),
   },
 })
 
@@ -107,6 +126,9 @@ const normalizeFormValues = (values: LdapFormValues): FlatLdapDefaults => ({
   'ldap.start_tls': values.ldap.start_tls,
   'ldap.skip_tls_verify': values.ldap.skip_tls_verify,
   'ldap.timeout_seconds': values.ldap.timeout_seconds || '5',
+  'ldap.group_assignment_rules': stringifyGroupAssignmentEditorValue(
+    values.ldap.group_assignment_rules
+  ),
 })
 
 type LdapSectionProps = {
@@ -430,6 +452,23 @@ export function LdapSection(props: LdapSectionProps) {
                       name={field.name}
                       onBlur={field.onBlur}
                       ref={field.ref}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name='ldap.group_assignment_rules'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('New user group assignment rules')}</FormLabel>
+                  <FormControl>
+                    <GroupAssignmentRulesEditor
+                      value={field.value}
+                      onChange={field.onChange}
                     />
                   </FormControl>
                   <FormMessage />

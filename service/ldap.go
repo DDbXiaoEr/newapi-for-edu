@@ -28,6 +28,7 @@ type LDAPUser struct {
 	Username    string
 	DisplayName string
 	Email       string
+	Attributes  map[string][]string
 }
 
 var AuthenticateLDAP = authenticateLDAP
@@ -157,6 +158,9 @@ func findLDAPEntry(conn *ldap.Conn, settings *system_setting.LDAPSettings, ident
 		"cn",
 		"mail",
 	})
+	for _, rule := range settings.GroupAssignmentRules {
+		attributes = uniqueStrings(append(attributes, rule.Attribute))
+	}
 
 	timeout := time.Duration(settings.TimeoutSeconds) * time.Second
 	if timeout <= 0 {
@@ -212,7 +216,33 @@ func entryToLDAPUser(entry *ldap.Entry, settings *system_setting.LDAPSettings, f
 		Username:    strings.TrimSpace(username),
 		DisplayName: strings.TrimSpace(displayName),
 		Email:       strings.TrimSpace(email),
+		Attributes:  ldapEntryAttributes(entry),
 	}
+}
+
+func ldapEntryAttributes(entry *ldap.Entry) map[string][]string {
+	if entry == nil {
+		return nil
+	}
+	attributes := make(map[string][]string, len(entry.Attributes)+1)
+	if dn := strings.TrimSpace(entry.DN); dn != "" {
+		attributes["dn"] = []string{dn}
+	}
+	for _, attr := range entry.Attributes {
+		name := strings.TrimSpace(attr.Name)
+		if name == "" {
+			continue
+		}
+		key := strings.ToLower(name)
+		for _, value := range attr.Values {
+			value = strings.TrimSpace(value)
+			if value == "" {
+				continue
+			}
+			attributes[key] = append(attributes[key], value)
+		}
+	}
+	return attributes
 }
 
 func uniqueStrings(values []string) []string {

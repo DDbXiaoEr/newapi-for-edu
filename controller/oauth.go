@@ -16,6 +16,7 @@ import (
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/oauth"
 	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/new-api/setting/system_setting"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -323,6 +324,9 @@ func handleOAuthLogin(c *gin.Context, provider oauth.Provider, oauthUser *oauth.
 		return
 	}
 	user, migration, err := findOrCreateOAuthUser(c, provider, oauthUser, token, payload.AffiliateCode)
+	if err == nil {
+		applyCASGroup(provider, user, oauthUser)
+	}
 	if err != nil {
 		if errors.Is(err, model.ErrEmailAlreadyTaken) {
 			common.ApiErrorI18n(c, i18n.MsgUserEmailAlreadyTaken)
@@ -520,6 +524,9 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 	}
 	user.Role = common.RoleCommonUser
 	user.Status = common.UserStatusEnabled
+	if group := assignedCASGroup(provider, oauthUser); group != "" {
+		user.Group = group
+	}
 
 	// Handle affiliate code
 	inviterId := 0
@@ -587,6 +594,51 @@ func findOrCreateOAuthUser(c *gin.Context, provider oauth.Provider, oauthUser *o
 	}
 
 	return user, nil, nil
+}
+
+func applyCASGroup(provider oauth.Provider, user *model.User, oauthUser *oauth.OAuthUser) {
+	if user == nil || user.Id == 0 {
+		return
+	}
+	group := assignedCASGroup(provider, oauthUser)
+	if group == "" || user.Group == group {
+		return
+	}
+	if err := model.UpdateUserGroupById(user.Id, group); err != nil {
+		common.SysLog(fmt.Sprintf("CAS group assignment skipped for user %d: %v", user.Id, err))
+		return
+	}
+	user.Group = group
+}
+
+func assignedCASGroup(provider oauth.Provider, oauthUser *oauth.OAuthUser) string {
+	if provider == nil || provider.GetProviderPrefix() != "cas_" || oauthUser == nil {
+		return ""
+	}
+	return service.ResolveAssignedGroup(system_setting.GetCasSettings().GroupAssignmentRules, casAssignmentAttributes(oauthUser))
+}
+
+func casAssignmentAttributes(oauthUser *oauth.OAuthUser) map[string][]string {
+	attributes := service.DirectoryAttributes(
+		"username", oauthUser.Username,
+		"uid", oauthUser.Username,
+		"mail", oauthUser.Email,
+		"email", oauthUser.Email,
+		"cn", oauthUser.DisplayName,
+		"displayname", oauthUser.DisplayName,
+	)
+	if oauthUser.Extra == nil {
+		return attributes
+	}
+	raw, ok := oauthUser.Extra["attributes"]
+	if !ok {
+		return attributes
+	}
+	extra, ok := raw.(map[string][]string)
+	if !ok {
+		return attributes
+	}
+	return service.MergeDirectoryAttributes(attributes, extra)
 }
 
 // recordLegacyGitHubBindingAudit records the outcome of a legacy GitHub binding

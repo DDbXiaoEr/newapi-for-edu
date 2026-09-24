@@ -87,6 +87,7 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
   const {
     isAdminView: isAdmin,
     isRootView: isRoot,
+    canManageScope,
     viewAccess,
   } = useLogsViewScope()
   const isMobile = useMediaQuery('(max-width: 640px)')
@@ -189,7 +190,8 @@ export function UsageLogsTable({ logCategory }: UsageLogsTableProps) {
     logCategory,
     isAdmin,
     isRoot,
-    showWalletSource
+    showWalletSource,
+    canManageScope
   )
   const isLoadingData = isLoading || (isFetching && !data)
 

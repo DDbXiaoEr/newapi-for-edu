@@ -64,3 +64,35 @@ func TestSearchUsersSortsBeforePagination(t *testing.T) {
 	assert.Equal(t, int64(42), total)
 	assert.Equal(t, []int{21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40}, collectUserIDs(users))
 }
+
+func TestSearchUsersExcludeGroup(t *testing.T) {
+	truncateTables(t)
+	insertUsersForPaginationTest(t, 4)
+	require.NoError(t, DB.Model(&User{}).Where("id IN ?", []int{1, 2}).Update("group", "vip").Error)
+
+	users, total, err := SearchUsersWithOptions(SearchUsersOptions{
+		ExcludeGroup:   "vip",
+		ExcludeDeleted: true,
+		StartIdx:       0,
+		Num:            20,
+		Sort:           NewUserSortOptions("id", "asc"),
+	})
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), total)
+	assert.Equal(t, []int{3, 4}, collectUserIDs(users))
+}
+
+func TestAssignUsersGroupUpdatesEligibleUsers(t *testing.T) {
+	setupUserUpdateTestState(t)
+	insertUsersForPaginationTest(t, 3)
+	require.NoError(t, DB.Model(&User{}).Where("id = ?", 2).Update("role", common.RoleAdminUser).Error)
+
+	updated, skipped, err := AssignUsersGroup([]int{1, 2, 3, 3}, "vip", common.RoleAdminUser)
+	require.NoError(t, err)
+	assert.Equal(t, 1, skipped)
+	assert.ElementsMatch(t, []int{1, 3}, updated)
+
+	var groups []string
+	require.NoError(t, DB.Model(&User{}).Where("id IN ?", []int{1, 2, 3}).Order("id").Pluck("group", &groups).Error)
+	assert.Equal(t, []string{"vip", "default", "vip"}, groups)
+}

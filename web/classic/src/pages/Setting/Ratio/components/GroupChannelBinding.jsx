@@ -32,6 +32,27 @@ import { API, showError, showSuccess } from '../../../helpers';
 const { Text } = Typography;
 
 const CHANNEL_STATUS_ENABLED = 1;
+const WILDCARD_MODEL = '*';
+
+function pinsForGroup(groupChannels, group) {
+  return groupChannels?.[group] || {};
+}
+
+function preferredModel(models, pins) {
+  const pinned = Object.keys(pins || {}).sort((left, right) => {
+    if (left === WILDCARD_MODEL) return 1;
+    if (right === WILDCARD_MODEL) return -1;
+    return left.localeCompare(right);
+  });
+  const fromPins = pinned.find((name) => models.includes(name));
+  if (fromPins) return fromPins;
+  return models.find((name) => name !== WILDCARD_MODEL) || models[0] || '';
+}
+
+function channelSupportsModel(channel, model) {
+  if (model === WILDCARD_MODEL) return true;
+  return (channel.models || []).includes(model);
+}
 
 export default function GroupChannelBinding() {
   const { t } = useTranslation();
@@ -42,6 +63,7 @@ export default function GroupChannelBinding() {
   const [groupChannels, setGroupChannels] = useState({});
   const [groupModels, setGroupModels] = useState({});
   const [group, setGroup] = useState('');
+  const [model, setModel] = useState('');
   const [selected, setSelected] = useState([]);
 
   const applyPayload = useCallback((data) => {
@@ -53,35 +75,80 @@ export default function GroupChannelBinding() {
     return data;
   }, []);
 
+  const modelNamesFor = useCallback((data, currentGroup) => {
+    const names = new Set([WILDCARD_MODEL]);
+    (data?.group_models?.[currentGroup] || []).forEach((name) => names.add(name));
+    Object.keys(data?.group_channels?.[currentGroup] || {}).forEach((name) =>
+      names.add(name),
+    );
+    (data?.channels || []).forEach((channel) => {
+      (channel.models || []).forEach((name) => names.add(name));
+    });
+    return Array.from(names).sort((left, right) => {
+      if (left === WILDCARD_MODEL) return -1;
+      if (right === WILDCARD_MODEL) return 1;
+      return left.localeCompare(right);
+    });
+  }, []);
+
   const load = useCallback(
-    async (keepGroup) => {
+    async (keepGroup, keepModel) => {
       setLoading(true);
       try {
         const res = await API.get('/api/group/channels');
         const data = applyPayload(res.data?.data);
-        const current =
+        const currentGroup =
           keepGroup && data?.groups?.includes(group)
             ? group
             : data?.groups?.[0] || '';
-        setGroup(current);
-        setSelected(data?.group_channels?.[current] || []);
+        const models = modelNamesFor(data, currentGroup);
+        const currentModel =
+          keepModel && models.includes(model)
+            ? model
+            : preferredModel(
+                models,
+                pinsForGroup(data?.group_channels, currentGroup),
+              );
+        setGroup(currentGroup);
+        setModel(currentModel);
+        setSelected(
+          pinsForGroup(data?.group_channels, currentGroup)[currentModel] || [],
+        );
       } catch (error) {
         showError(t('加载分组渠道绑定失败'));
       } finally {
         setLoading(false);
       }
     },
-    [applyPayload, group, t],
+    [applyPayload, group, model, modelNamesFor, t],
   );
 
   useEffect(() => {
-    load(false);
+    load(false, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleGroupChange = (value) => {
+    const models = modelNamesFor(
+      {
+        group_models: groupModels,
+        group_channels: groupChannels,
+        channels,
+      },
+      value,
+    );
+    const nextModel = preferredModel(
+      models,
+      pinsForGroup(groupChannels, value),
+    );
     setGroup(value);
-    setSelected(groupChannels[value] || []);
+    setModel(nextModel);
+    setSelected(pinsForGroup(groupChannels, value)[nextModel] || []);
+  };
+
+  const handleModelChange = (value) => {
+    setModel(value);
+    setSelected(pinsForGroup(groupChannels, group)[value] || []);
   };
 
   const channelById = useMemo(
@@ -89,28 +156,45 @@ export default function GroupChannelBinding() {
     [channels],
   );
 
-  const previewModels = useMemo(() => {
-    const models = new Set();
-    selected.forEach((id) => {
-      const channel = channelById.get(id);
-      if (!channel || channel.status !== CHANNEL_STATUS_ENABLED) return;
-      (channel.models || []).forEach((model) => models.add(model));
-    });
-    return Array.from(models).sort();
-  }, [selected, channelById]);
+  const matchingChannels = useMemo(() => {
+    if (!model) return [];
+    return channels.filter((channel) => channelSupportsModel(channel, model));
+  }, [channels, model]);
 
-  const currentModels = groupModels[group] || [];
-  const lostModels = useMemo(
-    () => currentModels.filter((model) => !previewModels.includes(model)),
-    [currentModels, previewModels],
+  const currentPins = useMemo(() => {
+    const pins = pinsForGroup(groupChannels, group);
+    return Object.keys(pins)
+      .sort((left, right) => {
+        if (left === WILDCARD_MODEL) return -1;
+        if (right === WILDCARD_MODEL) return 1;
+        return left.localeCompare(right);
+      })
+      .map((name) => ({
+        model: name,
+        channelIds: pins[name] || [],
+      }));
+  }, [groupChannels, group]);
+
+  const modelOptions = useMemo(
+    () =>
+      modelNamesFor(
+        {
+          group_models: groupModels,
+          group_channels: groupChannels,
+          channels,
+        },
+        group,
+      ),
+    [group, groupChannels, groupModels, modelNamesFor],
   );
 
   const persist = async (ids) => {
-    if (!group) return;
+    if (!group || !model) return;
     setSaving(true);
     try {
       const res = await API.put('/api/group/channels', {
         group,
+        model,
         channel_ids: ids,
       });
       if (!res.data?.success) {
@@ -119,10 +203,10 @@ export default function GroupChannelBinding() {
       }
       showSuccess(
         ids.length === 0
-          ? t('已取消该分组的渠道绑定')
+          ? t('已取消该模型的渠道绑定')
           : t('分组渠道绑定已保存'),
       );
-      await load(true);
+      await load(true, true);
     } catch (error) {
       showError(t('保存失败'));
     } finally {
@@ -151,12 +235,6 @@ export default function GroupChannelBinding() {
           <Tag color='grey'>{t('已禁用')}</Tag>
         ),
     },
-    {
-      title: t('模型数'),
-      dataIndex: 'models',
-      width: 100,
-      render: (models) => (models || []).length,
-    },
   ];
 
   return (
@@ -164,10 +242,10 @@ export default function GroupChannelBinding() {
       <Space vertical align='start' spacing={12} style={{ width: '100%' }}>
         <Text type='tertiary'>
           {t(
-            '将用户分组绑定到指定渠道后，该分组内的密钥使用模型时只会走绑定的渠道；未绑定则沿用渠道自身的分组设置。',
+            '为用户分组中的某个模型指定渠道。该分组调用此模型时只会走绑定的渠道；未绑定的模型仍按渠道自身的分组设置选择。',
           )}
         </Text>
-        <Space>
+        <Space wrap>
           <Text strong>{t('用户分组')}</Text>
           <Select
             value={group}
@@ -181,11 +259,48 @@ export default function GroupChannelBinding() {
               </Select.Option>
             ))}
           </Select>
+          <Text strong>{t('模型')}</Text>
+          <Select
+            value={model}
+            onChange={handleModelChange}
+            style={{ width: 240 }}
+            placeholder={t('选择模型')}
+            filter
+          >
+            {modelOptions.map((name) => (
+              <Select.Option key={name} value={name}>
+                {name === WILDCARD_MODEL ? t('全部模型') : name}
+              </Select.Option>
+            ))}
+          </Select>
         </Space>
+        {currentPins.length > 0 && (
+          <div>
+            <Text strong>{t('当前绑定')}</Text>
+            <div style={{ marginTop: 6 }}>
+              {currentPins.map((pin) => (
+                <Tag
+                  key={pin.model}
+                  color={pin.model === model ? 'blue' : 'white'}
+                  style={{ marginRight: 6, marginBottom: 6 }}
+                >
+                  {pin.model === WILDCARD_MODEL ? t('全部模型') : pin.model}
+                  {' → '}
+                  {pin.channelIds
+                    .map((id) => {
+                      const channel = channelById.get(id);
+                      return channel ? `${channel.name} #${id}` : `#${id}`;
+                    })
+                    .join(', ')}
+                </Tag>
+              ))}
+            </div>
+          </div>
+        )}
         <Table
           rowKey='id'
           columns={columns}
-          dataSource={channels}
+          dataSource={matchingChannels}
           pagination={{ pageSize: 8 }}
           rowSelection={{
             selectedRowKeys: selected,
@@ -195,57 +310,25 @@ export default function GroupChannelBinding() {
             }),
           }}
         />
-        <div>
-          <Text strong>
-            {t('绑定后可用模型')}（{previewModels.length}）
-          </Text>
-          <div style={{ marginTop: 6 }}>
-            {previewModels.map((model) => (
-              <Tag
-                key={model}
-                color='blue'
-                style={{ marginRight: 6, marginBottom: 6 }}
-              >
-                {model}
-              </Tag>
-            ))}
-          </div>
-        </div>
-        <div>
-          <Text strong type={lostModels.length ? 'danger' : undefined}>
-            {t('绑定后将会丢失的模型')}（{lostModels.length}）
-          </Text>
-          <div style={{ marginTop: 6 }}>
-            {lostModels.map((model) => (
-              <Tag
-                key={model}
-                color='red'
-                style={{ marginRight: 6, marginBottom: 6 }}
-              >
-                {model}
-              </Tag>
-            ))}
-          </div>
-        </div>
         <Space>
           <Button
             theme='solid'
             loading={saving}
-            disabled={!group}
+            disabled={!group || !model}
             onClick={() => persist(selected)}
           >
             {t('保存绑定')}
           </Button>
           <Button
             loading={saving}
-            disabled={!group}
+            disabled={!group || !model}
             onClick={() => persist([])}
           >
             {t('取消绑定')}
           </Button>
           {selected.length === 0 && (
             <Text type='tertiary' size='small'>
-              {t('未选择渠道，保存后该分组将取消绑定')}
+              {t('未选择渠道，保存后将取消该模型的绑定')}
             </Text>
           )}
         </Space>

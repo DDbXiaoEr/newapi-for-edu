@@ -35,6 +35,7 @@ import {
   Ticket,
   User,
   Users,
+  UsersRound,
   Wallet,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -146,6 +147,11 @@ export function useSidebarData(): SidebarData {
             title: t('Users'),
             url: '/users',
             icon: Users,
+          },
+          {
+            title: t('Groups'),
+            url: '/groups',
+            icon: UsersRound,
           },
           {
             title: t('Redemption Codes'),
