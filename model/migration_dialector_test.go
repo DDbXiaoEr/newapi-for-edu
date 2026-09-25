@@ -2,11 +2,9 @@ package model
 
 import (
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/QuantumNous/new-api/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -58,15 +56,10 @@ type migrationDecimalV3 struct {
 }
 
 func TestMigrationSchemaStability(t *testing.T) {
-	for _, dialect := range []string{"sqlite", "mysql", "postgres"} {
+	for _, dialect := range []string{"mysql", "postgres"} {
 		t.Run(dialect, func(t *testing.T) {
 			var dsn string
 			switch dialect {
-			case "sqlite":
-				dsn = "local"
-				previousPath := common.SQLitePath
-				common.SQLitePath = filepath.Join(t.TempDir(), "migration.db")
-				t.Cleanup(func() { common.SQLitePath = previousPath })
 			case "mysql":
 				dsn = os.Getenv("TEST_MYSQL_DSN")
 			case "postgres":

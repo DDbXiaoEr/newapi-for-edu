@@ -452,10 +452,9 @@ func ListActiveUserSessions(userID int, currentSID string, now int64) ([]UserSes
 }
 
 // RotateUserSessionRefresh atomically rotates HMAC digests. The UPDATE itself
-// is a compare-and-swap so SQLite, where lockForUpdate is intentionally a
-// no-op, has the same single-winner behavior as MySQL and PostgreSQL. Only a
-// recognized previous digest outside its grace window is treated as reuse;
-// an unknown secret never revokes the victim session.
+// is a compare-and-swap so only one rotation wins. Only a recognized previous
+// digest outside its grace window is treated as reuse; an unknown secret never
+// revokes the victim session.
 func RotateUserSessionRefresh(userID int, sid, presentedHash, nextHash string, now int64, grace time.Duration) (*UserSession, error) {
 	if userID <= 0 || sid == "" || presentedHash == "" || nextHash == "" || hmac.Equal([]byte(presentedHash), []byte(nextHash)) {
 		return nil, ErrUserSessionInvalid

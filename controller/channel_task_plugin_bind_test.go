@@ -11,12 +11,11 @@ import (
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/pkg/jsplugin"
+	"github.com/QuantumNous/new-api/pkg/testdb"
 	"github.com/QuantumNous/new-api/service/authz"
 	"github.com/gin-gonic/gin"
-	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/gorm"
 )
 
 func setupTaskPluginBindChannelTest(t *testing.T) {
@@ -25,21 +24,11 @@ func setupTaskPluginBindChannelTest(t *testing.T) {
 	common.IsMasterNode = true
 	previousRedisEnabled := common.RedisEnabled
 	common.RedisEnabled = false
-	originalDB, originalLogDB := model.DB, model.LOG_DB
-	database, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	sqlDB, err := database.DB()
-	require.NoError(t, err)
-	sqlDB.SetMaxOpenConns(1)
-	require.NoError(t, database.AutoMigrate(&model.Channel{}, &model.Ability{}, &model.CasbinRule{}, &model.AuthzRole{}, &model.Log{}, &model.AuditLog{}, &model.User{}))
-	model.DB = database
-	model.LOG_DB = database
+	database := testdb.OpenBound(t, &model.DB, &model.LOG_DB, model.InitColumnNames, testdb.Options{Models: []any{&model.Channel{}, &model.Ability{}, &model.CasbinRule{}, &model.AuthzRole{}, &model.Log{}, &model.AuditLog{}, &model.User{}}, MaxOpen: 1})
 	require.NoError(t, authz.Init(database))
 	t.Cleanup(func() {
 		common.IsMasterNode = wasMaster
 		common.RedisEnabled = previousRedisEnabled
-		model.DB = originalDB
-		model.LOG_DB = originalLogDB
 	})
 }
 

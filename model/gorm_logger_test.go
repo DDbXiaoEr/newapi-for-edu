@@ -7,7 +7,7 @@ import (
 
 	"github.com/ClickHouse/clickhouse-go/v2/lib/proto"
 	"github.com/QuantumNous/new-api/common"
-	"github.com/glebarez/sqlite"
+	"github.com/QuantumNous/new-api/pkg/testdb"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/assert"
@@ -64,17 +64,6 @@ func TestSanitizeDBErrorStripsDriverMessage(t *testing.T) {
 	}
 }
 
-func TestSanitizeDBErrorSQLiteDriver(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	execErr := db.Exec("INSERT INTO missing_table (k) VALUES (?)", "secret-value").Error
-	require.Error(t, execErr)
-
-	got := sanitizeDBError(execErr)
-	assert.Regexp(t, `^sqlite error \d+$`, got.Error())
-	assert.NotContains(t, got.Error(), "secret-value")
-}
-
 func TestSanitizeDBErrorKeepsNonDriverErrors(t *testing.T) {
 	err := fmt.Errorf("dial tcp 127.0.0.1:3306: connect: connection refused")
 	assert.Equal(t, err, sanitizeDBError(err))
@@ -86,23 +75,22 @@ func TestGormLoggerEndToEndSanitizedOutput(t *testing.T) {
 	previousDebug := common.DebugEnabled
 	t.Cleanup(func() { common.DebugEnabled = previousDebug })
 
+	db := testdb.OpenBound(t, &DB, &LOG_DB, InitColumnNames)
 	execQuery := func() string {
 		var buf bytes.Buffer
-		db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{Logger: newGormLogger(&buf)})
-		require.NoError(t, err)
-		db.Exec("SELECT * FROM missing_table WHERE k = ?", "secret-value")
+		logged := db.Session(&gorm.Session{Logger: newGormLogger(&buf), NewDB: true})
+		logged.Exec("SELECT * FROM missing_table WHERE k = ?", "secret-value")
 		return buf.String()
 	}
 
 	common.DebugEnabled = false
 	out := execQuery()
-	assert.Contains(t, out, "k = ?")
+	assert.Regexp(t, `k = (\?|\$1)`, out)
 	assert.NotContains(t, out, "secret-value")
-	assert.Contains(t, out, "sqlite error")
+	assert.Regexp(t, `(mysql error \d+|postgres error SQLSTATE \w+)`, out)
 	assert.Contains(t, out, "gorm_logger_test.go")
 
 	common.DebugEnabled = true
 	debugOut := execQuery()
 	assert.Contains(t, debugOut, "secret-value")
-	assert.Contains(t, debugOut, "no such table")
 }

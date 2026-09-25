@@ -129,7 +129,7 @@ func TestLogTableNameTracksLogDatabase(t *testing.T) {
 	originalType := common.LogDatabaseType()
 	t.Cleanup(func() { common.SetLogDatabaseType(originalType) })
 
-	common.SetLogDatabaseType(common.DatabaseTypeSQLite)
+	common.SetLogDatabaseType(common.DatabaseTypePostgreSQL)
 	assert.Equal(t, "logs", logTableName())
 
 	common.SetLogDatabaseType(common.DatabaseTypeClickHouse)
@@ -174,7 +174,7 @@ func TestBuildLogLikeConditionUsesStandardEscape(t *testing.T) {
 	t.Cleanup(func() {
 		common.SetLogDatabaseType(originalLogDatabaseType)
 	})
-	common.SetLogDatabaseType(common.DatabaseTypeSQLite)
+	common.SetLogDatabaseType(common.DatabaseTypePostgreSQL)
 
 	condition, pattern, err := buildLogLikeCondition("logs.model_name", "gpt_4%")
 

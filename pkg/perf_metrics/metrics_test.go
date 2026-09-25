@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/pkg/testdb"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/relaykit/types"
 	"github.com/stretchr/testify/assert"
@@ -113,31 +113,22 @@ func TestHourlySuccessSeriesWeightsSmallerBuckets(t *testing.T) {
 // against isolated real MySQL/PostgreSQL databases.
 func TestPerformanceAggregationAndFlush(t *testing.T) {
 	for _, dialect := range []struct{ name, env string }{
-		{"sqlite", ""}, {"mysql", "TEST_PERF_MYSQL_DSN"}, {"postgres", "TEST_PERF_POSTGRES_DSN"},
+		{"mysql", "TEST_PERF_MYSQL_DSN"}, {"postgres", "TEST_PERF_POSTGRES_DSN"},
 	} {
 		t.Run(dialect.name, func(t *testing.T) {
-			dsn := ""
-			if dialect.env != "" {
-				dsn = os.Getenv(dialect.env)
-				if dsn == "" {
-					t.Skip("isolated test database DSN is not configured")
-				}
+			dsn := os.Getenv(dialect.env)
+			if dsn == "" {
+				t.Skip("isolated test database DSN is not configured")
 			}
 			t.Setenv("SQL_DSN", dsn)
-			oldDB, oldPath, oldMaster, oldRedis := model.DB, common.SQLitePath, common.IsMasterNode, common.RedisEnabled
-			oldType, oldLogType := common.MainDatabaseType(), common.LogDatabaseType()
-			common.SQLitePath, common.IsMasterNode, common.RedisEnabled = filepath.Join(t.TempDir(), "perf.db"), false, false
+			oldMaster, oldRedis := common.IsMasterNode, common.RedisEnabled
+			common.IsMasterNode, common.RedisEnabled = false, false
 			hotBuckets.Clear()
 			t.Cleanup(func() {
-				model.DB, common.SQLitePath, common.IsMasterNode, common.RedisEnabled = oldDB, oldPath, oldMaster, oldRedis
-				common.SetDatabaseTypes(oldType, oldLogType)
+				common.IsMasterNode, common.RedisEnabled = oldMaster, oldRedis
 				hotBuckets.Clear()
 			})
-			require.NoError(t, model.InitDB())
-			db := model.DB
-			sqlDB, err := db.DB()
-			require.NoError(t, err)
-			t.Cleanup(func() { require.NoError(t, sqlDB.Close()) })
+			db := testdb.OpenBound(t, &model.DB, &model.LOG_DB, model.InitColumnNames, testdb.Options{Models: []any{&model.PerfMetric{}}})
 			require.NoError(t, db.Migrator().DropTable(&model.PerfMetric{}))
 			require.NoError(t, db.AutoMigrate(&model.PerfMetric{}))
 

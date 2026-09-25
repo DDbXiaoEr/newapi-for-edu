@@ -380,8 +380,6 @@ func EnsureEmailAvailable(email string, excludeUserID int) error {
 //   - PostgreSQL: transaction-level advisory lock keyed by the normalized email.
 //   - MySQL (default REPEATABLE READ): a locking read that takes a next-key/gap
 //     lock on the email index, blocking concurrent inserts of the same value.
-//   - SQLite: no explicit lock; the single-writer model already serializes the
-//     write, so a racing second write fails instead of duplicating.
 //
 // An empty email is allowed to repeat and needs no serialization.
 func withNormalizedEmailLock(tx *gorm.DB, email string, fn func(tx *gorm.DB) error) error {

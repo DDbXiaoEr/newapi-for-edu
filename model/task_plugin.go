@@ -46,8 +46,7 @@ type TaskPlugin struct {
 	// type and the bytes. It never travels inside list or detail JSON; the UI
 	// loads it through GET /api/plugin/task/:key/icon. size matches the
 	// 512 KiB icon cap and makes GORM emit mediumtext on MySQL (a bare TEXT
-	// column there holds only 64 KiB), varchar(524288) on PostgreSQL, and text
-	// on SQLite.
+	// column there holds only 64 KiB) and varchar(524288) on PostgreSQL.
 	Icon      string `json:"-" gorm:"size:524288"`
 	Enabled   bool   `json:"enabled" gorm:"not null"`
 	Active    bool   `json:"active" gorm:"not null;index"`

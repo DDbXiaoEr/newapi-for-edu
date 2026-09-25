@@ -14,7 +14,7 @@ AI API gateway/proxy built with Go. Aggregates 40+ upstream AI providers (OpenAI
 
 - **Backend**: Go 1.22+, Gin web framework, GORM v2 ORM
 - **Frontend**: React 18, Vite (classic) / Rsbuild + TanStack Router (default), Semi Design UI (@douyinfe/semi-ui)
-- **Databases**: SQLite, MySQL, PostgreSQL (all three must be supported)
+- **Databases**: MySQL, PostgreSQL (both must be supported); ClickHouse is optional for logs only
 - **Cache**: Redis (go-redis) + in-memory cache
 - **Auth**: JWT, WebAuthn/Passkeys, OAuth (GitHub, Discord, OIDC, etc.)
 - **Frontend package manager**: Bun
@@ -52,14 +52,13 @@ All JSON marshal/unmarshal MUST use wrappers in `common/json.go`:
 
 Do NOT call `encoding/json` marshal/unmarshal directly. `json.RawMessage` etc. as types are fine.
 
-### Database Compatibility — SQLite, MySQL >= 5.7.8, PostgreSQL >= 9.6
+### Database Compatibility — MySQL >= 5.7.8, PostgreSQL >= 9.6
 
 - Prefer GORM methods over raw SQL.
 - Use `commonGroupCol`, `commonKeyCol` for reserved-word columns.
 - Use `commonTrueVal`/`commonFalseVal` instead of hardcoded booleans.
-- Use `common.UsingPostgreSQL`, `common.UsingSQLite`, `common.UsingMySQL` for DB-specific branching.
+- Use `common.UsingMainDatabase(common.DatabaseTypePostgreSQL)` / `common.UsingMainDatabase(common.DatabaseTypeMySQL)` for DB-specific branching.
 - Avoid DB-specific functions/operators without fallback.
-- SQLite: use `ALTER TABLE ... ADD COLUMN`, not `ALTER COLUMN`.
 
 ### Frontend — Prefer Bun
 

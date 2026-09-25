@@ -11,7 +11,7 @@ var defaultRequiredEnvVars = []string{"SQL_DSN", "LOG_SQL_DSN"}
 
 // CheckRequiredEnvVars refuses startup when a required variable is missing or
 // empty. By default SQL_DSN and LOG_SQL_DSN must be set so an unconfigured
-// process fails fast instead of silently falling back to the local SQLite file.
+// process fails fast instead of starting without a database.
 // Override the list with REQUIRED_ENV_VARS (comma/space separated). Set
 // REQUIRED_ENV_VARS="" to disable the check.
 func CheckRequiredEnvVars() error {

@@ -10,7 +10,6 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
-	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/mysql"
@@ -20,12 +19,10 @@ import (
 )
 
 func TestRequestPolicyDatabaseMatrix(t *testing.T) {
-	for _, dialect := range []string{"sqlite", "mysql", "postgres"} {
+	for _, dialect := range []string{"mysql", "postgres"} {
 		t.Run(dialect, func(t *testing.T) {
 			var driver gorm.Dialector
 			switch dialect {
-			case "sqlite":
-				driver = sqlite.Open(":memory:")
 			case "mysql":
 				dsn := os.Getenv("TEST_MYSQL_DSN")
 				if dsn == "" {
@@ -68,11 +65,7 @@ func TestRequestPolicyDatabaseMatrix(t *testing.T) {
 			})
 			require.NoError(t, db.AutoMigrate(&Option{}))
 			var version string
-			query := "SELECT version()"
-			if dialect == "sqlite" {
-				query = "SELECT sqlite_version()"
-			}
-			require.NoError(t, db.Raw(query).Scan(&version).Error)
+			require.NoError(t, db.Raw("SELECT version()").Scan(&version).Error)
 			t.Logf("database version: %s", version)
 			rules := `[{"name":"session","model_regex":[".*"],"key_sources":[{"type":"request_header","key":"X-Session"}],"ttl_seconds":0,"skip_retry_on_failure":false,"include_using_group":false,"param_override_template":{"temperature":0},"future_field":{"enabled":false}}]`
 			require.NoError(t, UpdateRequestPolicyOptions(map[string]string{"RetryTimes": "2", "channel_affinity_setting.rules": rules}))

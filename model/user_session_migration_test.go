@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/mysql"
@@ -109,9 +108,7 @@ func testPreviousRefreshHashMigration(t *testing.T, db *gorm.DB, recorder *migra
 		previousHashColumnFound = true
 		nullable, ok := columnType.Nullable()
 		require.True(t, ok)
-		if dialect != "sqlite" {
-			assert.True(t, nullable)
-		}
+		assert.True(t, nullable)
 		assert.Contains(t, strings.ToUpper(columnType.DatabaseTypeName()), "VARCHAR")
 	}
 	assert.True(t, previousHashColumnFound)
@@ -119,13 +116,6 @@ func testPreviousRefreshHashMigration(t *testing.T, db *gorm.DB, recorder *migra
 	recorder.reset()
 	require.NoError(t, db.Table(tableName).AutoMigrate(&previousRefreshHashMigrationTarget{}))
 	assert.Empty(t, recorder.schemaMutations(), "a second migration must not repeat type-changing DDL")
-}
-
-func TestUserSessionPreviousRefreshHashMigrationSQLite(t *testing.T) {
-	recorder := &migrationSQLRecorder{}
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{Logger: recorder})
-	require.NoError(t, err)
-	testPreviousRefreshHashMigration(t, db, recorder, "sqlite")
 }
 
 func TestUserSessionPreviousRefreshHashMigrationConfiguredDatabases(t *testing.T) {

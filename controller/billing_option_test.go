@@ -3,12 +3,14 @@ package controller
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/pkg/jsplugin"
+	"github.com/QuantumNous/new-api/pkg/testdb"
 	"github.com/QuantumNous/new-api/setting/config"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -102,7 +104,12 @@ func TestUpdateOptionRejectsUsageExpressionWithoutTaskPlugin(t *testing.T) {
 }
 
 func TestUpdateOptionAliasBillingExprUsesPluginSchema(t *testing.T) {
-	database := modelManagementDB(t, "sqlite", "")
+	kind := testdb.Kind(t)
+	dsn := os.Getenv("TEST_" + strings.ToUpper(kind) + "_DSN")
+	if dsn == "" {
+		dsn = os.Getenv("SQL_DSN")
+	}
+	database := modelManagementDB(t, kind, dsn)
 	require.NoError(t, database.AutoMigrate(&model.Log{}))
 	const pluginKey = "billing-alias-probe"
 	source := `

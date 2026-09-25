@@ -10,33 +10,13 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
-	"github.com/glebarez/sqlite"
+	"github.com/QuantumNous/new-api/pkg/testdb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/gorm"
 )
 
 func TestMain(m *testing.M) {
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	if err != nil {
-		panic("failed to open test db: " + err.Error())
-	}
-	DB = db
-	LOG_DB = db
-
-	common.SetDatabaseTypes(common.DatabaseTypeSQLite, common.DatabaseTypeSQLite)
-	common.RedisEnabled = false
-	common.BatchUpdateEnabled = false
-	common.LogConsumeEnabled = true
-	initCol()
-
-	sqlDB, err := db.DB()
-	if err != nil {
-		panic("failed to get sql.DB: " + err.Error())
-	}
-	sqlDB.SetMaxOpenConns(1)
-
-	if err := db.AutoMigrate(
+	db, typ, closer := testdb.OpenMain(
 		&Task{},
 		&User{},
 		&UserSession{},
@@ -59,11 +39,16 @@ func TestMain(m *testing.M) {
 		&SystemInstance{},
 		&SystemTask{},
 		&SystemTaskLock{},
-	); err != nil {
-		panic("failed to migrate: " + err.Error())
-	}
-
-	os.Exit(m.Run())
+	)
+	DB, LOG_DB = db, db
+	common.SetDatabaseTypes(typ, typ)
+	common.RedisEnabled = false
+	common.BatchUpdateEnabled = false
+	common.LogConsumeEnabled = true
+	initCol()
+	code := m.Run()
+	closer()
+	os.Exit(code)
 }
 
 func truncateTables(t *testing.T) {

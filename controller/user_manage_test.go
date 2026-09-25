@@ -17,6 +17,7 @@ import (
 	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/middleware"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/pkg/testdb"
 	"github.com/QuantumNous/new-api/service/authz"
 	"github.com/alicebob/miniredis/v2"
 	"github.com/go-redis/redis/v8"
@@ -35,13 +36,16 @@ func setupManageUserTestDB(t *testing.T) *gorm.DB {
 	previousMainDatabaseType, previousLogDatabaseType := common.MainDatabaseType(), common.LogDatabaseType()
 	dialect := os.Getenv("TEST_MANAGE_USER_DIALECT")
 	if dialect == "" {
-		dialect = "sqlite"
+		dialect = testdb.Kind(t)
 	}
 	databaseTypes := map[string]common.DatabaseType{
-		"sqlite": common.DatabaseTypeSQLite, "mysql": common.DatabaseTypeMySQL, "postgres": common.DatabaseTypePostgreSQL,
+		"mysql": common.DatabaseTypeMySQL, "postgres": common.DatabaseTypePostgreSQL,
 	}
 	require.Contains(t, databaseTypes, dialect)
 	dsn := os.Getenv("TEST_" + strings.ToUpper(dialect) + "_DSN")
+	if dsn == "" {
+		dsn = os.Getenv("SQL_DSN")
+	}
 	db, _ := newAuditTestDatabase(t, dialect, dsn)
 	logDB := db
 	if os.Getenv("TEST_MANAGE_USER_SEPARATE_LOG_DB") == "1" {
@@ -68,12 +72,8 @@ func setupManageUserTestDB(t *testing.T) *gorm.DB {
 	})
 	require.NoError(t, db.AutoMigrate(&model.User{}, &model.UserSession{}, &model.CasbinRule{}, &model.AuthzRole{}))
 	require.NoError(t, logDB.AutoMigrate(&model.Log{}, &model.AuditLog{}))
-	versionQuery := "SELECT version()"
-	if dialect == "sqlite" {
-		versionQuery = "SELECT sqlite_version()"
-	}
 	var version string
-	require.NoError(t, db.Raw(versionQuery).Scan(&version).Error)
+	require.NoError(t, db.Raw("SELECT version()").Scan(&version).Error)
 	t.Logf("database: %s %s, separate log database: %v", dialect, version, logDB != db)
 	return db
 }
@@ -516,10 +516,7 @@ func TestManageUserQuotaConcurrentSnapshots(t *testing.T) {
 	for range 2 {
 		result := <-results
 		if result.err != nil {
-			require.True(t, common.UsingMainDatabase(common.DatabaseTypeSQLite), "row-locking databases must serialize both adjustments: %v", result.err)
-			assert.Contains(t, strings.ToLower(result.err.Error()), "locked")
-			assert.Nil(t, result.adjustment)
-			continue
+			t.Fatalf("row-locking databases must serialize both adjustments: %v", result.err)
 		}
 		require.NotNil(t, result.adjustment)
 		assert.Equal(t, result.value, result.adjustment.After-result.adjustment.Before)

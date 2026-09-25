@@ -14,27 +14,21 @@ import (
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/middleware"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/pkg/testdb"
 	relaychannel "github.com/QuantumNous/new-api/relay/channel"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting/system_setting"
 	"github.com/gin-gonic/gin"
-	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/gorm"
 )
 
 func setupGenericTaskTest(t *testing.T) *model.Task {
 	t.Helper()
-	originalDB := model.DB
 	previousRedisEnabled := common.RedisEnabled
 	common.RedisEnabled = false
-	database, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, database.AutoMigrate(&model.Task{}, &model.Channel{}, &model.User{}))
-	model.DB = database
+	database := testdb.OpenBound(t, &model.DB, &model.LOG_DB, model.InitColumnNames, testdb.Options{Models: []any{&model.Task{}, &model.Channel{}, &model.User{}}})
 	t.Cleanup(func() {
-		model.DB = originalDB
 		common.RedisEnabled = previousRedisEnabled
 	})
 

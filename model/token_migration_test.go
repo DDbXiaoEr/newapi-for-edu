@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/mysql"
@@ -59,12 +58,6 @@ func testTokenKeyMigrationNonPostgreSQL(t *testing.T, db *gorm.DB) {
 	assert.Equal(t, 1, preserved.UserId)
 	expectedIndex := db.NamingStrategy.IndexName(tableName, "key")
 	assert.True(t, db.Migrator().HasIndex(tableName, expectedIndex))
-}
-
-func TestMigrateTokenKeyUniquenessSQLite(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	testTokenKeyMigrationNonPostgreSQL(t, db)
 }
 
 func TestMigrateTokenKeyUniquenessMySQL(t *testing.T) {

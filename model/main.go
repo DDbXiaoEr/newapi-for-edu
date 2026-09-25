@@ -12,7 +12,6 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 
-	"github.com/glebarez/sqlite"
 	"gorm.io/driver/clickhouse"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
@@ -38,6 +37,10 @@ func jsonScanBytes(value any) []byte {
 	default:
 		return nil
 	}
+}
+
+func InitColumnNames() {
+	initCol()
 }
 
 func initCol() {
@@ -181,49 +184,38 @@ func isValidLogTableName(name string) bool {
 }
 
 func chooseDB(envName string, isLog bool) (*gorm.DB, common.DatabaseType, error) {
-	dsn := os.Getenv(envName)
-	if dsn != "" {
-		if isClickHouseDSN(dsn) {
-			if !isLog {
-				return nil, "", fmt.Errorf("%s does not support ClickHouse; use SQLite, MySQL, or PostgreSQL for the primary database and LOG_SQL_DSN for ClickHouse logs", envName)
-			}
-			common.SysLog("using ClickHouse as log database")
-			db, err := gorm.Open(clickhouse.Open(normalizeClickHouseDSN(dsn)), newClickHouseLogGormConfig())
-			return db, common.DatabaseTypeClickHouse, err
-		}
-		if strings.HasPrefix(dsn, "postgres://") || strings.HasPrefix(dsn, "postgresql://") {
-			// Use PostgreSQL
-			common.SysLog("using PostgreSQL as database")
-			// 同时关闭 pgx 隐式与 GORM 显式预处理语句:命名 prepared statement 与
-			// 事务池代理(PgBouncer/Neon/Supabase)不兼容,会触发 FATAL 08P01/42P05。
-			db, err := gorm.Open(postgresMigrationDialector{postgres.Dialector{Config: &postgres.Config{
-				DSN:                  dsn,
-				PreferSimpleProtocol: true,
-			}}}, newGormConfig(false))
-			return db, common.DatabaseTypePostgreSQL, err
-		}
-		if strings.HasPrefix(dsn, "local") {
-			common.SysLog("SQL_DSN not set, using SQLite as database")
-			db, err := gorm.Open(sqlite.Open(common.SQLitePath), newGormConfig(true))
-			return db, common.DatabaseTypeSQLite, err
-		}
-		// Use MySQL
-		common.SysLog("using MySQL as database")
-		// check parseTime
-		if !strings.Contains(dsn, "parseTime") {
-			if strings.Contains(dsn, "?") {
-				dsn += "&parseTime=true"
-			} else {
-				dsn += "?parseTime=true"
-			}
-		}
-		db, err := gorm.Open(mysqlMigrationDialector{mysql.Dialector{Config: &mysql.Config{DSN: dsn}}}, newGormConfig(true))
-		return db, common.DatabaseTypeMySQL, err
+	dsn := strings.TrimSpace(os.Getenv(envName))
+	if dsn == "" {
+		return nil, "", fmt.Errorf("%s is required; use MySQL or PostgreSQL", envName)
 	}
-	// Use SQLite
-	common.SysLog("SQL_DSN not set, using SQLite as database")
-	db, err := gorm.Open(sqlite.Open(common.SQLitePath), newGormConfig(true))
-	return db, common.DatabaseTypeSQLite, err
+	if isClickHouseDSN(dsn) {
+		if !isLog {
+			return nil, "", fmt.Errorf("%s does not support ClickHouse; use MySQL or PostgreSQL for the primary database and LOG_SQL_DSN for ClickHouse logs", envName)
+		}
+		common.SysLog("using ClickHouse as log database")
+		db, err := gorm.Open(clickhouse.Open(normalizeClickHouseDSN(dsn)), newClickHouseLogGormConfig())
+		return db, common.DatabaseTypeClickHouse, err
+	}
+	if strings.HasPrefix(dsn, "postgres://") || strings.HasPrefix(dsn, "postgresql://") {
+		common.SysLog("using PostgreSQL as database")
+		// 同时关闭 pgx 隐式与 GORM 显式预处理语句:命名 prepared statement 与
+		// 事务池代理(PgBouncer/Neon/Supabase)不兼容,会触发 FATAL 08P01/42P05。
+		db, err := gorm.Open(postgresMigrationDialector{postgres.Dialector{Config: &postgres.Config{
+			DSN:                  dsn,
+			PreferSimpleProtocol: true,
+		}}}, newGormConfig(false))
+		return db, common.DatabaseTypePostgreSQL, err
+	}
+	common.SysLog("using MySQL as database")
+	if !strings.Contains(dsn, "parseTime") {
+		if strings.Contains(dsn, "?") {
+			dsn += "&parseTime=true"
+		} else {
+			dsn += "?parseTime=true"
+		}
+	}
+	db, err := gorm.Open(mysqlMigrationDialector{mysql.Dialector{Config: &mysql.Config{DSN: dsn}}}, newGormConfig(true))
+	return db, common.DatabaseTypeMySQL, err
 }
 
 func InitDB() (err error) {
@@ -324,7 +316,7 @@ func ensureUserQuotaColumns(db *gorm.DB, dbType common.DatabaseType) error {
 		common.SysLog("SKIP_64BIT_QUOTA_SCHEMA_CHECK=true; skipping user quota schema check")
 		return nil
 	}
-	if db == nil || dbType == common.DatabaseTypeSQLite {
+	if db == nil {
 		return nil
 	}
 	if !db.Migrator().HasTable(&User{}) {
@@ -423,14 +415,8 @@ func migrateDB() error {
 	if err := InitializeExternalIdentityClaims(); err != nil {
 		return err
 	}
-	if common.UsingMainDatabase(common.DatabaseTypeSQLite) {
-		if err := ensureSubscriptionPlanTableSQLite(); err != nil {
-			return err
-		}
-	} else {
-		if err := DB.AutoMigrate(&SubscriptionPlan{}); err != nil {
-			return err
-		}
+	if err := DB.AutoMigrate(&SubscriptionPlan{}); err != nil {
+		return err
 	}
 	return nil
 }
@@ -535,98 +521,9 @@ func clickHouseCreateTableHasTTL(createTableSQL string) bool {
 	return strings.Contains(upperSQL, "\nTTL ") || strings.Contains(upperSQL, " TTL ")
 }
 
-type sqliteColumnDef struct {
-	Name string
-	DDL  string
-}
-
-func ensureSubscriptionPlanTableSQLite() error {
-	if !common.UsingMainDatabase(common.DatabaseTypeSQLite) {
-		return nil
-	}
-	tableName := "subscription_plans"
-	if !DB.Migrator().HasTable(tableName) {
-		createSQL := `CREATE TABLE ` + "`" + tableName + "`" + ` (
-` + "`id`" + ` integer,
-` + "`title`" + ` varchar(128) NOT NULL,
-` + "`subtitle`" + ` varchar(255) DEFAULT '',
-` + "`price_amount`" + ` decimal(10,6) NOT NULL,
-` + "`currency`" + ` varchar(8) NOT NULL DEFAULT 'USD',
-` + "`duration_unit`" + ` varchar(16) NOT NULL DEFAULT 'month',
-` + "`duration_value`" + ` integer NOT NULL DEFAULT 1,
-` + "`custom_seconds`" + ` bigint NOT NULL DEFAULT 0,
-` + "`enabled`" + ` numeric DEFAULT 1,
-` + "`sort_order`" + ` integer DEFAULT 0,
-` + "`allow_balance_pay`" + ` numeric DEFAULT 1,
-` + "`allow_wallet_overflow`" + ` numeric DEFAULT 1,
-` + "`stripe_price_id`" + ` varchar(128) DEFAULT '',
-` + "`creem_product_id`" + ` varchar(128) DEFAULT '',
-` + "`waffo_pancake_product_id`" + ` varchar(128) DEFAULT '',
-` + "`max_purchase_per_user`" + ` integer DEFAULT 0,
-` + "`upgrade_group`" + ` varchar(64) DEFAULT '',
-` + "`downgrade_group`" + ` varchar(64) DEFAULT '',
-` + "`total_amount`" + ` bigint NOT NULL DEFAULT 0,
-` + "`quota_reset_period`" + ` varchar(16) DEFAULT 'never',
-` + "`quota_reset_custom_seconds`" + ` bigint DEFAULT 0,
-` + "`created_at`" + ` bigint,
-` + "`updated_at`" + ` bigint,
-PRIMARY KEY (` + "`id`" + `)
-)`
-		return DB.Exec(createSQL).Error
-	}
-	var cols []struct {
-		Name string `gorm:"column:name"`
-	}
-	if err := DB.Raw("PRAGMA table_info(`" + tableName + "`)").Scan(&cols).Error; err != nil {
-		return err
-	}
-	existing := make(map[string]struct{}, len(cols))
-	for _, c := range cols {
-		existing[c.Name] = struct{}{}
-	}
-	required := []sqliteColumnDef{
-		{Name: "title", DDL: "`title` varchar(128) NOT NULL"},
-		{Name: "subtitle", DDL: "`subtitle` varchar(255) DEFAULT ''"},
-		{Name: "price_amount", DDL: "`price_amount` decimal(10,6) NOT NULL"},
-		{Name: "currency", DDL: "`currency` varchar(8) NOT NULL DEFAULT 'USD'"},
-		{Name: "duration_unit", DDL: "`duration_unit` varchar(16) NOT NULL DEFAULT 'month'"},
-		{Name: "duration_value", DDL: "`duration_value` integer NOT NULL DEFAULT 1"},
-		{Name: "custom_seconds", DDL: "`custom_seconds` bigint NOT NULL DEFAULT 0"},
-		{Name: "enabled", DDL: "`enabled` numeric DEFAULT 1"},
-		{Name: "sort_order", DDL: "`sort_order` integer DEFAULT 0"},
-		{Name: "allow_balance_pay", DDL: "`allow_balance_pay` numeric DEFAULT 1"},
-		{Name: "allow_wallet_overflow", DDL: "`allow_wallet_overflow` numeric DEFAULT 1"},
-		{Name: "stripe_price_id", DDL: "`stripe_price_id` varchar(128) DEFAULT ''"},
-		{Name: "creem_product_id", DDL: "`creem_product_id` varchar(128) DEFAULT ''"},
-		{Name: "waffo_pancake_product_id", DDL: "`waffo_pancake_product_id` varchar(128) DEFAULT ''"},
-		{Name: "max_purchase_per_user", DDL: "`max_purchase_per_user` integer DEFAULT 0"},
-		{Name: "upgrade_group", DDL: "`upgrade_group` varchar(64) DEFAULT ''"},
-		{Name: "downgrade_group", DDL: "`downgrade_group` varchar(64) DEFAULT ''"},
-		{Name: "total_amount", DDL: "`total_amount` bigint NOT NULL DEFAULT 0"},
-		{Name: "quota_reset_period", DDL: "`quota_reset_period` varchar(16) DEFAULT 'never'"},
-		{Name: "quota_reset_custom_seconds", DDL: "`quota_reset_custom_seconds` bigint DEFAULT 0"},
-		{Name: "created_at", DDL: "`created_at` bigint"},
-		{Name: "updated_at", DDL: "`updated_at` bigint"},
-	}
-	for _, col := range required {
-		if _, ok := existing[col.Name]; ok {
-			continue
-		}
-		if err := DB.Exec("ALTER TABLE `" + tableName + "` ADD COLUMN " + col.DDL).Error; err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // migrateTokenModelLimitsToText migrates model_limits column from varchar(1024) to text
 // This is safe to run multiple times - it checks the column type first
 func migrateTokenModelLimitsToText() error {
-	// SQLite uses type affinity, so TEXT and VARCHAR are effectively the same — no migration needed
-	if common.UsingMainDatabase(common.DatabaseTypeSQLite) {
-		return nil
-	}
-
 	tableName := "tokens"
 	columnName := "model_limits"
 
@@ -675,12 +572,6 @@ func migrateTokenModelLimitsToText() error {
 // migrateSubscriptionPlanPriceAmount migrates price_amount column from float/double to decimal(10,6)
 // This is safe to run multiple times - it checks the column type first
 func migrateSubscriptionPlanPriceAmount() {
-	// SQLite doesn't support ALTER COLUMN, and its type affinity handles this automatically
-	// Skip early to avoid GORM parsing the existing table DDL which may cause issues
-	if common.UsingMainDatabase(common.DatabaseTypeSQLite) {
-		return
-	}
-
 	tableName := "subscription_plans"
 	columnName := "price_amount"
 

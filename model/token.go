@@ -112,7 +112,7 @@ func GetAllUserTokens(userId int, startIdx int, num int) ([]*Token, error) {
 
 // sanitizeLikePattern 校验并清洗用户输入的 LIKE 搜索模式。
 // 规则：
-//  1. 转义 ! 和 _（使用 ! 作为 ESCAPE 字符，兼容 MySQL/PostgreSQL/SQLite）
+//  1. 转义 ! 和 _（使用 ! 作为 ESCAPE 字符，兼容 MySQL/PostgreSQL）
 //  2. 连续的 % 合并为单个 %
 //  3. 最多允许 2 个 %
 //  4. 含 % 时（模糊搜索），去掉 % 后关键词长度必须 >= 2

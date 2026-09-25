@@ -16,14 +16,13 @@ import (
 	"github.com/QuantumNous/new-api/dto"
 	"github.com/QuantumNous/new-api/model"
 	pluginruntime "github.com/QuantumNous/new-api/pkg/jsplugin"
+	"github.com/QuantumNous/new-api/pkg/testdb"
 	"github.com/QuantumNous/new-api/relay"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/gin-gonic/gin"
-	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/gorm"
 )
 
 func TestServeTaskPluginProtocolWaitsForDurableSubmissionBeforeWriting(t *testing.T) {
@@ -239,15 +238,10 @@ func TestServeTaskPluginProtocolDisconnectDuringTerminalSettlementStopsOnlyObser
 		}};
 	`)
 
-	previousDB := model.DB
 	previousMemoryCache := common.MemoryCacheEnabled
-	database, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, database.AutoMigrate(&model.Channel{}, &model.Task{}))
-	model.DB = database
+	database := testdb.OpenBound(t, &model.DB, &model.LOG_DB, model.InitColumnNames, testdb.Options{Models: []any{&model.Channel{}, &model.Task{}}})
 	common.MemoryCacheEnabled = false
 	t.Cleanup(func() {
-		model.DB = previousDB
 		common.MemoryCacheEnabled = previousMemoryCache
 	})
 	baseURL := "https://example.com"

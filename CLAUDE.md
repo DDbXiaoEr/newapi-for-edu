@@ -8,7 +8,7 @@ This is an AI API gateway/proxy built with Go. It aggregates 40+ upstream AI pro
 
 - **Backend**: Go 1.22+, Gin web framework, GORM v2 ORM
 - **Frontend**: React 18, Vite, Semi Design UI (@douyinfe/semi-ui)
-- **Databases**: SQLite, MySQL, PostgreSQL (all three must be supported)
+- **Databases**: MySQL, PostgreSQL (both must be supported); ClickHouse is optional for logs only
 - **Cache**: Redis (go-redis) + in-memory cache
 - **Auth**: JWT, WebAuthn/Passkeys, OAuth (GitHub, Discord, OIDC, etc.)
 - **Frontend package manager**: Bun (preferred over npm/yarn/pnpm)
@@ -67,29 +67,27 @@ Do NOT directly import or call `encoding/json` in business code. These wrappers 
 
 Note: `json.RawMessage`, `json.Number`, and other type definitions from `encoding/json` may still be referenced as types, but actual marshal/unmarshal calls must go through `common.*`.
 
-### Rule 2: Database Compatibility — SQLite, MySQL >= 5.7.8, PostgreSQL >= 9.6
+### Rule 2: Database Compatibility — MySQL >= 5.7.8, PostgreSQL >= 9.6
 
-All database code MUST be fully compatible with all three databases simultaneously.
+All database code MUST be fully compatible with MySQL and PostgreSQL simultaneously. ClickHouse is only used as an optional log store.
 
 **Use GORM abstractions:**
 - Prefer GORM methods (`Create`, `Find`, `Where`, `Updates`, etc.) over raw SQL.
 - Let GORM handle primary key generation — do not use `AUTO_INCREMENT` or `SERIAL` directly.
 
 **When raw SQL is unavoidable:**
-- Column quoting differs: PostgreSQL uses `"column"`, MySQL/SQLite uses `` `column` ``.
+- Column quoting differs: PostgreSQL uses `"column"`, MySQL uses `` `column` ``.
 - Use `commonGroupCol`, `commonKeyCol` variables from `model/main.go` for reserved-word columns like `group` and `key`.
-- Boolean values differ: PostgreSQL uses `true`/`false`, MySQL/SQLite uses `1`/`0`. Use `commonTrueVal`/`commonFalseVal`.
-- Use `common.UsingPostgreSQL`, `common.UsingSQLite`, `common.UsingMySQL` flags to branch DB-specific logic.
+- Boolean values differ: PostgreSQL uses `true`/`false`, MySQL uses `1`/`0`. Use `commonTrueVal`/`commonFalseVal`.
+- Use `common.UsingMainDatabase(common.DatabaseTypePostgreSQL)` / `common.UsingMainDatabase(common.DatabaseTypeMySQL)` to branch DB-specific logic.
 
 **Forbidden without cross-DB fallback:**
 - MySQL-only functions (e.g., `GROUP_CONCAT` without PostgreSQL `STRING_AGG` equivalent)
 - PostgreSQL-only operators (e.g., `@>`, `?`, `JSONB` operators)
-- `ALTER COLUMN` in SQLite (unsupported — use column-add workaround)
 - Database-specific column types without fallback — use `TEXT` instead of `JSONB` for JSON storage
 
 **Migrations:**
-- Ensure all migrations work on all three databases.
-- For SQLite, use `ALTER TABLE ... ADD COLUMN` instead of `ALTER COLUMN` (see `model/main.go` for patterns).
+- Ensure all migrations work on MySQL and PostgreSQL.
 
 ### Rule 3: Frontend — Prefer Bun
 

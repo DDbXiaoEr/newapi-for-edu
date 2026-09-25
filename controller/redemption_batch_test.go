@@ -12,7 +12,6 @@ import (
 	"github.com/QuantumNous/new-api/middleware"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/gin-gonic/gin"
-	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/mysql"
@@ -21,14 +20,11 @@ import (
 )
 
 func TestDeleteRedemptionBatch(t *testing.T) {
-	for _, dialect := range []string{"sqlite", "mysql", "postgres"} {
+	for _, dialect := range []string{"mysql", "postgres"} {
 		t.Run(dialect, func(t *testing.T) {
 			var driver, logDriver gorm.Dialector
-			dbType := common.DatabaseTypeSQLite
+			var dbType common.DatabaseType
 			switch dialect {
-			case "sqlite":
-				driver = sqlite.Open(":memory:")
-				logDriver = sqlite.Open(":memory:")
 			case "mysql":
 				dsn := os.Getenv("TEST_MYSQL_DSN")
 				if dsn == "" {
@@ -61,11 +57,7 @@ func TestDeleteRedemptionBatch(t *testing.T) {
 			sqlDB.SetMaxOpenConns(1)
 			t.Cleanup(func() { require.NoError(t, sqlDB.Close()) })
 			var version string
-			query := "SELECT version()"
-			if dialect == "sqlite" {
-				query = "SELECT sqlite_version()"
-			}
-			require.NoError(t, db.Raw(query).Scan(&version).Error)
+			require.NoError(t, db.Raw("SELECT version()").Scan(&version).Error)
 			t.Logf("database version: %s", version)
 
 			logDB, err := gorm.Open(logDriver, &gorm.Config{})

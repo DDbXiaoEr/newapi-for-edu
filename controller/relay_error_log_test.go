@@ -12,37 +12,22 @@ import (
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/relaykit/types"
 
+	"github.com/QuantumNous/new-api/pkg/testdb"
 	"github.com/gin-gonic/gin"
-	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/gorm"
 )
 
 func TestProcessChannelErrorUsesSnapshotWithoutLeakingChannelMetadata(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	previousDB, previousLogDB := model.DB, model.LOG_DB
 	previousRedisEnabled := common.RedisEnabled
-	previousMainDatabaseType := common.MainDatabaseType()
-	previousLogDatabaseType := common.LogDatabaseType()
 	previousErrorLogEnabled := constant.ErrorLogEnabled
-
-	database, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	sqlDB, err := database.DB()
-	require.NoError(t, err)
-	sqlDB.SetMaxOpenConns(1)
-	require.NoError(t, database.AutoMigrate(&model.User{}, &model.Log{}))
-	model.DB, model.LOG_DB = database, database
+	database := testdb.OpenBound(t, &model.DB, &model.LOG_DB, model.InitColumnNames, testdb.Options{Models: []any{&model.User{}, &model.Log{}}, MaxOpen: 1})
 	common.RedisEnabled = false
-	common.SetDatabaseTypes(common.DatabaseTypeSQLite, common.DatabaseTypeSQLite)
 	constant.ErrorLogEnabled = true
 	t.Cleanup(func() {
-		model.DB, model.LOG_DB = previousDB, previousLogDB
 		common.RedisEnabled = previousRedisEnabled
-		common.SetDatabaseTypes(previousMainDatabaseType, previousLogDatabaseType)
 		constant.ErrorLogEnabled = previousErrorLogEnabled
-		require.NoError(t, sqlDB.Close())
 	})
 
 	require.NoError(t, database.Create(&model.User{Id: 7, Username: "log-owner", Group: "default"}).Error)

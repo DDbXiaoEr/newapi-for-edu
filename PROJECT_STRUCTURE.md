@@ -534,6 +534,8 @@ newapi_2_-edu/
 │   │   ├── metrics_test.go
 │   │   ├── outcome.go
 │   │   └── types.go
+│   ├── testdb/
+│   │   └── testdb.go
 │   └── wsmanager/
 │       ├── wsmanager.go
 │       └── wsmanager_test.go
@@ -3226,8 +3228,10 @@ newapi_2_-edu/
         │   │   │   │   ├── data-table-row-actions.tsx
         │   │   │   │   ├── dialogs/
         │   │   │   │   │   ├── __tests__/
-        │   │   │   │   │   │   └── user-binding-dialog.test.tsx
-        │   │   │   │   │   └── user-binding-dialog.tsx
+        │   │   │   │   │   │   ├── user-binding-dialog.test.tsx
+        │   │   │   │   │   │   └── users-assign-group-dialog.test.tsx
+        │   │   │   │   │   ├── user-binding-dialog.tsx
+        │   │   │   │   │   └── users-assign-group-dialog.tsx
         │   │   │   │   ├── user-quota-cell.tsx
         │   │   │   │   ├── user-quota-dialog.tsx
         │   │   │   │   ├── users-columns.tsx

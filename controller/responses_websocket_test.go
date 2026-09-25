@@ -9,8 +9,6 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -22,6 +20,7 @@ import (
 	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/middleware"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/pkg/testdb"
 	"github.com/QuantumNous/new-api/relay"
 	"github.com/QuantumNous/new-api/relaykit/dto"
 	"github.com/QuantumNous/new-api/relaykit/types"
@@ -40,13 +39,9 @@ var responsesWSTestUserSequence atomic.Int64
 
 func setupResponsesWSRequestTest(t *testing.T) (*model.User, *model.Token) {
 	t.Helper()
-	previousDB := model.DB
-	previousLogDB := model.LOG_DB
-	previousType := common.MainDatabaseType()
-	previousLogType := common.LogDatabaseType()
 	previousRedis := common.RedisEnabled
 	previousRDB := common.RDB
-	previousMaster, previousMemory, previousSQLite := common.IsMasterNode, common.MemoryCacheEnabled, common.SQLitePath
+	previousMaster, previousMemory := common.IsMasterNode, common.MemoryCacheEnabled
 	previousEnabled := setting.ModelRequestRateLimitEnabled
 	previousDuration := setting.ModelRequestRateLimitDurationMinutes
 	previousTotal := setting.ModelRequestRateLimitCount
@@ -55,30 +50,13 @@ func setupResponsesWSRequestTest(t *testing.T) (*model.User, *model.Token) {
 	previousGroups := setting.ModelRequestRateLimitGroup
 	setting.ModelRequestRateLimitGroup = nil
 	setting.ModelRequestRateLimitMutex.Unlock()
-	t.Setenv("SQL_DSN", os.Getenv("TEST_RESPONSES_SQL_DSN"))
-	t.Setenv("LOG_SQL_DSN", os.Getenv("TEST_RESPONSES_LOG_SQL_DSN"))
 	common.IsMasterNode, common.MemoryCacheEnabled, common.RedisEnabled = false, false, false
-	common.SQLitePath = filepath.Join(t.TempDir(), "responses.db")
-	require.NoError(t, model.InitDB())
-	db := model.DB
-	sqlDB, err := db.DB()
-	require.NoError(t, err)
-	sqlDB.SetMaxOpenConns(1)
-	require.NoError(t, model.InitLogDB())
-	if model.LOG_DB != db {
-		logSQL, err := model.LOG_DB.DB()
-		require.NoError(t, err)
-		logSQL.SetMaxOpenConns(1)
-		t.Cleanup(func() { require.NoError(t, logSQL.Close()) })
-	}
+	db := testdb.OpenBound(t, &model.DB, &model.LOG_DB, model.InitColumnNames, testdb.Options{Models: []any{&model.User{}, &model.Token{}, &model.Channel{}, &model.Ability{}}, MaxOpen: 1})
 	setting.ModelRequestRateLimitEnabled = false
 	t.Cleanup(func() {
-		model.DB = previousDB
-		model.LOG_DB = previousLogDB
-		common.SetDatabaseTypes(previousType, previousLogType)
 		common.RedisEnabled = previousRedis
 		common.RDB = previousRDB
-		common.IsMasterNode, common.MemoryCacheEnabled, common.SQLitePath = previousMaster, previousMemory, previousSQLite
+		common.IsMasterNode, common.MemoryCacheEnabled = previousMaster, previousMemory
 		setting.ModelRequestRateLimitEnabled = previousEnabled
 		setting.ModelRequestRateLimitDurationMinutes = previousDuration
 		setting.ModelRequestRateLimitCount = previousTotal
@@ -86,7 +64,6 @@ func setupResponsesWSRequestTest(t *testing.T) (*model.User, *model.Token) {
 		setting.ModelRequestRateLimitMutex.Lock()
 		setting.ModelRequestRateLimitGroup = previousGroups
 		setting.ModelRequestRateLimitMutex.Unlock()
-		require.NoError(t, sqlDB.Close())
 	})
 	require.NoError(t, db.AutoMigrate(&model.User{}, &model.Token{}))
 	// The shared in-memory limiter outlives each database fixture. Give every

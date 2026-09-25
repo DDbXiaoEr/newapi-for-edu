@@ -18,13 +18,12 @@ import (
 	appI18n "github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/pkg/jsplugin"
+	"github.com/QuantumNous/new-api/pkg/testdb"
 	builtinplugins "github.com/QuantumNous/new-api/plugins"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/gin-gonic/gin"
-	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/gorm"
 )
 
 const genericTaskPluginSource = `
@@ -1682,17 +1681,7 @@ func pinTaskPluginRoute(plugin *jsplugin.LoadedPlugin, routeIndex int) gin.Handl
 
 func setupTaskPluginRouteDB(t *testing.T) {
 	t.Helper()
-	previousDB := model.DB
-	previousType := common.MainDatabaseType()
-	database, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, database.AutoMigrate(&model.Task{}))
-	model.DB = database
-	common.SetMainDatabaseType(common.DatabaseTypeSQLite)
-	t.Cleanup(func() {
-		model.DB = previousDB
-		common.SetMainDatabaseType(previousType)
-	})
+	testdb.OpenBound(t, &model.DB, &model.LOG_DB, model.InitColumnNames, testdb.Options{Models: []any{&model.Task{}}})
 }
 
 func insertTaskPluginRouteTask(t *testing.T, task *model.Task) {

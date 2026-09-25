@@ -3,16 +3,15 @@ package service
 import (
 	"fmt"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/pkg/testdb"
 	"github.com/QuantumNous/new-api/setting"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/gin-gonic/gin"
-	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -21,19 +20,13 @@ import (
 func setupChannelSelectAutoGroupsTest(t *testing.T) *gorm.DB {
 	t.Helper()
 
-	originalDB := model.DB
 	originalMemoryCacheEnabled := common.MemoryCacheEnabled
 	originalRetryTimes := common.RetryTimes
 	originalAutoGroups := setting.AutoGroups2JsonString()
 	originalUsableGroups := setting.UserUsableGroups2JSONString()
 	originalGroupRatios := ratio_setting.GroupRatio2JSONString()
 	originalMaxTokenAutoGroups := setting.GetMaxTokenAutoGroups()
-
-	dsn := fmt.Sprintf("file:%s?mode=memory&cache=shared", strings.ReplaceAll(t.Name(), "/", "_"))
-	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&model.Channel{}, &model.Ability{}))
-	model.DB = db
+	db := testdb.OpenBound(t, &model.DB, &model.LOG_DB, model.InitColumnNames, testdb.Options{Models: []any{&model.Channel{}, &model.Ability{}}})
 	common.MemoryCacheEnabled = true
 	common.RetryTimes = 0
 
@@ -43,22 +36,12 @@ func setupChannelSelectAutoGroupsTest(t *testing.T) *gorm.DB {
 	require.NoError(t, setting.UpdateMaxTokenAutoGroups("2"))
 
 	t.Cleanup(func() {
-		model.DB = originalDB
 		common.MemoryCacheEnabled = originalMemoryCacheEnabled
 		common.RetryTimes = originalRetryTimes
 		require.NoError(t, setting.UpdateAutoGroupsByJsonString(originalAutoGroups))
 		require.NoError(t, setting.UpdateUserUsableGroupsByJSONString(originalUsableGroups))
 		require.NoError(t, ratio_setting.UpdateGroupRatioByJSONString(originalGroupRatios))
 		require.NoError(t, setting.UpdateMaxTokenAutoGroups(fmt.Sprintf("%d", originalMaxTokenAutoGroups)))
-
-		if originalMemoryCacheEnabled && originalDB != nil &&
-			originalDB.Migrator().HasTable(&model.Channel{}) && originalDB.Migrator().HasTable(&model.Ability{}) {
-			model.InitChannelCache()
-		}
-		sqlDB, err := db.DB()
-		if err == nil {
-			require.NoError(t, sqlDB.Close())
-		}
 	})
 
 	return db

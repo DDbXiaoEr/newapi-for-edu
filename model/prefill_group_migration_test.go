@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/mysql"
@@ -20,11 +19,7 @@ import (
 func testPrefillGroupMigrationNonPostgreSQL(t *testing.T, db *gorm.DB) {
 	t.Helper()
 	var version string
-	versionQuery := "SELECT version()"
-	if db.Dialector.Name() == "sqlite" {
-		versionQuery = "SELECT sqlite_version()"
-	}
-	require.NoError(t, db.Raw(versionQuery).Scan(&version).Error)
+	require.NoError(t, db.Raw("SELECT version()").Scan(&version).Error)
 	t.Logf("%s version: %s", db.Dialector.Name(), version)
 	tableName := fmt.Sprintf("prefill_group_migration_%d", time.Now().UnixNano())
 	t.Cleanup(func() { _ = db.Migrator().DropTable(tableName) })
@@ -54,12 +49,6 @@ func testPrefillGroupMigrationNonPostgreSQL(t *testing.T, db *gorm.DB) {
 	assert.JSONEq(t, `["gpt-test"]`, string(preserved.Items))
 	assert.True(t, tableDB.Migrator().HasIndex(&PrefillGroup{}, prefillGroupNameIndex))
 	require.Error(t, tableDB.Create(&PrefillGroup{Name: preserved.Name, Type: "model"}).Error)
-}
-
-func TestMigratePrefillGroupUniquenessSQLite(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	testPrefillGroupMigrationNonPostgreSQL(t, db)
 }
 
 func TestMigratePrefillGroupUniquenessMySQL(t *testing.T) {

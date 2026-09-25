@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -17,35 +16,22 @@ import (
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/service"
 
+	"github.com/QuantumNous/new-api/pkg/testdb"
 	"github.com/gin-gonic/gin"
-	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/require"
-	"gorm.io/gorm"
 )
 
 func setupCodexOAuthTest(t *testing.T) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
-	previousDB, previousLogDB := model.DB, model.LOG_DB
-	previousType := common.MainDatabaseType()
 	previousRedis, previousSecret := common.RedisEnabled, common.SessionSecret
 	previousExchange := exchangeCodexAuthorizationCode
-	db, err := gorm.Open(sqlite.Open(fmt.Sprintf("file:%s?mode=memory&cache=shared", strings.ReplaceAll(t.Name(), "/", "_"))), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&model.AuthFlow{}, &model.Channel{}))
-	model.DB, model.LOG_DB = db, db
-	common.SetMainDatabaseType(common.DatabaseTypeSQLite)
+	testdb.OpenBound(t, &model.DB, &model.LOG_DB, model.InitColumnNames, testdb.Options{Models: []any{&model.AuthFlow{}, &model.Channel{}}})
 	common.RedisEnabled = false
 	common.SessionSecret = "codex-oauth-test-secret"
 	t.Cleanup(func() {
-		model.DB, model.LOG_DB = previousDB, previousLogDB
-		common.SetMainDatabaseType(previousType)
 		common.RedisEnabled, common.SessionSecret = previousRedis, previousSecret
 		exchangeCodexAuthorizationCode = previousExchange
-		sqlDB, err := db.DB()
-		if err == nil {
-			_ = sqlDB.Close()
-		}
 	})
 }
 

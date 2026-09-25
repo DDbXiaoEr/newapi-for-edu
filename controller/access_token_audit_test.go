@@ -19,10 +19,10 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/middleware"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/pkg/testdb"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/service/authz"
 	"github.com/gin-gonic/gin"
-	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/mysql"
@@ -35,11 +35,7 @@ func setupAccessTokenAudit(t *testing.T) (*model.User, string) {
 	previousDB, previousLogDB := model.DB, model.LOG_DB
 	previousMain, previousLog := common.MainDatabaseType(), common.LogDatabaseType()
 	previousRedis := common.RedisEnabled
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&model.User{}, &model.UserSession{}, &model.Log{}, &model.AuditLog{}, &model.CasbinRule{}, &model.AuthzRole{}))
-	model.DB, model.LOG_DB = db, db
-	common.SetDatabaseTypes(common.DatabaseTypeSQLite, common.DatabaseTypeSQLite)
+	db := testdb.OpenBound(t, &model.DB, &model.LOG_DB, model.InitColumnNames, testdb.Options{Models: []any{&model.User{}, &model.UserSession{}, &model.Log{}, &model.AuditLog{}, &model.CasbinRule{}, &model.AuthzRole{}}})
 	common.RedisEnabled = false
 	previousMaster := common.IsMasterNode
 	common.IsMasterNode = true
@@ -436,12 +432,6 @@ func (releasedAuditLog) TableName() string { return "logs" }
 // instance. They never drop databases or tables supplied through an environment variable.
 func newAuditTestDatabase(t *testing.T, kind, dsn string) (*gorm.DB, string) {
 	t.Helper()
-	if kind == "sqlite" {
-		path := t.TempDir() + "/audit.db"
-		db, err := gorm.Open(sqlite.Open(path), &gorm.Config{})
-		require.NoError(t, err)
-		return db, path
-	}
 	require.NotEmpty(t, dsn)
 	name := fmt.Sprintf("newapi_audit_%d", time.Now().UnixNano())
 	var original, isolated gorm.Dialector
@@ -638,11 +628,11 @@ func TestAuditDatabaseMatrix(t *testing.T) {
 	previousDB, previousLogDB := model.DB, model.LOG_DB
 	previousMain, previousLog := common.MainDatabaseType(), common.LogDatabaseType()
 	previousRedis := common.RedisEnabled
-	previousMaster, previousSQLite := common.IsMasterNode, common.SQLitePath
+	previousMaster := common.IsMasterNode
 	common.IsMasterNode = true
 	common.RedisEnabled = false
 	t.Cleanup(func() {
-		common.IsMasterNode, common.SQLitePath = previousMaster, previousSQLite
+		common.IsMasterNode = previousMaster
 		model.DB, model.LOG_DB = previousDB, previousLogDB
 		common.SetDatabaseTypes(previousMain, previousLog)
 		common.RedisEnabled = previousRedis
@@ -651,7 +641,7 @@ func TestAuditDatabaseMatrix(t *testing.T) {
 		name, env string
 		typ       common.DatabaseType
 	}{
-		{"sqlite", "", common.DatabaseTypeSQLite}, {"mysql", "AUDIT_MYSQL_DSN", common.DatabaseTypeMySQL}, {"postgres", "AUDIT_POSTGRES_DSN", common.DatabaseTypePostgreSQL},
+		{"mysql", "AUDIT_MYSQL_DSN", common.DatabaseTypeMySQL}, {"postgres", "AUDIT_POSTGRES_DSN", common.DatabaseTypePostgreSQL},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -663,18 +653,10 @@ func TestAuditDatabaseMatrix(t *testing.T) {
 				t.Run(fmt.Sprintf("upgrade=%v", upgrade), func(t *testing.T) {
 					db, isolatedDSN := newAuditTestDatabase(t, tc.name, dsn)
 					t.Setenv("LOG_SQL_DSN", "")
-					if tc.name == "sqlite" {
-						common.SQLitePath = isolatedDSN
-						t.Setenv("SQL_DSN", "local")
-					} else {
-						t.Setenv("SQL_DSN", isolatedDSN)
-					}
+					t.Setenv("SQL_DSN", isolatedDSN)
 					model.DB, model.LOG_DB = db, db
 					common.SetDatabaseTypes(tc.typ, tc.typ)
 					versionSQL := "SELECT version()"
-					if tc.name == "sqlite" {
-						versionSQL = "SELECT sqlite_version()"
-					}
 					var version string
 					require.NoError(t, db.Raw(versionSQL).Scan(&version).Error)
 					t.Logf("database version: %s", version)

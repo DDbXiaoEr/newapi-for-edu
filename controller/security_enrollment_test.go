@@ -27,6 +27,7 @@ import (
 	"github.com/QuantumNous/new-api/middleware"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/oauth"
+	"github.com/QuantumNous/new-api/pkg/testdb"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting/system_setting"
 	"github.com/fxamacker/cbor/v2"
@@ -50,29 +51,25 @@ func setupSecurityEnrollmentTest(t *testing.T) (*model.User, service.AuthIdentit
 	previousSettings := *system_setting.GetPasskeySettings()
 	dialect := os.Getenv("TEST_SECURITY_DIALECT")
 	if dialect == "" {
-		dialect = "sqlite"
+		dialect = testdb.Kind(t)
 	}
 	dsn := os.Getenv("TEST_" + strings.ToUpper(dialect) + "_DSN")
+	if dsn == "" {
+		dsn = os.Getenv("SQL_DSN")
+	}
 	db, _ := newAuditTestDatabase(t, dialect, dsn)
 	logDB, _ := newAuditTestDatabase(t, dialect, dsn)
 	db.Logger = logger.Default.LogMode(logger.Silent)
 	logDB.Logger = logger.Default.LogMode(logger.Silent)
-	versionQuery := "SELECT VERSION()"
-	if dialect == "sqlite" {
-		versionQuery = "SELECT sqlite_version()"
-	}
 	var version string
-	require.NoError(t, db.Raw(versionQuery).Scan(&version).Error)
+	require.NoError(t, db.Raw("SELECT version()").Scan(&version).Error)
 	t.Logf("database: %s %s", dialect, version)
 	require.NoError(t, db.AutoMigrate(&model.User{}, &model.UserSession{}, &model.TwoFA{}, &model.TwoFABackupCode{}, &model.PasskeyCredential{}, &model.AuthFlow{}, &model.UserOAuthBinding{}, &model.Option{}))
 	require.NoError(t, logDB.AutoMigrate(&model.AuditLog{}))
 	model.DB, model.LOG_DB = db, logDB
-	dbType := common.DatabaseTypeSQLite
+	dbType := common.DatabaseTypePostgreSQL
 	if dialect == "mysql" {
 		dbType = common.DatabaseTypeMySQL
-	}
-	if dialect == "postgres" {
-		dbType = common.DatabaseTypePostgreSQL
 	}
 	common.SetDatabaseTypes(dbType, dbType)
 	common.PasswordLoginEncryptionEnabled = false

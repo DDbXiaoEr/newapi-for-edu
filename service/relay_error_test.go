@@ -17,11 +17,10 @@ import (
 	"github.com/QuantumNous/new-api/relaykit/types"
 	"github.com/QuantumNous/new-api/setting/system_setting"
 
+	"github.com/QuantumNous/new-api/pkg/testdb"
 	"github.com/gin-gonic/gin"
-	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/gorm"
 )
 
 func TestShouldRetryRelayErrorHonorsChannelPinOnChannelError(t *testing.T) {
@@ -58,7 +57,6 @@ func TestShouldRetryRelayErrorHonorsChannelPinOnChannelError(t *testing.T) {
 }
 
 func TestProcessChannelErrorMasksDisableReasonAndNotification(t *testing.T) {
-	previousDB, previousType := model.DB, common.MainDatabaseType()
 	previousCache, previousRedis := common.MemoryCacheEnabled, common.RedisEnabled
 	previousAutoDisable, previousErrorLog := common.AutomaticDisableChannelEnabled, constant.ErrorLogEnabled
 	previousNotifyLimit := constant.NotifyLimitCount
@@ -66,23 +64,13 @@ func TestProcessChannelErrorMasksDisableReasonAndNotification(t *testing.T) {
 	fetch := system_setting.GetFetchSetting()
 	previousFetch := *fetch
 	t.Cleanup(func() {
-		model.DB = previousDB
-		common.SetMainDatabaseType(previousType)
 		common.MemoryCacheEnabled, common.RedisEnabled = previousCache, previousRedis
 		common.AutomaticDisableChannelEnabled, constant.ErrorLogEnabled = previousAutoDisable, previousErrorLog
 		constant.NotifyLimitCount = previousNotifyLimit
 		httpClient, system_setting.WorkerUrl = previousClient, previousWorker
 		*fetch = previousFetch
 	})
-	database, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	sqlDB, err := database.DB()
-	require.NoError(t, err)
-	sqlDB.SetMaxOpenConns(1)
-	t.Cleanup(func() { require.NoError(t, sqlDB.Close()) })
-	require.NoError(t, database.AutoMigrate(&model.Channel{}, &model.Ability{}, &model.User{}))
-	model.DB = database
-	common.SetMainDatabaseType(common.DatabaseTypeSQLite)
+	database := testdb.OpenBound(t, &model.DB, &model.LOG_DB, model.InitColumnNames, testdb.Options{Models: []any{&model.Channel{}, &model.Ability{}, &model.User{}}, MaxOpen: 1})
 	common.MemoryCacheEnabled, common.RedisEnabled = false, false
 	common.AutomaticDisableChannelEnabled, constant.ErrorLogEnabled = true, false
 	constant.NotifyLimitCount = 10

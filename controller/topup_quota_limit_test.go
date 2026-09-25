@@ -9,13 +9,12 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/pkg/testdb"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/gin-gonic/gin"
-	"github.com/glebarez/sqlite"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/gorm"
 )
 
 func TestTopUpQuotaValidation(t *testing.T) {
@@ -126,22 +125,12 @@ func TestRequestAmountRejectsTopUpThatCannotBeSettled(t *testing.T) {
 func TestRequestAmountRejectsTopUpThatWouldOverflowWallet(t *testing.T) {
 	oldQuotaPerUnit := common.QuotaPerUnit
 	oldDisplayType := operation_setting.GetGeneralSetting().QuotaDisplayType
-	oldDB := model.DB
 	common.QuotaPerUnit = 500000
 	operation_setting.GetGeneralSetting().QuotaDisplayType = operation_setting.QuotaDisplayTypeUSD
-
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&model.User{}))
-	model.DB = db
+	testdb.OpenBound(t, &model.DB, &model.LOG_DB, model.InitColumnNames, testdb.Options{Models: []any{&model.User{}}})
 	t.Cleanup(func() {
 		common.QuotaPerUnit = oldQuotaPerUnit
 		operation_setting.GetGeneralSetting().QuotaDisplayType = oldDisplayType
-		model.DB = oldDB
-		sqlDB, dbErr := db.DB()
-		if dbErr == nil {
-			require.NoError(t, sqlDB.Close())
-		}
 	})
 
 	require.NoError(t, model.DB.Create(&model.User{

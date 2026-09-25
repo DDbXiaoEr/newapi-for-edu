@@ -12,9 +12,9 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/pkg/testdb"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/gin-gonic/gin"
-	"github.com/glebarez/sqlite"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,23 +23,12 @@ import (
 
 func setupDashboardAuthMiddlewareTest(t *testing.T) {
 	t.Helper()
-	previousDB := model.DB
-	previousLogDB := model.LOG_DB
-	previousType := common.MainDatabaseType()
 	previousRedis := common.RedisEnabled
 	previousSecret := common.SessionSecret
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&model.User{}, &model.UserSession{}, &model.AuditLog{}))
-	model.DB = db
-	model.LOG_DB = db
-	common.SetMainDatabaseType(common.DatabaseTypeSQLite)
+	testdb.OpenBound(t, &model.DB, &model.LOG_DB, model.InitColumnNames, testdb.Options{Models: []any{&model.User{}, &model.UserSession{}, &model.AuditLog{}}})
 	common.RedisEnabled = false
 	common.SessionSecret = "middleware-auth-test-secret"
 	t.Cleanup(func() {
-		model.DB = previousDB
-		model.LOG_DB = previousLogDB
-		common.SetMainDatabaseType(previousType)
 		common.RedisEnabled = previousRedis
 		common.SessionSecret = previousSecret
 	})

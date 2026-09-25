@@ -19,11 +19,11 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/oauth"
+	"github.com/QuantumNous/new-api/pkg/testdb"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting/system_setting"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/gin-gonic/gin"
-	"github.com/glebarez/sqlite"
 	"github.com/pquerna/otp/totp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -653,22 +653,14 @@ func (*authFlowTestOAuthProvider) ProviderUserIDColumn() string                 
 
 func setupAuthFlowControllerTest(t *testing.T) *authFlowTestOAuthProvider {
 	t.Helper()
-	previousDB, previousLogDB := model.DB, model.LOG_DB
 	previousRedis := common.RedisEnabled
 	common.RedisEnabled = false
-	previousType := common.MainDatabaseType()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&model.AuthFlow{}, &model.User{}, &model.UserSession{}, &model.AuditLog{}))
-	model.DB, model.LOG_DB = db, db
-	common.SetMainDatabaseType(common.DatabaseTypeSQLite)
+	testdb.OpenBound(t, &model.DB, &model.LOG_DB, model.InitColumnNames, testdb.Options{Models: []any{&model.AuthFlow{}, &model.User{}, &model.UserSession{}, &model.AuditLog{}}})
 	provider := &authFlowTestOAuthProvider{}
 	oauth.Register("auth-flow-test", provider)
 	t.Cleanup(func() {
 		oauth.Unregister("auth-flow-test")
-		model.DB, model.LOG_DB = previousDB, previousLogDB
 		common.RedisEnabled = previousRedis
-		common.SetMainDatabaseType(previousType)
 	})
 	return provider
 }

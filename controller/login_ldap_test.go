@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
@@ -17,8 +16,8 @@ import (
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/QuantumNous/new-api/setting/system_setting"
 
+	"github.com/QuantumNous/new-api/pkg/testdb"
 	"github.com/gin-gonic/gin"
-	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 )
 
@@ -26,7 +25,6 @@ func setupLoginControllerTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 
 	gin.SetMode(gin.TestMode)
-	common.SetMainDatabaseType(common.DatabaseTypeSQLite)
 	common.RedisEnabled = false
 	common.PasswordLoginEnabled = true
 	common.RegisterEnabled = true
@@ -36,27 +34,7 @@ func setupLoginControllerTestDB(t *testing.T) *gorm.DB {
 	if err := i18n.Init(); err != nil {
 		t.Fatalf("failed to init i18n: %v", err)
 	}
-
-	dsn := fmt.Sprintf("file:%s?mode=memory&cache=shared", strings.ReplaceAll(t.Name(), "/", "_"))
-	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("failed to open sqlite db: %v", err)
-	}
-	model.DB = db
-	model.LOG_DB = db
-
-	if err := db.AutoMigrate(&model.User{}, &model.Log{}, &model.TwoFA{}, &model.TwoFABackupCode{}, &model.UserSession{}, &model.AuthFlow{}, &model.PasskeyCredential{}); err != nil {
-		t.Fatalf("failed to migrate login test tables: %v", err)
-	}
-
-	t.Cleanup(func() {
-		sqlDB, err := db.DB()
-		if err == nil {
-			_ = sqlDB.Close()
-		}
-	})
-
-	return db
+	return testdb.OpenBound(t, &model.DB, &model.LOG_DB, model.InitColumnNames, testdb.Options{Models: []any{&model.User{}, &model.Log{}, &model.TwoFA{}, &model.TwoFABackupCode{}, &model.UserSession{}, &model.AuthFlow{}, &model.PasskeyCredential{}}})
 }
 
 func seedLoginUser(t *testing.T, db *gorm.DB, username string, password string, status int) *model.User {

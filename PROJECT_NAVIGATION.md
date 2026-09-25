@@ -327,17 +327,14 @@ bun run dev
 
 ### 数据库设置
 
-项目支持三种数据库，选择其中一种：
+项目支持 MySQL 和 PostgreSQL，必须通过 `SQL_DSN` 指定其一：
 
 ```bash
-# SQLite（默认，无需额外配置）
-# 数据文件将在 ./data 目录中创建
-
 # MySQL
 export SQL_DSN="root:password@tcp(localhost:3306)/oneapi"
 
-# PostgreSQL  
-export SQL_DSN="user:password@tcp(host:5432)/dbname?sslmode=disable"
+# PostgreSQL
+export SQL_DSN="postgresql://user:password@localhost:5432/dbname?sslmode=disable"
 ```
 
 ### 前端国际化工具

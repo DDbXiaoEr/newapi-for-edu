@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -16,16 +15,14 @@ import (
 	"github.com/QuantumNous/new-api/dto"
 	"github.com/QuantumNous/new-api/model"
 	pluginruntime "github.com/QuantumNous/new-api/pkg/jsplugin"
+	"github.com/QuantumNous/new-api/pkg/testdb"
 	"github.com/QuantumNous/new-api/relay"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/types"
 	"github.com/gin-gonic/gin"
-	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/mysql"
-	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 )
@@ -359,17 +356,14 @@ func TestExecuteTaskSubmissionDisconnectAfterDurableInsertDoesNotRefund(t *testi
 
 func setupTaskSubmissionDatabase(t *testing.T, migrate bool, events *[]string) *gorm.DB {
 	t.Helper()
-	previousDB := model.DB
-	database, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
+	opts := testdb.Options{}
+	if migrate {
+		opts.Models = []any{&model.Task{}}
+	}
+	database := testdb.OpenBound(t, &model.DB, &model.LOG_DB, model.InitColumnNames, opts)
 	require.NoError(t, database.Callback().Create().Before("gorm:create").Register("test:task-submit-order", func(*gorm.DB) {
 		*events = append(*events, "insert")
 	}))
-	if migrate {
-		require.NoError(t, database.AutoMigrate(&model.Task{}))
-	}
-	model.DB = database
-	t.Cleanup(func() { model.DB = previousDB })
 	return database
 }
 
@@ -399,21 +393,7 @@ func taskSubmissionRelayInfo(billing relaycommon.BillingSettler) *relaycommon.Re
 // TEST_POSTGRES_DSN to exercise the same contract on an external test database.
 // Unique table prefixes keep the fixture isolated from all existing tables.
 func TestImmediateTaskSettlementDatabase(t *testing.T) {
-	dialect := common.DatabaseType(os.Getenv("TEST_TASK_DB_DIALECT"))
-	var driver gorm.Dialector
-	switch dialect {
-	case "", common.DatabaseTypeSQLite:
-		dialect = common.DatabaseTypeSQLite
-		driver = sqlite.Open(":memory:")
-	case common.DatabaseTypeMySQL:
-		require.NotEmpty(t, os.Getenv("TEST_MYSQL_DSN"))
-		driver = mysql.Open(os.Getenv("TEST_MYSQL_DSN"))
-	case common.DatabaseTypePostgreSQL:
-		require.NotEmpty(t, os.Getenv("TEST_POSTGRES_DSN"))
-		driver = postgres.New(postgres.Config{DSN: os.Getenv("TEST_POSTGRES_DSN"), PreferSimpleProtocol: true})
-	default:
-		t.Fatalf("unsupported test dialect %q", dialect)
-	}
+	driver, dialect := testdb.Dialector(t)
 	db, err := gorm.Open(driver, &gorm.Config{NamingStrategy: schema.NamingStrategy{TablePrefix: fmt.Sprintf("tsubmit_%d_", time.Now().UnixNano())}})
 	require.NoError(t, err)
 	sqlDB, err := db.DB()
@@ -424,11 +404,7 @@ func TestImmediateTaskSettlementDatabase(t *testing.T) {
 	require.NoError(t, db.AutoMigrate(models...))
 	t.Cleanup(func() { require.NoError(t, db.Migrator().DropTable(models...)) })
 	var version string
-	if dialect == common.DatabaseTypeSQLite {
-		require.NoError(t, db.Raw("SELECT sqlite_version()").Scan(&version).Error)
-	} else {
-		require.NoError(t, db.Raw("SELECT version()").Scan(&version).Error)
-	}
+	require.NoError(t, db.Raw("SELECT version()").Scan(&version).Error)
 	t.Logf("database: %s %s", dialect, version)
 	oldDB, oldLogDB := model.DB, model.LOG_DB
 	oldMain, oldLog := common.MainDatabaseType(), common.LogDatabaseType()

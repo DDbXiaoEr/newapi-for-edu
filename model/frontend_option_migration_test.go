@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
-	"github.com/glebarez/sqlite"
+	"github.com/QuantumNous/new-api/pkg/testdb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -13,18 +13,7 @@ import (
 
 func useFrontendOptionMigrationDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	previousDB := DB
-	previousType := common.MainDatabaseType()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&Option{}))
-	DB = db
-	common.SetMainDatabaseType(common.DatabaseTypeSQLite)
-	t.Cleanup(func() {
-		DB = previousDB
-		common.SetMainDatabaseType(previousType)
-	})
-	return db
+	return testdb.OpenBound(t, &DB, &LOG_DB, InitColumnNames, testdb.Options{Models: []any{&Option{}}})
 }
 
 func requireOptionValue(t *testing.T, db *gorm.DB, key string) string {

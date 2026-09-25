@@ -17,9 +17,9 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/middleware"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/pkg/testdb"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/gin-gonic/gin"
-	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/mysql"
@@ -46,11 +46,6 @@ type tokenResponseItem struct {
 
 type tokenKeyResponse struct {
 	Key string `json:"key"`
-}
-
-type sqliteColumnInfo struct {
-	Name string `gorm:"column:name"`
-	Type string `gorm:"column:type"`
 }
 
 type legacyToken struct {
@@ -81,25 +76,8 @@ func openTokenControllerTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 
 	gin.SetMode(gin.TestMode)
-	common.SetDatabaseTypes(common.DatabaseTypeSQLite, common.DatabaseTypeSQLite)
 	common.RedisEnabled = false
-
-	dsn := fmt.Sprintf("file:%s?mode=memory&cache=shared", strings.ReplaceAll(t.Name(), "/", "_"))
-	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("failed to open sqlite db: %v", err)
-	}
-	model.DB = db
-	model.LOG_DB = db
-
-	t.Cleanup(func() {
-		sqlDB, err := db.DB()
-		if err == nil {
-			_ = sqlDB.Close()
-		}
-	})
-
-	return db
+	return testdb.OpenBound(t, &model.DB, &model.LOG_DB, model.InitColumnNames)
 }
 
 func migrateTokenControllerTestDB(t *testing.T, db *gorm.DB) {
@@ -221,30 +199,10 @@ func decodeAPIResponse(t *testing.T, recorder *httptest.ResponseRecorder) tokenA
 	return response
 }
 
-func getSQLiteColumnType(t *testing.T, db *gorm.DB, tableName string, columnName string) string {
-	t.Helper()
-
-	var columns []sqliteColumnInfo
-	if err := db.Raw("PRAGMA table_info(" + tableName + ")").Scan(&columns).Error; err != nil {
-		t.Fatalf("failed to inspect %s schema: %v", tableName, err)
-	}
-
-	for _, column := range columns {
-		if column.Name == columnName {
-			return strings.ToLower(column.Type)
-		}
-	}
-
-	t.Fatalf("column %s not found in %s schema", columnName, tableName)
-	return ""
-}
-
 func getTokenKeyColumnType(t *testing.T, db *gorm.DB, dialect string) string {
 	t.Helper()
 
 	switch dialect {
-	case "sqlite":
-		return getSQLiteColumnType(t, db, "tokens", "key")
 	case "mysql":
 		var columnType string
 		if err := db.Raw(`SELECT COLUMN_TYPE FROM information_schema.columns
@@ -283,8 +241,6 @@ func getTokenAutoGroupsColumnType(t *testing.T, db *gorm.DB, dialect string) str
 	t.Helper()
 
 	switch dialect {
-	case "sqlite":
-		return getSQLiteColumnType(t, db, "tokens", "auto_groups")
 	case "mysql":
 		var columnType string
 		if err := db.Raw(`SELECT DATA_TYPE FROM information_schema.columns
@@ -401,18 +357,19 @@ func runTokenMigrationCompatibilityTest(t *testing.T, db *gorm.DB, dialect strin
 
 func TestTokenAutoMigrateUsesVarchar128KeyColumn(t *testing.T) {
 	db := setupTokenControllerTestDB(t)
+	dialect := testdb.Kind(t)
 
-	if got := getTokenKeyColumnType(t, db, "sqlite"); got != "varchar(128)" {
+	if got := getTokenKeyColumnType(t, db, dialect); got != "varchar(128)" {
 		t.Fatalf("expected key column type varchar(128), got %q", got)
 	}
-	if got := getSQLiteColumnType(t, db, "tokens", "auto_groups"); got != "text" {
+	got := getTokenAutoGroupsColumnType(t, db, dialect)
+	if dialect == "mysql" {
+		if got != "text" && got != "longtext" && got != "mediumtext" {
+			t.Fatalf("expected auto_groups column type text, got %q", got)
+		}
+	} else if got != "text" {
 		t.Fatalf("expected auto_groups column type text, got %q", got)
 	}
-}
-
-func TestTokenMigrationFromChar48ToVarchar128(t *testing.T) {
-	db := openTokenControllerTestDB(t)
-	runTokenMigrationCompatibilityTest(t, db, "sqlite", nil)
 }
 
 func TestTokenMigrationFromChar48ToVarchar128MySQL(t *testing.T) {
@@ -590,7 +547,6 @@ func TestAPITokenAuditDatabaseMatrix(t *testing.T) {
 		name, env string
 		typ       common.DatabaseType
 	}{
-		{"sqlite", "", common.DatabaseTypeSQLite},
 		{"mysql", "AUDIT_MYSQL_DSN", common.DatabaseTypeMySQL},
 		{"postgres", "AUDIT_POSTGRES_DSN", common.DatabaseTypePostgreSQL},
 	} {
@@ -622,12 +578,8 @@ func TestAPITokenAuditDatabaseMatrix(t *testing.T) {
 					model.LOG_DB = logDB
 					require.NoError(t, model.MigrateAuditLogs())
 				}
-				versionSQL := "SELECT version()"
-				if database.name == "sqlite" {
-					versionSQL = "SELECT sqlite_version()"
-				}
 				var version string
-				require.NoError(t, db.Raw(versionSQL).Scan(&version).Error)
+				require.NoError(t, db.Raw("SELECT version()").Scan(&version).Error)
 				t.Logf("database version: %s", version)
 				verifyAPITokenAudit(t)
 				if separateLog {

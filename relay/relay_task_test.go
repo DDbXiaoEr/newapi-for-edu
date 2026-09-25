@@ -12,12 +12,12 @@ import (
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/pkg/billingexpr"
 	pluginruntime "github.com/QuantumNous/new-api/pkg/jsplugin"
+	"github.com/QuantumNous/new-api/pkg/testdb"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting/billing_setting"
 	"github.com/QuantumNous/new-api/setting/config"
 	"github.com/gin-gonic/gin"
-	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -25,23 +25,11 @@ import (
 
 func setupRelayChannelDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	previousDB := model.DB
-	previousType := common.MainDatabaseType()
 	previousCache := common.MemoryCacheEnabled
-	database, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	sqlDB, err := database.DB()
-	require.NoError(t, err)
-	sqlDB.SetMaxOpenConns(1)
-	require.NoError(t, database.AutoMigrate(&model.Channel{}))
-	model.DB = database
-	common.SetMainDatabaseType(common.DatabaseTypeSQLite)
+	database := testdb.OpenBound(t, &model.DB, &model.LOG_DB, model.InitColumnNames, testdb.Options{Models: []any{&model.Channel{}}, MaxOpen: 1})
 	common.MemoryCacheEnabled = false
 	t.Cleanup(func() {
-		model.DB = previousDB
-		common.SetMainDatabaseType(previousType)
 		common.MemoryCacheEnabled = previousCache
-		require.NoError(t, sqlDB.Close())
 	})
 	return database
 }

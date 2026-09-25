@@ -35,7 +35,7 @@ func modelManagementDB(t *testing.T, kind, dsn string) *gorm.DB {
 	database, isolatedDSN := newAuditTestDatabase(t, kind, dsn)
 	previousDB, previousLogDB := model.DB, model.LOG_DB
 	previousMain, previousLog := common.MainDatabaseType(), common.LogDatabaseType()
-	previousMaster, previousSQLite := common.IsMasterNode, common.SQLitePath
+	previousMaster := common.IsMasterNode
 	previousRedis, previousMemory := common.RedisEnabled, common.MemoryCacheEnabled
 	previousOptions := common.OptionMap
 	previousConfig := config.GlobalConfig.ExportAllConfigs()
@@ -55,10 +55,6 @@ func modelManagementDB(t *testing.T, kind, dsn string) *gorm.DB {
 	common.IsMasterNode = false
 	common.RedisEnabled, common.MemoryCacheEnabled = false, false
 	common.OptionMap = map[string]string{}
-	if kind == "sqlite" {
-		common.SQLitePath = isolatedDSN
-		isolatedDSN = "local"
-	}
 	t.Setenv("SQL_DSN", isolatedDSN)
 	t.Setenv("LOG_SQL_DSN", "")
 	require.NoError(t, model.InitDB())
@@ -70,11 +66,7 @@ func modelManagementDB(t *testing.T, kind, dsn string) *gorm.DB {
 	}
 	config.UpdateConfigFromMap(config.GlobalConfig.Get("billing_setting"), map[string]string{"billing_mode": "{}", "billing_expr": "{}", "plugin_billing_expr": "{}"})
 	var version string
-	query := "SELECT version()"
-	if kind == "sqlite" {
-		query = "SELECT sqlite_version()"
-	}
-	require.NoError(t, database.Raw(query).Scan(&version).Error)
+	require.NoError(t, database.Raw("SELECT version()").Scan(&version).Error)
 	t.Logf("database version: %s", version)
 	t.Cleanup(func() {
 		for _, value := range restoreRatios {
@@ -82,7 +74,7 @@ func modelManagementDB(t *testing.T, kind, dsn string) *gorm.DB {
 		}
 		config.UpdateConfigFromMap(config.GlobalConfig.Get("billing_setting"), map[string]string{"billing_mode": previousConfig["billing_setting.billing_mode"], "billing_expr": previousConfig["billing_setting.billing_expr"], "plugin_billing_expr": previousConfig[billing_setting.PluginBillingExprOption]})
 		common.OptionMap = previousOptions
-		common.IsMasterNode, common.SQLitePath = previousMaster, previousSQLite
+		common.IsMasterNode = previousMaster
 		common.RedisEnabled, common.MemoryCacheEnabled = previousRedis, previousMemory
 		common.SetDatabaseTypes(previousMain, previousLog)
 		connection, err := database.DB()
@@ -113,7 +105,7 @@ func TestModelPricingConversionDatabaseMatrix(t *testing.T) {
 	previousQuota := common.QuotaPerUnit
 	common.QuotaPerUnit = 500000
 	t.Cleanup(func() { common.QuotaPerUnit = previousQuota })
-	for _, dialect := range []struct{ kind, env string }{{"sqlite", ""}, {"mysql", "TEST_MYSQL_DSN"}, {"postgres", "TEST_POSTGRES_DSN"}} {
+	for _, dialect := range []struct{ kind, env string }{{"mysql", "TEST_MYSQL_DSN"}, {"postgres", "TEST_POSTGRES_DSN"}} {
 		t.Run(dialect.kind, func(t *testing.T) {
 			if dialect.env != "" && os.Getenv(dialect.env) == "" {
 				t.Skip("set " + dialect.env + " to run this database")
@@ -482,7 +474,7 @@ export function parseTaskResult() { return {}; }
 `, jsplugin.Options{})
 	require.NoError(t, err)
 	t.Cleanup(func() { jsplugin.DefaultRegistry.Unregister("model-management-task") })
-	for _, dialect := range []struct{ kind, env string }{{"sqlite", ""}, {"mysql", "TEST_MYSQL_DSN"}, {"postgres", "TEST_POSTGRES_DSN"}} {
+	for _, dialect := range []struct{ kind, env string }{{"mysql", "TEST_MYSQL_DSN"}, {"postgres", "TEST_POSTGRES_DSN"}} {
 		t.Run(dialect.kind, func(t *testing.T) {
 			if dialect.env != "" && os.Getenv(dialect.env) == "" {
 				t.Skip("set " + dialect.env + " to run this database")
@@ -1075,7 +1067,7 @@ func TestMetadataSyncLocaleAndEndpointValidation(t *testing.T) {
 }
 
 func TestVendorManagementDatabaseMatrix(t *testing.T) {
-	for _, dialect := range []struct{ kind, env string }{{"sqlite", ""}, {"mysql", "TEST_MYSQL_DSN"}, {"postgres", "TEST_POSTGRES_DSN"}} {
+	for _, dialect := range []struct{ kind, env string }{{"mysql", "TEST_MYSQL_DSN"}, {"postgres", "TEST_POSTGRES_DSN"}} {
 		t.Run(dialect.kind, func(t *testing.T) {
 			if dialect.env != "" && os.Getenv(dialect.env) == "" {
 				t.Skip("set " + dialect.env)
@@ -1287,7 +1279,7 @@ func TestVendorManagementDatabaseMatrix(t *testing.T) {
 }
 
 func TestModelDeletionDatabaseMatrix(t *testing.T) {
-	for _, dialect := range []struct{ kind, env string }{{"sqlite", ""}, {"mysql", "TEST_MYSQL_DSN"}, {"postgres", "TEST_POSTGRES_DSN"}} {
+	for _, dialect := range []struct{ kind, env string }{{"mysql", "TEST_MYSQL_DSN"}, {"postgres", "TEST_POSTGRES_DSN"}} {
 		t.Run(dialect.kind, func(t *testing.T) {
 			if dialect.env != "" && os.Getenv(dialect.env) == "" {
 				t.Skip("set " + dialect.env + " to run this database")
@@ -1507,7 +1499,7 @@ func TestSharedModelPluginPricingDatabaseMatrix(t *testing.T) {
 	const name = "shared-model::priced"
 	const base = `tier("base", u("seconds") * 0.4)`
 	const variant = `tier("beta", u("credits") * 2)`
-	for _, dialect := range []struct{ kind, env string }{{"sqlite", ""}, {"mysql", "TEST_MYSQL_DSN"}, {"postgres", "TEST_POSTGRES_DSN"}} {
+	for _, dialect := range []struct{ kind, env string }{{"mysql", "TEST_MYSQL_DSN"}, {"postgres", "TEST_POSTGRES_DSN"}} {
 		t.Run(dialect.kind, func(t *testing.T) {
 			if dialect.env != "" && os.Getenv(dialect.env) == "" {
 				t.Skip("set " + dialect.env + " to run this database")

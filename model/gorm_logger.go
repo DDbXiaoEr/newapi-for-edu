@@ -10,7 +10,6 @@ import (
 
 	"github.com/ClickHouse/clickhouse-go/v2/lib/proto"
 	"github.com/QuantumNous/new-api/common"
-	sqlitedriver "github.com/glebarez/go-sqlite"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
@@ -104,10 +103,6 @@ func sanitizeDBError(err error) error {
 	var chErr *proto.Exception
 	if errors.As(err, &chErr) {
 		return fmt.Errorf("clickhouse error %d", chErr.Code)
-	}
-	var sqliteErr *sqlitedriver.Error
-	if errors.As(err, &sqliteErr) {
-		return fmt.Errorf("sqlite error %d", sqliteErr.Code())
 	}
 	return err
 }

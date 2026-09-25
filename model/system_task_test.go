@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
-	"github.com/glebarez/sqlite"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,12 +15,10 @@ import (
 )
 
 func TestSystemTaskHistoryDatabaseMatrix(t *testing.T) {
-	for _, dialect := range []string{"sqlite", "mysql", "postgres"} {
+	for _, dialect := range []string{"mysql", "postgres"} {
 		t.Run(dialect, func(t *testing.T) {
 			var dialector gorm.Dialector
 			switch dialect {
-			case "sqlite":
-				dialector = sqlite.Open(":memory:")
 			case "mysql":
 				dsn := os.Getenv("TEST_MYSQL_DSN")
 				if dsn == "" {
@@ -49,11 +46,7 @@ func TestSystemTaskHistoryDatabaseMatrix(t *testing.T) {
 			})
 			require.NoError(t, db.AutoMigrate(&SystemTask{}))
 			var version string
-			versionQuery := "SELECT version()"
-			if dialect == "sqlite" {
-				versionQuery = "SELECT sqlite_version()"
-			}
-			require.NoError(t, db.Raw(versionQuery).Scan(&version).Error)
+			require.NoError(t, db.Raw("SELECT version()").Scan(&version).Error)
 			t.Logf("database version: %s", version)
 
 			tasks := []SystemTask{
@@ -461,9 +454,7 @@ func TestSystemTaskUpdatesRequireUnexpiredLock(t *testing.T) {
 }
 
 func TestUpdateSystemTaskStateIdenticalPayloadDoesNotLoseLock(t *testing.T) {
-	// SQLite reports matched rows for unchanged UPDATEs, so this case passed
-	// even before the fix. The MySQL regression is covered by
-	// TestUpdateSystemTaskStateIdenticalPayloadDoesNotLoseLockConfiguredDatabases.
+	// Unchanged UPDATEs can report 0 matched rows on MySQL.
 	truncateTables(t)
 	runUpdateSystemTaskStateIdenticalPayloadKeepsLock(t, SystemTaskTypeLogCleanup)
 }

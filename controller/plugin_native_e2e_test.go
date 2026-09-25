@@ -14,15 +14,14 @@ import (
 	"github.com/QuantumNous/new-api/middleware"
 	"github.com/QuantumNous/new-api/model"
 	pluginruntime "github.com/QuantumNous/new-api/pkg/jsplugin"
+	"github.com/QuantumNous/new-api/pkg/testdb"
 	"github.com/QuantumNous/new-api/relay"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/gin-gonic/gin"
-	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/gorm"
 )
 
 type nativeRouteBilling struct {
@@ -67,17 +66,11 @@ func TestKlingNativeRouteSubmitPollSettleAndQuery(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	service.InitHttpClient()
 
-	previousDB := model.DB
-	previousLogDB := model.LOG_DB
 	previousMemoryCache := common.MemoryCacheEnabled
 	previousBatchUpdate := common.BatchUpdateEnabled
 	previousLogConsume := common.LogConsumeEnabled
 	previousRedisEnabled := common.RedisEnabled
-	database, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, database.AutoMigrate(&model.User{}, &model.Channel{}, &model.Task{}, &model.Log{}))
-	model.DB = database
-	model.LOG_DB = database
+	database := testdb.OpenBound(t, &model.DB, &model.LOG_DB, model.InitColumnNames, testdb.Options{Models: []any{&model.User{}, &model.Channel{}, &model.Task{}, &model.Log{}}})
 	common.MemoryCacheEnabled = false
 	common.BatchUpdateEnabled = false
 	common.LogConsumeEnabled = false
@@ -85,8 +78,6 @@ func TestKlingNativeRouteSubmitPollSettleAndQuery(t *testing.T) {
 	previousModelRatios := ratio_setting.ModelRatio2JSONString()
 	require.NoError(t, ratio_setting.UpdateModelRatioByJSONString(`{"kling-v1":1}`))
 	t.Cleanup(func() {
-		model.DB = previousDB
-		model.LOG_DB = previousLogDB
 		common.MemoryCacheEnabled = previousMemoryCache
 		common.BatchUpdateEnabled = previousBatchUpdate
 		common.LogConsumeEnabled = previousLogConsume

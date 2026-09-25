@@ -8,26 +8,20 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/pkg/testdb"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/gin-gonic/gin"
-	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/gorm"
 )
 
 func TestAuthLogoutRejectsSessionMismatch(t *testing.T) {
-	previousDB := model.DB
 	previousRedis := common.RedisEnabled
 	previousSecret := common.SessionSecret
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&model.User{}, &model.UserSession{}))
-	model.DB = db
+	db := testdb.OpenBound(t, &model.DB, &model.LOG_DB, model.InitColumnNames, testdb.Options{Models: []any{&model.User{}, &model.UserSession{}}})
 	common.RedisEnabled = false
 	common.SessionSecret = "auth-logout-mismatch-test-secret"
 	t.Cleanup(func() {
-		model.DB = previousDB
 		common.RedisEnabled = previousRedis
 		common.SessionSecret = previousSecret
 	})
@@ -107,21 +101,16 @@ func TestWriteAuthSessionErrorMapsSessionGrowthLimits(t *testing.T) {
 }
 
 func TestSessionLimitDoesNotRecordRejectedLoginAsSuccessful(t *testing.T) {
-	previousDB := model.DB
 	previousRedis := common.RedisEnabled
 	previousActiveLimit := common.UserSessionActiveLimit
 	previousIssuanceLimit := common.UserSessionIssuanceLimit
 	previousIssuanceWindow := common.UserSessionIssuanceWindowSeconds
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&model.User{}, &model.UserSession{}, &model.TwoFA{}, &model.PasskeyCredential{}))
-	model.DB = db
+	db := testdb.OpenBound(t, &model.DB, &model.LOG_DB, model.InitColumnNames, testdb.Options{Models: []any{&model.User{}, &model.UserSession{}, &model.TwoFA{}, &model.PasskeyCredential{}}})
 	common.RedisEnabled = false
 	common.UserSessionActiveLimit = 1
 	common.UserSessionIssuanceLimit = 100
 	common.UserSessionIssuanceWindowSeconds = int64(common.DefaultUserSessionIssuanceWindowSeconds)
 	t.Cleanup(func() {
-		model.DB = previousDB
 		common.RedisEnabled = previousRedis
 		common.UserSessionActiveLimit = previousActiveLimit
 		common.UserSessionIssuanceLimit = previousIssuanceLimit

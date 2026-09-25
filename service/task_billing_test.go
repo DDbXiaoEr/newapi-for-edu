@@ -14,37 +14,18 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/pkg/billingexpr"
+	"github.com/QuantumNous/new-api/pkg/testdb"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 	"github.com/QuantumNous/new-api/types"
 	"github.com/gin-gonic/gin"
-	"github.com/glebarez/sqlite"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/gorm"
 )
 
 func TestMain(m *testing.M) {
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	if err != nil {
-		panic("failed to open test db: " + err.Error())
-	}
-	sqlDB, err := db.DB()
-	if err != nil {
-		panic("failed to get sql.DB: " + err.Error())
-	}
-	sqlDB.SetMaxOpenConns(1)
-
-	model.DB = db
-	model.LOG_DB = db
-
-	common.SetDatabaseTypes(common.DatabaseTypeSQLite, common.DatabaseTypeSQLite)
-	common.RedisEnabled = false
-	common.BatchUpdateEnabled = false
-	common.LogConsumeEnabled = true
-
-	if err := db.AutoMigrate(
+	db, typ, closer := testdb.OpenMain(
 		&model.Task{},
 		&model.User{},
 		&model.Token{},
@@ -55,11 +36,16 @@ func TestMain(m *testing.M) {
 		&model.UserSubscription{},
 		&model.SystemTask{},
 		&model.SystemTaskLock{},
-	); err != nil {
-		panic("failed to migrate: " + err.Error())
-	}
-
-	os.Exit(m.Run())
+	)
+	model.DB, model.LOG_DB = db, db
+	common.SetDatabaseTypes(typ, typ)
+	model.InitColumnNames()
+	common.RedisEnabled = false
+	common.BatchUpdateEnabled = false
+	common.LogConsumeEnabled = true
+	code := m.Run()
+	closer()
+	os.Exit(code)
 }
 
 // ---------------------------------------------------------------------------

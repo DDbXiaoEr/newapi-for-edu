@@ -10,9 +10,9 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/pkg/testdb"
 	"github.com/alicebob/miniredis/v2"
 	"github.com/gin-gonic/gin"
-	"github.com/glebarez/sqlite"
 	"github.com/go-redis/redis/v8"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -21,19 +21,13 @@ import (
 
 func setupAuthSessionTestDB(t *testing.T) *model.User {
 	t.Helper()
-	previousDB, previousRedis := model.DB, common.RedisEnabled
+	previousRedis := common.RedisEnabled
 	previousActiveLimit := common.UserSessionActiveLimit
 	previousIssuanceLimit := common.UserSessionIssuanceLimit
 	previousIssuanceWindow := common.UserSessionIssuanceWindowSeconds
 	previousRevokedRetention := common.UserSessionRevokedRetentionDays
 	previousAlertThreshold := common.UserSessionHourlyAlertThreshold
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	sqlDB, err := db.DB()
-	require.NoError(t, err)
-	sqlDB.SetMaxOpenConns(1)
-	require.NoError(t, db.AutoMigrate(&model.User{}, &model.UserSession{}, &model.AuthFlow{}))
-	model.DB = db
+	testdb.OpenBound(t, &model.DB, &model.LOG_DB, model.InitColumnNames, testdb.Options{Models: []any{&model.User{}, &model.UserSession{}, &model.AuthFlow{}}, MaxOpen: 1})
 	common.RedisEnabled = false
 	common.UserSessionActiveLimit = common.DefaultUserSessionActiveLimit
 	common.UserSessionIssuanceLimit = common.DefaultUserSessionIssuanceLimit
@@ -41,14 +35,12 @@ func setupAuthSessionTestDB(t *testing.T) *model.User {
 	common.UserSessionRevokedRetentionDays = common.DefaultUserSessionRevokedRetentionDays
 	common.UserSessionHourlyAlertThreshold = common.DefaultUserSessionHourlyAlertThreshold
 	t.Cleanup(func() {
-		model.DB = previousDB
 		common.RedisEnabled = previousRedis
 		common.UserSessionActiveLimit = previousActiveLimit
 		common.UserSessionIssuanceLimit = previousIssuanceLimit
 		common.UserSessionIssuanceWindowSeconds = previousIssuanceWindow
 		common.UserSessionRevokedRetentionDays = previousRevokedRetention
 		common.UserSessionHourlyAlertThreshold = previousAlertThreshold
-		_ = sqlDB.Close()
 	})
 	user := &model.User{
 		Username:    "session-user",
@@ -58,7 +50,7 @@ func setupAuthSessionTestDB(t *testing.T) *model.User {
 		Group:       "default",
 		AuthVersion: 1,
 	}
-	require.NoError(t, db.Create(user).Error)
+	require.NoError(t, model.DB.Create(user).Error)
 	return user
 }
 

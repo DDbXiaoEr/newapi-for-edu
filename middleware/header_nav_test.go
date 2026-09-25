@@ -7,11 +7,10 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/pkg/testdb"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/gin-gonic/gin"
-	"github.com/glebarez/sqlite"
 	"github.com/stretchr/testify/require"
-	"gorm.io/gorm"
 )
 
 func withHeaderNavModules(t *testing.T, raw string) {
@@ -47,14 +46,10 @@ func performHeaderNavRequest(t *testing.T, handler gin.HandlerFunc, authenticate
 
 	var accessToken string
 	if authenticated {
-		previousDB, previousRedis := model.DB, common.RedisEnabled
-		db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
-		require.NoError(t, err)
-		require.NoError(t, db.AutoMigrate(&model.User{}))
-		model.DB = db
+		previousRedis := common.RedisEnabled
+		db := testdb.OpenBound(t, &model.DB, &model.LOG_DB, model.InitColumnNames, testdb.Options{Models: []any{&model.User{}}})
 		common.RedisEnabled = false
 		t.Cleanup(func() {
-			model.DB = previousDB
 			common.RedisEnabled = previousRedis
 		})
 		accessToken = "header-nav-pat"
