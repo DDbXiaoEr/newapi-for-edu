@@ -20,6 +20,7 @@ import { useTranslation } from 'react-i18next'
 
 import { SectionPageLayout } from '@/components/layout'
 
+import { UsersAssignGroupDialog } from './components/dialogs/users-assign-group-dialog'
 import { UsersDeleteDialog } from './components/users-delete-dialog'
 import { UsersMutateDrawer } from './components/users-mutate-drawer'
 import { UsersPrimaryButtons } from './components/users-primary-buttons'
@@ -48,6 +49,10 @@ function UsersContent() {
         currentRow={open === 'update' ? currentRow || undefined : undefined}
       />
       <UsersDeleteDialog />
+      <UsersAssignGroupDialog
+        open={open === 'assign-group'}
+        onOpenChange={(isOpen) => !isOpen && setOpen(null)}
+      />
     </>
   )
 }

@@ -274,6 +274,10 @@ export const STATIC_I18N_KEYS = [
   'Failed to create user',
   'Failed to update user',
   'Failed to delete user',
+  'Failed to assign users to group',
+  'Assigned {{updated}} users to {{group}}',
+  'Assigned {{updated}} users to {{group}}, skipped {{skipped}}',
+  'No users were updated',
   'No user selected',
 
   // Groups

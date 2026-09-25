@@ -102,6 +102,8 @@ export const getUserRoleOptions = (t: (key: string) => string) => [
 
 export const DEFAULT_GROUP = 'default' as const
 
+export const MAX_ASSIGN_USERS_GROUP = 200 as const
+
 // ============================================================================
 // Third-party Binding Fields
 // ============================================================================
@@ -127,6 +129,7 @@ export const ERROR_MESSAGES = {
   CREATE_FAILED: 'Failed to create user',
   UPDATE_FAILED: 'Failed to update user',
   DELETE_FAILED: 'Failed to delete user',
+  ASSIGN_GROUP_FAILED: 'Failed to assign users to group',
 } as const
 
 // ============================================================================
@@ -136,4 +139,8 @@ export const ERROR_MESSAGES = {
 export const SUCCESS_MESSAGES = {
   USER_CREATED: 'User created successfully',
   USER_UPDATED: 'User updated successfully',
+  USERS_ASSIGNED: 'Assigned {{updated}} users to {{group}}',
+  USERS_ASSIGNED_WITH_SKIPPED:
+    'Assigned {{updated}} users to {{group}}, skipped {{skipped}}',
+  USERS_NONE_UPDATED: 'No users were updated',
 } as const

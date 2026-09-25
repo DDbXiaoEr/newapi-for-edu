@@ -41,6 +41,15 @@ type GroupUserTransferProps = {
   onRemove: (ids: number[]) => void
   isLoading?: boolean
   disabled?: boolean
+  availableTitle?: string
+  availableDescription?: string
+  availableEmptyTitle?: string
+  membersTitle?: string
+  membersDescription?: string
+  membersEmptyTitle?: string
+  emptyDescription?: string
+  searchAvailablePlaceholder?: string
+  searchMembersPlaceholder?: string
 }
 
 function matchesKeyword(user: GroupUserTransferItem, keyword: string) {
@@ -63,6 +72,7 @@ function TransferPanel(props: {
   onToggle: (id: number, checked: boolean) => void
   onToggleAll: (checked: boolean) => void
   emptyTitle: string
+  emptyDescription: string
   searchPlaceholder: string
 }) {
   const { t } = useTranslation()
@@ -110,7 +120,7 @@ function TransferPanel(props: {
           <EmptyState
             className='min-h-40'
             title={props.emptyTitle}
-            description={t('Try another search or choose a different group.')}
+            description={props.emptyDescription}
           />
         ) : (
           <ul className='divide-y'>
@@ -207,8 +217,10 @@ export function GroupUserTransfer(props: GroupUserTransferProps) {
   return (
     <div className='flex min-h-0 flex-1 flex-col gap-3 lg:flex-row'>
       <TransferPanel
-        title={t('Available users')}
-        description={t('Users not in the selected group')}
+        title={props.availableTitle ?? t('Available users')}
+        description={
+          props.availableDescription ?? t('Users not in the selected group')
+        }
         users={props.available}
         keyword={props.availableKeyword}
         onKeywordChange={props.onAvailableKeywordChange}
@@ -228,8 +240,14 @@ export function GroupUserTransfer(props: GroupUserTransferProps) {
               : new Set()
           )
         }}
-        emptyTitle={t('No available users')}
-        searchPlaceholder={t('Search users')}
+        emptyTitle={props.availableEmptyTitle ?? t('No available users')}
+        emptyDescription={
+          props.emptyDescription ??
+          t('Try another search or choose a different group.')
+        }
+        searchPlaceholder={
+          props.searchAvailablePlaceholder ?? t('Search users')
+        }
       />
 
       <div className='flex shrink-0 items-center justify-center gap-2 lg:flex-col'>
@@ -256,8 +274,11 @@ export function GroupUserTransfer(props: GroupUserTransferProps) {
       </div>
 
       <TransferPanel
-        title={t('Group members')}
-        description={t('Users currently assigned to this group')}
+        title={props.membersTitle ?? t('Group members')}
+        description={
+          props.membersDescription ??
+          t('Users currently assigned to this group')
+        }
         users={props.members}
         keyword={props.membersKeyword}
         onKeywordChange={props.onMembersKeywordChange}
@@ -275,8 +296,14 @@ export function GroupUserTransfer(props: GroupUserTransferProps) {
             checked ? new Set(visibleMembers.map((user) => user.id)) : new Set()
           )
         }}
-        emptyTitle={t('No group members')}
-        searchPlaceholder={t('Search members')}
+        emptyTitle={props.membersEmptyTitle ?? t('No group members')}
+        emptyDescription={
+          props.emptyDescription ??
+          t('Try another search or choose a different group.')
+        }
+        searchPlaceholder={
+          props.searchMembersPlaceholder ?? t('Search members')
+        }
       />
     </div>
   )

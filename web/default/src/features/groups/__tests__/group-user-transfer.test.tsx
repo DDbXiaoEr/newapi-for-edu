@@ -65,6 +65,32 @@ it('moves a selected available user into the group when the add button is presse
   expect(onAdd).toHaveBeenCalledWith([1])
 })
 
+it('renders custom panel labels when provided', () => {
+  render(
+    <GroupUserTransfer
+      available={[alice]}
+      members={[]}
+      availableKeyword=''
+      membersKeyword=''
+      onAvailableKeywordChange={() => undefined}
+      onMembersKeywordChange={() => undefined}
+      onAdd={() => undefined}
+      onRemove={() => undefined}
+      availableTitle='Available users'
+      availableDescription='Search users to assign'
+      membersTitle='Selected users'
+      membersDescription='Users that will be assigned to the chosen group'
+      membersEmptyTitle='No selected users'
+    />
+  )
+  expect(screen.getByText('Search users to assign')).toBeVisible()
+  expect(screen.getByText('Selected users')).toBeVisible()
+  expect(
+    screen.getByText('Users that will be assigned to the chosen group')
+  ).toBeVisible()
+  expect(screen.getByText('No selected users')).toBeVisible()
+})
+
 it('moves a selected member out of the group when the remove button is pressed', async () => {
   const onRemove = vi.fn()
   render(
