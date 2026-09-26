@@ -1,0 +1,123 @@
+services:
+  mainpostgres:
+    image: postgres:11
+    container_name: mainpostgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: "123456"
+      POSTGRES_DB: newapi
+    ports:
+      - "5432:5432"
+    volumes:
+      - mainpostgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U root -d newapi"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks:
+      - mcp_plat
+
+  clickhouse:
+    image: clickhouse-server:21.6.9.7
+    container_name: clickhouse
+    restart: unless-stopped
+    environment:
+      CLICKHOUSE_DB: newapi_audit
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: ""
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+      - "9009:9009"
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+    healthcheck:
+      test: ["CMD-SHELL", "clickhouse-client --query 'SELECT 1'"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks:
+      - mcp_plat
+
+  redis:
+    image: redis:v7.0.5
+    container_name: redis
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: "123456"
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks:
+      - mcp_plat
+
+  openldap:
+    image: openldap:stable
+    container_name: openldap
+    restart: unless-stopped
+    entrypoint: ["/bin/bash", "/entrypoint.sh"]
+    environment:
+      LDAP_ORGANISATION: "XXX University"
+      LDAP_DOMAIN: "xxx.edu.cn"
+      LDAP_ADMIN_PASSWORD: "admin@123456"
+      LDAP_CONFIG_PASSWORD: "admin@123456"
+      LDAP_BASE_DN: "dc=xxx,dc=edu,dc=cn"
+      LDAP_TLS: "false"
+    ports:
+      - "389:389"
+      - "636:636"
+    volumes:
+      - openldap_data:/var/lib/ldap
+      - openldap_config:/etc/ldap/slapd.d
+      - ./ldap/entrypoint.sh:/entrypoint.sh:ro
+      - ./ldap/init-data.ldif:/bootstrap/init-data.ldif:ro
+    networks:
+      - mcp_plat
+
+  newapi:
+    image: newapi-edu:latest
+    container_name: newapi
+    restart: unless-stopped
+    command: --log-dir /data/logs
+    ports:
+      - "3000:3000"
+    volumes:
+      - newapi_data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      TZ: Asia/Shanghai
+      PORT: "3000"
+      GIN_MODE: release
+      SQL_DSN: postgresql://root:123456@host.docker.internal:5432/newapi?sslmode=disable
+      LOG_SQL_DSN: clickhouse://default:@host.docker.internal:9000/newapi_audit
+      REDIS_CONN_STRING: redis://:123456@host.docker.internal:6379
+      ERROR_LOG_ENABLED: "true"
+      BATCH_UPDATE_ENABLED: "true"
+      NODE_NAME: new-api-node-1
+      JWT_SECRET: mxjjCVN360MeoXaPHrFSMkuf524sXIG8Rg3fc5wsi7w=
+      JWT_EXPIRATION_SECONDS: "604800"
+      REQUIRED_ENV_VARS: SQL_DSN,LOG_SQL_DSN
+      SYNC_FREQUENCY: "60"
+    networks:
+      - mcp_plat
+
+volumes:
+  newapi_data:
+  mainpostgres_data:
+  clickhouse_data:
+  redis_data:
+  openldap_data:
+  openldap_config:
+
+networks:
+  mcp_plat:
+    name: mcp_plat

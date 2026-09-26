@@ -1,0 +1,857 @@
+# ============================================================
+# 组织单元：学生院系
+# ============================================================
+
+dn: ou=计算机学院,dc=xxx,dc=edu,dc=cn
+objectClass: organizationalUnit
+ou: 计算机学院
+
+dn: ou=电气学院,dc=xxx,dc=edu,dc=cn
+objectClass: organizationalUnit
+ou: 电气学院
+
+dn: ou=文学院,dc=xxx,dc=edu,dc=cn
+objectClass: organizationalUnit
+ou: 文学院
+
+dn: ou=理学院,dc=xxx,dc=edu,dc=cn
+objectClass: organizationalUnit
+ou: 理学院
+
+# ============================================================
+# 组织单元：教师院系
+# ============================================================
+
+dn: ou=计算机学院-教师,dc=xxx,dc=edu,dc=cn
+objectClass: organizationalUnit
+ou: 计算机学院-教师
+
+dn: ou=电气学院-教师,dc=xxx,dc=edu,dc=cn
+objectClass: organizationalUnit
+ou: 电气学院-教师
+
+dn: ou=文学院-教师,dc=xxx,dc=edu,dc=cn
+objectClass: organizationalUnit
+ou: 文学院-教师
+
+dn: ou=理学院-教师,dc=xxx,dc=edu,dc=cn
+objectClass: organizationalUnit
+ou: 理学院-教师
+
+# ============================================================
+# 组织单元：行政部门
+# ============================================================
+
+dn: ou=教务处,dc=xxx,dc=edu,dc=cn
+objectClass: organizationalUnit
+ou: 教务处
+
+dn: ou=学生处,dc=xxx,dc=edu,dc=cn
+objectClass: organizationalUnit
+ou: 学生处
+
+dn: ou=图书馆,dc=xxx,dc=edu,dc=cn
+objectClass: organizationalUnit
+ou: 图书馆
+
+dn: ou=财务处,dc=xxx,dc=edu,dc=cn
+objectClass: organizationalUnit
+ou: 财务处
+
+dn: ou=人事处,dc=xxx,dc=edu,dc=cn
+objectClass: organizationalUnit
+ou: 人事处
+
+dn: ou=后勤处,dc=xxx,dc=edu,dc=cn
+objectClass: organizationalUnit
+ou: 后勤处
+
+dn: ou=信息中心,dc=xxx,dc=edu,dc=cn
+objectClass: organizationalUnit
+ou: 信息中心
+
+# ============================================================
+# 学生账户 01-20（计算机学院）
+# ============================================================
+
+dn: uid=student01,ou=计算机学院,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: student01
+cn: 张伟
+sn: 张
+ou: 计算机学院
+mail: student01@xxx.edu.cn
+telephoneNumber: 13800000001
+uidNumber: 10001
+gidNumber: 10001
+homeDirectory: /home/student01
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+dn: uid=student02,ou=计算机学院,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: student02
+cn: 李明
+sn: 李
+ou: 计算机学院
+mail: student02@xxx.edu.cn
+telephoneNumber: 13800000002
+uidNumber: 10002
+gidNumber: 10002
+homeDirectory: /home/student02
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+dn: uid=student03,ou=计算机学院,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: student03
+cn: 王洋
+sn: 王
+ou: 计算机学院
+mail: student03@xxx.edu.cn
+telephoneNumber: 13800000003
+uidNumber: 10003
+gidNumber: 10003
+homeDirectory: /home/student03
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+dn: uid=student04,ou=计算机学院,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: student04
+cn: 刘强
+sn: 刘
+ou: 计算机学院
+mail: student04@xxx.edu.cn
+telephoneNumber: 13800000004
+uidNumber: 10004
+gidNumber: 10004
+homeDirectory: /home/student04
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+dn: uid=student05,ou=计算机学院,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: student05
+cn: 陈涛
+sn: 陈
+ou: 计算机学院
+mail: student05@xxx.edu.cn
+telephoneNumber: 13800000005
+uidNumber: 10005
+gidNumber: 10005
+homeDirectory: /home/student05
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+# ============================================================
+# 学生账户 06-10（电气学院）
+# ============================================================
+
+dn: uid=student06,ou=电气学院,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: student06
+cn: 赵磊
+sn: 赵
+ou: 电气学院
+mail: student06@xxx.edu.cn
+telephoneNumber: 13800000006
+uidNumber: 10006
+gidNumber: 10006
+homeDirectory: /home/student06
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+dn: uid=student07,ou=电气学院,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: student07
+cn: 孙鹏
+sn: 孙
+ou: 电气学院
+mail: student07@xxx.edu.cn
+telephoneNumber: 13800000007
+uidNumber: 10007
+gidNumber: 10007
+homeDirectory: /home/student07
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+dn: uid=student08,ou=电气学院,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: student08
+cn: 周杰
+sn: 周
+ou: 电气学院
+mail: student08@xxx.edu.cn
+telephoneNumber: 13800000008
+uidNumber: 10008
+gidNumber: 10008
+homeDirectory: /home/student08
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+dn: uid=student09,ou=电气学院,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: student09
+cn: 吴亮
+sn: 吴
+ou: 电气学院
+mail: student09@xxx.edu.cn
+telephoneNumber: 13800000009
+uidNumber: 10009
+gidNumber: 10009
+homeDirectory: /home/student09
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+dn: uid=student10,ou=电气学院,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: student10
+cn: 郑浩
+sn: 郑
+ou: 电气学院
+mail: student10@xxx.edu.cn
+telephoneNumber: 13800000010
+uidNumber: 10010
+gidNumber: 10010
+homeDirectory: /home/student10
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+# ============================================================
+# 学生账户 11-15（文学院）
+# ============================================================
+
+dn: uid=student11,ou=文学院,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: student11
+cn: 王芳
+sn: 王
+ou: 文学院
+mail: student11@xxx.edu.cn
+telephoneNumber: 13800000011
+uidNumber: 10011
+gidNumber: 10011
+homeDirectory: /home/student11
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+dn: uid=student12,ou=文学院,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: student12
+cn: 李娜
+sn: 李
+ou: 文学院
+mail: student12@xxx.edu.cn
+telephoneNumber: 13800000012
+uidNumber: 10012
+gidNumber: 10012
+homeDirectory: /home/student12
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+dn: uid=student13,ou=文学院,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: student13
+cn: 张丽
+sn: 张
+ou: 文学院
+mail: student13@xxx.edu.cn
+telephoneNumber: 13800000013
+uidNumber: 10013
+gidNumber: 10013
+homeDirectory: /home/student13
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+dn: uid=student14,ou=文学院,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: student14
+cn: 刘静
+sn: 刘
+ou: 文学院
+mail: student14@xxx.edu.cn
+telephoneNumber: 13800000014
+uidNumber: 10014
+gidNumber: 10014
+homeDirectory: /home/student14
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+dn: uid=student15,ou=文学院,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: student15
+cn: 陈燕
+sn: 陈
+ou: 文学院
+mail: student15@xxx.edu.cn
+telephoneNumber: 13800000015
+uidNumber: 10015
+gidNumber: 10015
+homeDirectory: /home/student15
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+# ============================================================
+# 学生账户 16-20（理学院）
+# ============================================================
+
+dn: uid=student16,ou=理学院,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: student16
+cn: 杨光
+sn: 杨
+ou: 理学院
+mail: student16@xxx.edu.cn
+telephoneNumber: 13800000016
+uidNumber: 10016
+gidNumber: 10016
+homeDirectory: /home/student16
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+dn: uid=student17,ou=理学院,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: student17
+cn: 黄磊
+sn: 黄
+ou: 理学院
+mail: student17@xxx.edu.cn
+telephoneNumber: 13800000017
+uidNumber: 10017
+gidNumber: 10017
+homeDirectory: /home/student17
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+dn: uid=student18,ou=理学院,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: student18
+cn: 何波
+sn: 何
+ou: 理学院
+mail: student18@xxx.edu.cn
+telephoneNumber: 13800000018
+uidNumber: 10018
+gidNumber: 10018
+homeDirectory: /home/student18
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+dn: uid=student19,ou=理学院,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: student19
+cn: 谢峰
+sn: 谢
+ou: 理学院
+mail: student19@xxx.edu.cn
+telephoneNumber: 13800000019
+uidNumber: 10019
+gidNumber: 10019
+homeDirectory: /home/student19
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+dn: uid=student20,ou=理学院,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: student20
+cn: 马超
+sn: 马
+ou: 理学院
+mail: student20@xxx.edu.cn
+telephoneNumber: 13800000020
+uidNumber: 10020
+gidNumber: 10020
+homeDirectory: /home/student20
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+# ============================================================
+# 教师账户 01-05（计算机学院）
+# ============================================================
+
+dn: uid=teacher01,ou=计算机学院-教师,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: teacher01
+cn: 王建国
+sn: 王
+ou: 计算机学院-教师
+mail: teacher01@xxx.edu.cn
+telephoneNumber: 13900000001
+uidNumber: 20001
+gidNumber: 20001
+homeDirectory: /home/teacher01
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+dn: uid=teacher02,ou=计算机学院-教师,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: teacher02
+cn: 李志强
+sn: 李
+ou: 计算机学院-教师
+mail: teacher02@xxx.edu.cn
+telephoneNumber: 13900000002
+uidNumber: 20002
+gidNumber: 20002
+homeDirectory: /home/teacher02
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+dn: uid=teacher03,ou=计算机学院-教师,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: teacher03
+cn: 张海涛
+sn: 张
+ou: 计算机学院-教师
+mail: teacher03@xxx.edu.cn
+telephoneNumber: 13900000003
+uidNumber: 20003
+gidNumber: 20003
+homeDirectory: /home/teacher03
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+dn: uid=teacher04,ou=计算机学院-教师,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: teacher04
+cn: 刘明华
+sn: 刘
+ou: 计算机学院-教师
+mail: teacher04@xxx.edu.cn
+telephoneNumber: 13900000004
+uidNumber: 20004
+gidNumber: 20004
+homeDirectory: /home/teacher04
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+dn: uid=teacher05,ou=计算机学院-教师,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: teacher05
+cn: 陈学文
+sn: 陈
+ou: 计算机学院-教师
+mail: teacher05@xxx.edu.cn
+telephoneNumber: 13900000005
+uidNumber: 20005
+gidNumber: 20005
+homeDirectory: /home/teacher05
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+# ============================================================
+# 教师账户 06-10（电气学院）
+# ============================================================
+
+dn: uid=teacher06,ou=电气学院-教师,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: teacher06
+cn: 赵德才
+sn: 赵
+ou: 电气学院-教师
+mail: teacher06@xxx.edu.cn
+telephoneNumber: 13900000006
+uidNumber: 20006
+gidNumber: 20006
+homeDirectory: /home/teacher06
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+dn: uid=teacher07,ou=电气学院-教师,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: teacher07
+cn: 孙国庆
+sn: 孙
+ou: 电气学院-教师
+mail: teacher07@xxx.edu.cn
+telephoneNumber: 13900000007
+uidNumber: 20007
+gidNumber: 20007
+homeDirectory: /home/teacher07
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+dn: uid=teacher08,ou=电气学院-教师,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: teacher08
+cn: 周建华
+sn: 周
+ou: 电气学院-教师
+mail: teacher08@xxx.edu.cn
+telephoneNumber: 13900000008
+uidNumber: 20008
+gidNumber: 20008
+homeDirectory: /home/teacher08
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+dn: uid=teacher09,ou=电气学院-教师,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: teacher09
+cn: 吴建军
+sn: 吴
+ou: 电气学院-教师
+mail: teacher09@xxx.edu.cn
+telephoneNumber: 13900000009
+uidNumber: 20009
+gidNumber: 20009
+homeDirectory: /home/teacher09
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+dn: uid=teacher10,ou=电气学院-教师,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: teacher10
+cn: 郑光明
+sn: 郑
+ou: 电气学院-教师
+mail: teacher10@xxx.edu.cn
+telephoneNumber: 13900000010
+uidNumber: 20010
+gidNumber: 20010
+homeDirectory: /home/teacher10
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+# ============================================================
+# 教师账户 11-15（文学院）
+# ============================================================
+
+dn: uid=teacher11,ou=文学院-教师,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: teacher11
+cn: 王秀英
+sn: 王
+ou: 文学院-教师
+mail: teacher11@xxx.edu.cn
+telephoneNumber: 13900000011
+uidNumber: 20011
+gidNumber: 20011
+homeDirectory: /home/teacher11
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+dn: uid=teacher12,ou=文学院-教师,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: teacher12
+cn: 李淑华
+sn: 李
+ou: 文学院-教师
+mail: teacher12@xxx.edu.cn
+telephoneNumber: 13900000012
+uidNumber: 20012
+gidNumber: 20012
+homeDirectory: /home/teacher12
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+dn: uid=teacher13,ou=文学院-教师,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: teacher13
+cn: 张丽华
+sn: 张
+ou: 文学院-教师
+mail: teacher13@xxx.edu.cn
+telephoneNumber: 13900000013
+uidNumber: 20013
+gidNumber: 20013
+homeDirectory: /home/teacher13
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+dn: uid=teacher14,ou=文学院-教师,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: teacher14
+cn: 刘桂芳
+sn: 刘
+ou: 文学院-教师
+mail: teacher14@xxx.edu.cn
+telephoneNumber: 13900000014
+uidNumber: 20014
+gidNumber: 20014
+homeDirectory: /home/teacher14
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+dn: uid=teacher15,ou=文学院-教师,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: teacher15
+cn: 陈玉兰
+sn: 陈
+ou: 文学院-教师
+mail: teacher15@xxx.edu.cn
+telephoneNumber: 13900000015
+uidNumber: 20015
+gidNumber: 20015
+homeDirectory: /home/teacher15
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+# ============================================================
+# 教师账户 16-20（理学院）
+# ============================================================
+
+dn: uid=teacher16,ou=理学院-教师,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: teacher16
+cn: 杨振华
+sn: 杨
+ou: 理学院-教师
+mail: teacher16@xxx.edu.cn
+telephoneNumber: 13900000016
+uidNumber: 20016
+gidNumber: 20016
+homeDirectory: /home/teacher16
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+dn: uid=teacher17,ou=理学院-教师,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: teacher17
+cn: 黄德明
+sn: 黄
+ou: 理学院-教师
+mail: teacher17@xxx.edu.cn
+telephoneNumber: 13900000017
+uidNumber: 20017
+gidNumber: 20017
+homeDirectory: /home/teacher17
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+dn: uid=teacher18,ou=理学院-教师,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: teacher18
+cn: 何建平
+sn: 何
+ou: 理学院-教师
+mail: teacher18@xxx.edu.cn
+telephoneNumber: 13900000018
+uidNumber: 20018
+gidNumber: 20018
+homeDirectory: /home/teacher18
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+dn: uid=teacher19,ou=理学院-教师,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: teacher19
+cn: 谢永强
+sn: 谢
+ou: 理学院-教师
+mail: teacher19@xxx.edu.cn
+telephoneNumber: 13900000019
+uidNumber: 20019
+gidNumber: 20019
+homeDirectory: /home/teacher19
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+dn: uid=teacher20,ou=理学院-教师,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: teacher20
+cn: 马文远
+sn: 马
+ou: 理学院-教师
+mail: teacher20@xxx.edu.cn
+telephoneNumber: 13900000020
+uidNumber: 20020
+gidNumber: 20020
+homeDirectory: /home/teacher20
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+# ============================================================
+# 职工账户 01-10（行政部门）
+# ============================================================
+
+dn: uid=staff01,ou=教务处,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: staff01
+cn: 张伟
+sn: 张
+ou: 教务处
+mail: staff01@xxx.edu.cn
+telephoneNumber: 13700000001
+uidNumber: 30001
+gidNumber: 30001
+homeDirectory: /home/staff01
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+dn: uid=staff02,ou=教务处,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: staff02
+cn: 李娜
+sn: 李
+ou: 教务处
+mail: staff02@xxx.edu.cn
+telephoneNumber: 13700000002
+uidNumber: 30002
+gidNumber: 30002
+homeDirectory: /home/staff02
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+dn: uid=staff03,ou=学生处,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: staff03
+cn: 王芳
+sn: 王
+ou: 学生处
+mail: staff03@xxx.edu.cn
+telephoneNumber: 13700000003
+uidNumber: 30003
+gidNumber: 30003
+homeDirectory: /home/staff03
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+dn: uid=staff04,ou=学生处,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: staff04
+cn: 刘洋
+sn: 刘
+ou: 学生处
+mail: staff04@xxx.edu.cn
+telephoneNumber: 13700000004
+uidNumber: 30004
+gidNumber: 30004
+homeDirectory: /home/staff04
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+dn: uid=staff05,ou=图书馆,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: staff05
+cn: 陈静
+sn: 陈
+ou: 图书馆
+mail: staff05@xxx.edu.cn
+telephoneNumber: 13700000005
+uidNumber: 30005
+gidNumber: 30005
+homeDirectory: /home/staff05
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+dn: uid=staff06,ou=图书馆,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: staff06
+cn: 杨光
+sn: 杨
+ou: 图书馆
+mail: staff06@xxx.edu.cn
+telephoneNumber: 13700000006
+uidNumber: 30006
+gidNumber: 30006
+homeDirectory: /home/staff06
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+dn: uid=staff07,ou=财务处,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: staff07
+cn: 赵敏
+sn: 赵
+ou: 财务处
+mail: staff07@xxx.edu.cn
+telephoneNumber: 13700000007
+uidNumber: 30007
+gidNumber: 30007
+homeDirectory: /home/staff07
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+dn: uid=staff08,ou=人事处,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: staff08
+cn: 孙鹏
+sn: 孙
+ou: 人事处
+mail: staff08@xxx.edu.cn
+telephoneNumber: 13700000008
+uidNumber: 30008
+gidNumber: 30008
+homeDirectory: /home/staff08
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+dn: uid=staff09,ou=后勤处,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: staff09
+cn: 周强
+sn: 周
+ou: 后勤处
+mail: staff09@xxx.edu.cn
+telephoneNumber: 13700000009
+uidNumber: 30009
+gidNumber: 30009
+homeDirectory: /home/staff09
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35
+
+dn: uid=staff10,ou=信息中心,dc=xxx,dc=edu,dc=cn
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: staff10
+cn: 吴亮
+sn: 吴
+ou: 信息中心
+mail: staff10@xxx.edu.cn
+telephoneNumber: 13700000010
+uidNumber: 30010
+gidNumber: 30010
+homeDirectory: /home/staff10
+userPassword: {SSHA}vd/iX2H5tAUXdv1TbV09PpYQ/tgbfE35

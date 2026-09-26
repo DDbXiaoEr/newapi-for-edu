@@ -253,6 +253,11 @@ newapi_2_-edu/
 │   ├── generate-certs.sh
 │   └── nginx.conf
 ├── docker-compose.yml
+├── docker-compose/
+│   ├── docker-compose.yml
+│   └── ldap/
+│       ├── entrypoint.sh
+│       └── init-data.ldif
 ├── docker/
 │   ├── Dockerfile.allinone
 │   └── Dockerfile.backend
@@ -314,6 +319,17 @@ newapi_2_-edu/
 │       ├── en.yaml
 │       ├── zh-CN.yaml
 │       └── zh-TW.yaml
+├── kubernetes/
+│   ├── configmap.yaml
+│   ├── deployment.yaml
+│   ├── external-clickhouse.yaml
+│   ├── external-ldap.yaml
+│   ├── external-postgres.yaml
+│   ├── external-redis.yaml
+│   ├── kustomization.yaml
+│   ├── namespace.yaml
+│   ├── secret.yaml
+│   └── service.yaml
 ├── logger/
 │   ├── logger.go
 │   ├── syslog_unix.go
