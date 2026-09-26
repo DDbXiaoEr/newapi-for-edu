@@ -11,6 +11,7 @@ resources:
   - external-ldap.yaml
   - deployment.yaml
   - service.yaml
+  - hpa.yaml
 images:
   - name: newapi-edu-pure
     newTag: latest

@@ -322,6 +322,7 @@ newapi_2_-edu/
 ├── kubernetes/
 │   ├── configmap.yaml
 │   ├── deployment.yaml
+│   ├── hpa.yaml
 │   ├── external-clickhouse.yaml
 │   ├── external-ldap.yaml
 │   ├── external-postgres.yaml
