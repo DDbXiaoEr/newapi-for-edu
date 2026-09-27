@@ -54,24 +54,6 @@ function installApiFixtures(createdPayloads: Array<Record<string, unknown>>) {
         return { data: { data: { default_use_auto_group: true } } }
       case '/api/user/models':
         return { data: { success: true, data: [] } }
-      case '/api/user/self/groups':
-        return {
-          data: {
-            success: true,
-            data: {
-              auto: { desc: 'Automatic routing', ratio: 'auto' },
-              default: { desc: 'Standard access', ratio: 1 },
-              vip: { desc: 'Priority access', ratio: 2 },
-            },
-          },
-        }
-      case '/api/token/auto-groups':
-        return {
-          data: {
-            success: true,
-            data: { groups: ['vip', 'default'], max_count: 3 },
-          },
-        }
       default:
         throw new Error(`Unexpected GET ${url}`)
     }
@@ -97,26 +79,6 @@ async function renderCreateDrawer(): Promise<void> {
   queryClient.setQueryData(
     ['user-models'],
     { success: true, data: [] },
-    { updatedAt: freshAt }
-  )
-  queryClient.setQueryData(
-    ['user-groups'],
-    {
-      success: true,
-      data: {
-        auto: { desc: 'Automatic routing', ratio: 'auto' },
-        default: { desc: 'Standard access', ratio: 1 },
-        vip: { desc: 'Priority access', ratio: 2 },
-      },
-    },
-    { updatedAt: freshAt }
-  )
-  queryClient.setQueryData(
-    ['token-auto-groups'],
-    {
-      success: true,
-      data: { groups: ['vip', 'default'], max_count: 3 },
-    },
     { updatedAt: freshAt }
   )
   renderedDrawer = { queryClient }
@@ -151,7 +113,7 @@ function findButton(text: string, required = true): HTMLButtonElement | null {
   return button ?? null
 }
 
-function getControlByLabel(labelText: 'Name' | 'Quantity' | 'Group'): HTMLInputElement
+function getControlByLabel(labelText: 'Name' | 'Quantity'): HTMLInputElement
 function getControlByLabel(labelText: string): HTMLElement {
   const label = [...document.querySelectorAll<HTMLLabelElement>('label')].find(
     (candidate) => candidate.textContent?.trim() === labelText
@@ -193,13 +155,11 @@ describe('API keys mutate drawer Auto group integration', () => {
     installApiFixtures(createdPayloads)
     await renderCreateDrawer()
 
-    const groupInput = getControlByLabel('Group')
-    expect(groupInput).toBeDisabled()
     expect(
-      document.body.textContent?.includes(
-        'New API keys always use your account group and cannot be changed.'
+      [...document.querySelectorAll('label')].some(
+        (candidate) => candidate.textContent?.trim() === 'Group'
       )
-    ).toBe(true)
+    ).toBe(false)
 
     changeInput(getControlByLabel('Name'), 'batch')
     changeInput(getControlByLabel('Quantity'), '2')

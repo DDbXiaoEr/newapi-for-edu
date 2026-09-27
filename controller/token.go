@@ -87,46 +87,6 @@ func getTokenRequestUserGroup(c *gin.Context) (string, error) {
 	return model.GetUserGroup(c.GetInt("id"), false)
 }
 
-func setTokenAutoGroups(c *gin.Context, token *model.Token, groups []string) bool {
-	if len(groups) == 0 {
-		if err := token.SetAutoGroups(nil); err != nil {
-			common.ApiError(c, err)
-			return false
-		}
-		return true
-	}
-
-	maxCount := setting.GetMaxTokenAutoGroups()
-	if len(groups) > maxCount {
-		common.ApiErrorI18n(c, i18n.MsgTokenAutoGroupsTooMany, map[string]any{"Max": maxCount})
-		return false
-	}
-
-	userGroup, err := getTokenRequestUserGroup(c)
-	if err != nil {
-		common.ApiError(c, err)
-		return false
-	}
-	seen := make(map[string]struct{}, len(groups))
-	for _, group := range groups {
-		if _, ok := seen[group]; ok {
-			common.ApiErrorI18n(c, i18n.MsgTokenAutoGroupsDuplicate, map[string]any{"Group": group})
-			return false
-		}
-		seen[group] = struct{}{}
-		if !service.IsUserSelectableGroup(userGroup, group) {
-			common.ApiErrorI18n(c, i18n.MsgTokenAutoGroupsInvalid, map[string]any{"Group": group})
-			return false
-		}
-	}
-
-	if err := token.SetAutoGroups(groups); err != nil {
-		common.ApiError(c, err)
-		return false
-	}
-	return true
-}
-
 func GetAllTokens(c *gin.Context) {
 	userId := c.GetInt("id")
 	pageInfo := common.GetPageQuery(c)
@@ -437,16 +397,14 @@ func UpdateToken(c *gin.Context) {
 		cleanToken.ModelLimitsEnabled = token.ModelLimitsEnabled
 		cleanToken.ModelLimits = token.ModelLimits
 		cleanToken.AllowIps = token.AllowIps
-		cleanToken.Group = token.Group
-		cleanToken.CrossGroupRetry = token.CrossGroupRetry
-		if token.Group != "auto" {
-			cleanToken.CrossGroupRetry = false
-			_ = cleanToken.SetAutoGroups(nil)
-		} else if request.AutoGroups.Set {
-			if !setTokenAutoGroups(c, cleanToken, request.AutoGroups.Groups) {
-				return
-			}
+		userGroup, groupErr := getTokenRequestUserGroup(c)
+		if groupErr != nil {
+			common.ApiError(c, groupErr)
+			return
 		}
+		cleanToken.Group = userGroup
+		cleanToken.CrossGroupRetry = false
+		_ = cleanToken.SetAutoGroups(nil)
 	}
 	err = cleanToken.Update()
 	if err != nil {

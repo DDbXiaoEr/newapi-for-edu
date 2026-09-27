@@ -19,7 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 
 import { useState, useEffect, useContext, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { API, copy, showError, showInfo, showSuccess } from '../../helpers';
+import { API, copy, showError, showSuccess } from '../../helpers';
 import { Modal } from '@douyinfe/semi-ui';
 import { UserContext } from '../../context/User';
 import { StatusContext } from '../../context/Status';
@@ -54,6 +54,7 @@ export const useModelPricingData = () => {
 
   const [statusState] = useContext(StatusContext);
   const [userState] = useContext(UserContext);
+  const userGroup = userState?.user?.group || 'default';
 
   // 充值汇率（price）与美元兑人民币汇率（usd_exchange_rate）
   const priceRate = useMemo(
@@ -96,14 +97,11 @@ export const useModelPricingData = () => {
   }, [siteDisplayType]);
 
   const filteredModels = useMemo(() => {
-    let result = models;
-
-    // 分组筛选
-    if (filterGroup !== 'all') {
-      result = result.filter((model) =>
-        model.enable_groups.includes(filterGroup),
-      );
-    }
+    let result = models.filter(
+      (model) =>
+        Array.isArray(model.enable_groups) &&
+        model.enable_groups.includes(userGroup),
+    );
 
     // 计费类型筛选
     if (filterQuotaType !== 'all') {
@@ -160,6 +158,7 @@ export const useModelPricingData = () => {
     return result;
   }, [
     models,
+    userGroup,
     searchValue,
     filterGroup,
     filterQuotaType,
@@ -242,7 +241,7 @@ export const useModelPricingData = () => {
     if (success) {
       setGroupRatio(group_ratio);
       setUsableGroup(usable_group);
-      setSelectedGroup('all');
+      setSelectedGroup(userGroup);
       // 构建供应商 Map 方便查找
       const vendorMap = {};
       if (Array.isArray(vendors)) {
@@ -288,21 +287,6 @@ export const useModelPricingData = () => {
     setSearchValue(newSearchValue);
   };
 
-  const handleGroupClick = (group) => {
-    setSelectedGroup(group);
-    setFilterGroup(group);
-    if (group === 'all') {
-      showInfo(t('已切换至最优倍率视图，每个模型使用其最低倍率分组'));
-    } else {
-      showInfo(
-        t('当前查看的分组为：{{group}}，倍率为：{{ratio}}', {
-          group: group,
-          ratio: groupRatio[group] ?? 1,
-        }),
-      );
-    }
-  };
-
   const openModelDetail = (model) => {
     setSelectedModel(model);
     setShowModelDetail(true);
@@ -318,6 +302,10 @@ export const useModelPricingData = () => {
   useEffect(() => {
     refresh().then();
   }, []);
+
+  useEffect(() => {
+    setSelectedGroup(userGroup);
+  }, [userGroup]);
 
   // 当筛选条件变化时重置到第一页
   useEffect(() => {
@@ -395,7 +383,6 @@ export const useModelPricingData = () => {
     handleChange,
     handleCompositionStart,
     handleCompositionEnd,
-    handleGroupClick,
     openModelDetail,
     closeModelDetail,
 

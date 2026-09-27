@@ -25,7 +25,6 @@ import { useIsMobile } from '../../../../hooks/common/useIsMobile';
 import ModelHeader from './components/ModelHeader';
 import ModelBasicInfo from './components/ModelBasicInfo';
 import ModelEndpoints from './components/ModelEndpoints';
-import ModelPricingTable from './components/ModelPricingTable';
 
 const { Text } = Typography;
 
@@ -33,16 +32,8 @@ const ModelDetailSideSheet = ({
   visible,
   onClose,
   modelData,
-  groupRatio,
-  currency,
-  siteDisplayType,
-  tokenUnit,
-  displayPrice,
-  showRatio,
-  usableGroup,
   vendorsMap,
   endpointMap,
-  autoGroups,
   t,
 }) => {
   const isMobile = useIsMobile();
@@ -87,18 +78,6 @@ const ModelDetailSideSheet = ({
             <ModelEndpoints
               modelData={modelData}
               endpointMap={endpointMap}
-              t={t}
-            />
-            <ModelPricingTable
-              modelData={modelData}
-              groupRatio={groupRatio}
-              currency={currency}
-              siteDisplayType={siteDisplayType}
-              tokenUnit={tokenUnit}
-              displayPrice={displayPrice}
-              showRatio={showRatio}
-              usableGroup={usableGroup}
-              autoGroups={autoGroups}
               t={t}
             />
           </>

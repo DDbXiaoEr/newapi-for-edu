@@ -334,7 +334,7 @@ const PricingCardView = ({
                           />
                         </Tooltip>
                       </div>
-                      <div className='grid grid-cols-3 gap-2 text-xs text-gray-600'>
+                      <div className='grid grid-cols-2 gap-2 text-xs text-gray-600'>
                         <div>
                           {t('模型')}:{' '}
                           {model.quota_type === 0 ? model.model_ratio : t('无')}
@@ -344,9 +344,6 @@ const PricingCardView = ({
                           {model.quota_type === 0
                             ? parseFloat(model.completion_ratio.toFixed(3))
                             : t('无')}
-                        </div>
-                        <div>
-                          {t('分组')}: {priceData?.usedGroupRatio ?? '-'}
                         </div>
                       </div>
                     </div>

@@ -182,8 +182,7 @@ describe('model cards', () => {
     expect(statusStrip).not.toHaveClass('justify-between')
   })
 
-  it('keeps group, endpoint and tag overflow counts with their own metadata', () => {
-    const groups = ['default-with-a-long-group-name', 'premium', 'internal']
+  it('keeps endpoint and tag overflow counts with their own metadata', () => {
     const endpoints = ['openai-response', 'openai', 'claude', 'gemini', 'jina']
     const tags = [
       'video-generation',
@@ -196,7 +195,6 @@ describe('model cards', () => {
     render(
       <ModelCard
         model={pricingModel({
-          enable_groups: groups,
           supported_endpoint_types: endpoints,
           tags: tags.join(','),
         })}
@@ -204,17 +202,11 @@ describe('model cards', () => {
       />
     )
 
-    const groupField = screen.getByText('Groups').parentElement
     const endpointField = screen.getByText('Endpoints').parentElement
-    if (!groupField || !endpointField) {
-      throw new Error('Expected labeled group and endpoint fields')
+    if (!endpointField) {
+      throw new Error('Expected labeled endpoint field')
     }
     const tagField = screen.getByRole('group', { name: 'Tags' })
-    expect(within(groupField).getByText(groups[0])).toBeVisible()
-    expect(within(groupField).getByText('+2')).toHaveAttribute(
-      'title',
-      groups.slice(1).join(', ')
-    )
     expect(
       within(endpointField).getByText('openai-response, openai')
     ).toHaveAttribute('title', endpoints.join(', '))
@@ -230,7 +222,7 @@ describe('model cards', () => {
     ).toBeVisible()
   })
 
-  it('omits metadata fields when the model has no groups, endpoints or tags', () => {
+  it('omits metadata fields when the model has no endpoints or tags', () => {
     render(
       <ModelCard
         model={pricingModel({ enable_groups: [] })}

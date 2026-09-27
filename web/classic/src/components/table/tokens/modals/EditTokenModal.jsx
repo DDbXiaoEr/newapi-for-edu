@@ -23,7 +23,6 @@ import {
   showError,
   showSuccess,
   timestamp2string,
-  renderGroupOption,
   getCurrencyConfig,
   getModelCategories,
   selectFilter,
@@ -55,20 +54,17 @@ import {
   IconKey,
 } from '@douyinfe/semi-icons';
 import { useTranslation } from 'react-i18next';
-import { StatusContext } from '../../../../context/Status';
 import { UserContext } from '../../../../context/User';
 
 const { Text, Title } = Typography;
 
 const EditTokenModal = (props) => {
   const { t } = useTranslation();
-  const [statusState, statusDispatch] = useContext(StatusContext);
   const [userState] = useContext(UserContext);
   const [loading, setLoading] = useState(false);
   const isMobile = useIsMobile();
   const formApiRef = useRef(null);
   const [models, setModels] = useState([]);
-  const [groups, setGroups] = useState([]);
   const [showQuotaInput, setShowQuotaInput] = useState(false);
   const isEdit = props.editingToken.id !== undefined;
 
@@ -135,29 +131,6 @@ const EditTokenModal = (props) => {
     }
   };
 
-  const loadGroups = async () => {
-    let res = await API.get(`/api/user/self/groups`);
-    const { success, message, data } = res.data;
-    if (success) {
-      let localGroupOptions = Object.entries(data).map(([group, info]) => ({
-        label: info.desc,
-        value: group,
-        ratio: info.ratio,
-      }));
-      if (statusState?.status?.default_use_auto_group) {
-        if (localGroupOptions.some((group) => group.value === 'auto')) {
-          localGroupOptions.sort((a, b) => (a.value === 'auto' ? -1 : 1));
-        }
-      }
-      setGroups(localGroupOptions);
-      // if (statusState?.status?.default_use_auto_group && formApiRef.current) {
-      //   formApiRef.current.setValue('group', 'auto');
-      // }
-    } else {
-      showError(t(message));
-    }
-  };
-
   const loadToken = async () => {
     setLoading(true);
     let res = await API.get(`/api/token/${props.editingToken.id}`);
@@ -190,7 +163,6 @@ const EditTokenModal = (props) => {
       }
     }
     loadModels();
-    loadGroups();
   }, [props.editingToken.id]);
 
   useEffect(() => {
@@ -240,6 +212,8 @@ const EditTokenModal = (props) => {
       }
       localInputs.model_limits = localInputs.model_limits.join(',');
       localInputs.model_limits_enabled = localInputs.model_limits.length > 0;
+      localInputs.group = userState?.user?.group || '';
+      localInputs.cross_group_retry = false;
       let res = await API.put(`/api/token/`, {
         ...localInputs,
         id: parseInt(props.editingToken.id),
@@ -384,52 +358,6 @@ const EditTokenModal = (props) => {
                       placeholder={t('请输入名称')}
                       rules={[{ required: true, message: t('请输入名称') }]}
                       showClear
-                    />
-                  </Col>
-                  <Col span={24}>
-                    {isEdit && groups.length > 0 ? (
-                      <Form.Select
-                        field='group'
-                        label={t('令牌分组')}
-                        placeholder={t('令牌分组，默认为用户的分组')}
-                        optionList={groups}
-                        renderOptionItem={renderGroupOption}
-                        filter={(input, option) => {
-                          const q = input.toLowerCase();
-                          return (
-                            option.value?.toLowerCase().includes(q) ||
-                            (typeof option.label === 'string' &&
-                              option.label.toLowerCase().includes(q))
-                          );
-                        }}
-                        showClear
-                        style={{ width: '100%' }}
-                      />
-                    ) : (
-                      <Form.Input
-                        field='group'
-                        label={t('令牌分组')}
-                        disabled
-                        extraText={t(
-                          '新建令牌固定使用当前用户分组，不可自行选择',
-                        )}
-                      />
-                    )}
-                  </Col>
-                  <Col
-                    span={24}
-                    style={{
-                      display:
-                        isEdit && values.group === 'auto' ? 'block' : 'none',
-                    }}
-                  >
-                    <Form.Switch
-                      field='cross_group_retry'
-                      label={t('跨分组重试')}
-                      size='default'
-                      extraText={t(
-                        '开启后，当前分组渠道失败时会按顺序尝试下一个分组的渠道',
-                      )}
                     />
                   </Col>
                   <Col xs={24} sm={24} md={24} lg={10} xl={10}>

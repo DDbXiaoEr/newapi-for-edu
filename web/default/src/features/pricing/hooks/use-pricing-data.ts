@@ -21,11 +21,13 @@ import { useMemo } from 'react'
 
 import { useStatus } from '@/hooks/use-status'
 import { requireServerSuccess } from '@/lib/server-error-message'
+import { useAuthStore } from '@/stores/auth-store'
 
 import { getPricing } from '../api'
 
 export function usePricingData(enabled = true) {
   const { status } = useStatus()
+  const userGroup = useAuthStore((state) => state.auth.user?.group) || 'default'
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['pricing'],
@@ -49,23 +51,26 @@ export function usePricingData(enabled = true) {
 
     const vendorMap = new Map(data.vendors.map((v) => [v.id, v]))
 
-    return data.data.map((model) => {
-      const vendor = model.vendor_id
-        ? vendorMap.get(model.vendor_id)
-        : undefined
-      return {
-        ...model,
-        key: model.model_name,
-        vendor_name: vendor?.name,
-        vendor_icon: vendor?.icon,
-        vendor_description: vendor?.description,
-        group_ratio: data.group_ratio,
-      }
-    })
-  }, [data])
+    return data.data
+      .filter((model) => model.enable_groups?.includes(userGroup))
+      .map((model) => {
+        const vendor = model.vendor_id
+          ? vendorMap.get(model.vendor_id)
+          : undefined
+        return {
+          ...model,
+          key: model.model_name,
+          vendor_name: vendor?.name,
+          vendor_icon: vendor?.icon,
+          vendor_description: vendor?.description,
+          group_ratio: data.group_ratio,
+        }
+      })
+  }, [data, userGroup])
 
   return {
     models,
+    userGroup,
     vendors: data?.vendors ?? [],
     groupRatio: data?.group_ratio ?? {},
     usableGroup: data?.usable_group ?? {},
