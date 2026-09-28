@@ -1,0 +1,29 @@
+services:
+  newapi:
+    image: newapi-edu:latest
+    container_name: newapi
+    restart: unless-stopped
+    command: --log-dir /data/logs
+    ports:
+      - "3000:3000"
+    volumes:
+      - newapi_data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      TZ: Asia/Shanghai
+      PORT: "3000"
+      GIN_MODE: release
+      SQL_DSN: postgresql://root:123456@host.docker.internal:5432/newapi?sslmode=disable
+      LOG_SQL_DSN: clickhouse://default:@host.docker.internal:9000/newapi_audit
+      REDIS_CONN_STRING: redis://:123456@host.docker.internal:6379
+      ERROR_LOG_ENABLED: "true"
+      BATCH_UPDATE_ENABLED: "true"
+      NODE_NAME: new-api-node-1
+      JWT_SECRET: mxjjCVN360MeoXaPHrFSMkuf524sXIG8Rg3fc5wsi7w=
+      JWT_EXPIRATION_SECONDS: "604800"
+      REQUIRED_ENV_VARS: SQL_DSN,LOG_SQL_DSN
+      SYNC_FREQUENCY: "60"
+
+volumes:
+  newapi_data:
