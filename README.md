@@ -11,7 +11,7 @@ Note: All current modifications to this project have been done by AI. The author
 I go to the hospital for rehabilitation every day, with limited time and energy. Without a job or income, tokens rely entirely on free new-user quotas and invitation rewards from various platforms. Development efficiency has reached its limit. Those with abundant tokens are welcome to contribute)
 ###Thanks to GLM and Alibaba Cloud Bailian
 
-> ⚠️ **Current Progress**: Only campus account integration (student/faculty ID login) has been implemented. All other university custom features listed below are planned but NOT YET developed. Contributions are welcome!
+> ⚠️ **Current Progress**: Campus LDAP / CAS login, group-channel bindings, tokens locked to the account group, JWT sessions, syslog, and Kubernetes / Docker Compose deployment are implemented. Course and class-management features are still planned. Contributions are welcome!
 
 <p align="center">
   <a href="./README.zh_CN.md">简体中文</a> |
@@ -66,21 +66,31 @@ This project is developed on top of **NEWAPI** ([GitHub - Calcium-Ion/new-api](h
 
 ## 🎯 University Custom Features
 
-### 🏫 Educational Scenario Optimization
+Deltas versus upstream [NEWAPI](https://github.com/Calcium-Ion/new-api). Everything else (model access, billing, console) is inherited.
 
-| Feature Module | Status | Description |
-|---------|--------|------|
-| 🎓 Educational Account Management | ✅ Done | Supports unified authentication via student/faculty ID, integrated with campus systems |
-| 🔐 Campus Security Integration | 🔜 Planned | Supports campus unified identity authentication systems |
+### 🏫 Campus identity and access
 
-### 🛠️ Technical Customization
+| Feature | Status | Description |
+|---------|--------|-------------|
+| LDAP login | ✅ Done | Campus LDAP / AD; server URL, Bind DN, user filter, attribute mapping, StartTLS |
+| CAS login | ✅ Done | Campus CAS SSO; attribute mapping and access-attribute restrictions |
+| Directory group assignment | ✅ Done | Map LDAP / CAS attributes to existing groups with regex rules |
+| Group-channel bindings | ✅ Done | Pin channels per group+model; unbound models keep upstream routing |
+| Tokens locked to account group | ✅ Done | Create/update forces the account group; users cannot pick a group or cross-group retry |
+| Batch assign users to group | ✅ Done | Admins can move selected users into a target group |
+| Hide user group in UI | ✅ Done | Profile, keys, and model square hide group/user ID; model square shows only the current group's models |
+| Course / class management | 🔜 Planned | Per-course grants and teacher class management |
 
-| Custom Item | Status | Description |
-|---------|--------|------|
-| 🏗️ Network Adaptation | 🔜 Planned | Optimized for campus intranet environments, supporting proxy and firewall configuration |
-| 💾 Database Compatibility | 🔜 Planned | Deep optimization for commonly used databases (MySQL, PostgreSQL, SQLite) |
-| 🔄 Interface Adaptation | 🔜 Planned | Provides standard interfaces with other campus systems |
-| 📱 Mobile Adaptation | 🔜 Planned | Optimized mobile access experience, supporting campus app integration |
+### 🛠️ Deployment and operations
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| No SQLite | ✅ Done | MySQL ≥ 5.7.8 or PostgreSQL ≥ 9.6 only; `SQL_DSN` is required at startup |
+| JWT sessions | ✅ Done | Cookie sessions removed; console auth is JWT (`JWT_SECRET` / `JWT_EXPIRATION_SECONDS`) |
+| Syslog | ✅ Done | Optional remote/local syslog; dial timeout so an unreachable server cannot block startup |
+| Docker Compose stack | ✅ Done | `docker-compose/` ships PostgreSQL, Redis, ClickHouse, OpenLDAP, and this service |
+| Kubernetes | ✅ Done | `kubernetes/` includes Deployment, Service, HPA, ConfigMap/Secret, and external dependency manifests |
+| amd64 / arm64 builds | ✅ Done | `make` cross-compiles Linux amd64/arm64, plus pure-backend and all-in-one images |
 
 ---
 
@@ -88,44 +98,22 @@ This project is developed on top of **NEWAPI** ([GitHub - Calcium-Ion/new-api](h
 
 ### Using Docker Compose (Recommended)
 
-```bash
-# Clone the project
-git clone [project address]
-cd [project directory]
-
-# Edit docker-compose.yml configuration
-nano docker-compose.yml
-
-# Start the service
-docker-compose up -d
-```
-
-<details>
-<summary><strong>Using Docker Command</strong></summary>
+`docker-compose/` starts **New API Edu + PostgreSQL + Redis + ClickHouse + OpenLDAP**:
 
 ```bash
-# Pull the latest image
-docker pull [custom image name]
+git clone https://gitee.com/ddbxiaoer/newapi_2_-edu.git
+cd newapi_2_-edu
 
-# Using SQLite (default)
-docker run --name new-api-edu -d --restart always \
-  -p 3000:3000 \
-  -e TZ=Asia/Shanghai \
-  -v ./data:/data \
-  [custom image name]:latest
+# Build the all-in-one image (frontend embedded)
+make docker-allinone
 
-# Using MySQL
-docker run --name new-api-edu -d --restart always \
-  -p 3000:3000 \
-  -e SQL_DSN="root:123456@tcp(localhost:3306)/oneapi" \
-  -e TZ=Asia/Shanghai \
-  -v ./data:/data \
-  [custom image name]:latest
+# Change passwords and JWT_SECRET in docker-compose/docker-compose.yml first
+docker compose -f docker-compose/docker-compose.yml up -d
 ```
 
-> **💡 Tip:** `-v ./data:/data` will store data in the `data` folder of the current directory. You can also use an absolute path like `-v /your/custom/path:/data`
+Pure-backend image (no embedded frontend): `make docker-backend` → `newapi-edu-pure`.
 
-</details>
+> **⚠️ Change** PostgreSQL / Redis / LDAP passwords and `JWT_SECRET` before production. Startup requires `SQL_DSN` and `LOG_SQL_DSN` (set `REQUIRED_ENV_VARS=""` to skip the check).
 
 ---
 
@@ -142,11 +130,9 @@ Since this project is developed on top of NEWAPI, most basic functionality docum
 - **NEWAPI Deployment Guide**: [https://docs.newapi.pro/zh/docs/installation](https://docs.newapi.pro/zh/docs/installation)
 
 ### 🎓 University Custom Edition Documentation
-**Custom Feature Documentation:**
-- University account management configuration
-- Campus system integration guide
-- Educational permission settings
-- Data statistics and analysis features
+- LDAP / CAS: System Settings → Authentication
+- Group-channel bindings: billing / group settings
+- Deployment manifests: `docker-compose/`, `kubernetes/`
 
 ---
 
@@ -171,13 +157,16 @@ Since this project is developed on top of NEWAPI, most basic functionality docum
 - ✅ Cache billing support (OpenAI, Azure, DeepSeek, Claude, Qwen and all supported models)
 - ✅ Flexible billing policy configuration
 
-### 🎓 University Custom New Features
+### 🎓 Deltas versus upstream
 
-- 🏫 **Campus Identity Authentication** (✅ Done): Supports student/faculty ID login
-- 📚 **Course Management** (🔜 Planned): Assign AI usage permissions by course
-- 👨‍🏫 **Teacher Management** (🔜 Planned): Teachers can manage class students
-- 📊 **Educational Statistics** (🔜 Planned): AI usage data analysis
-- 🔐 **Security Audit** (🔜 Planned): Complete operation logs and audit features
+- 🏫 **LDAP / CAS campus login**: student/faculty ID against campus SSO
+- 🧭 **Directory group assignment**: map LDAP / CAS attributes onto existing groups
+- 🔗 **Group-channel bindings**: pin channels per group+model; unbound models keep upstream routing
+- 🔒 **Tokens locked to account group**: users cannot pick a token group; model square shows only the current group's models
+- 👥 **Batch assign users to group**: admins can move selected users into a target group
+- 🧾 **JWT + syslog**: cookie sessions removed; optional syslog with a dial timeout
+- 🚢 **Campus deployment**: no SQLite; Docker Compose stack and Kubernetes + HPA
+- 📚 **Course / class management** (🔜 Planned)
 
 ---
 
@@ -228,24 +217,34 @@ make build-backend-pure-linux-arm64  # Linux arm64
 
 | Component | Requirement |
 |------|------|
-| **Local Database** | SQLite (Docker needs to mount `/data` directory) |
-| **Remote Database** | MySQL ≥ 5.7.8 or PostgreSQL ≥ 9.6 |
-| **Container Engine** | Docker / Docker Compose |
-| **Network Environment** | Supports campus intranet environment configuration |
+| **Main database** | MySQL ≥ 5.7.8 or PostgreSQL ≥ 9.6 (`SQL_DSN` **required**; SQLite removed) |
+| **Log database** | `LOG_SQL_DSN`; supports a separate DB / ClickHouse |
+| **Cache** | Redis (required when nodes share rate limits) |
+| **Containers / orchestration** | Docker Compose (`docker-compose/`) or Kubernetes (`kubernetes/`, includes HPA) |
+
+Kubernetes example:
+
+```bash
+kubectl apply -k kubernetes/
+```
 
 ### ⚙️ University Custom Environment Variables
 
 | Variable | Description | Default |
 |--------|------|--------|
-| `EDU_MODE` | Enable university mode | `true` |
-| `CAMPUS_AUTH_URL` | Campus authentication address | - |
-| `CAMPUS_API_KEY` | Campus API key | - |
-| `EDU_DOMAIN` | Education domain restriction | - |
-| `ALLOWED_DOMAINS` | List of allowed domains | - |
-| `JWT_SECRET` | Secret key for JWT token signing (defaults to `SESSION_SECRET` if not set) | `uuid` |
-| `JWT_EXPIRATION_SECONDS` | JWT token expiration time in seconds (default 7 days) | `604800` |
+| `SQL_DSN` | Main database DSN (required) | - |
+| `LOG_SQL_DSN` | Log database DSN (required by default) | - |
+| `REQUIRED_ENV_VARS` | Startup required-var list; empty string disables the check | `SQL_DSN,LOG_SQL_DSN` |
+| `JWT_SECRET` | JWT signing secret (falls back to `SESSION_SECRET`) | `uuid` |
+| `JWT_EXPIRATION_SECONDS` | JWT TTL in seconds | `604800` |
+| `SYSLOG_ENABLED` | Enable syslog | `false` |
+| `SYSLOG_NETWORK` | syslog protocol (`udp`/`tcp`; empty = local socket) | - |
+| `SYSLOG_ADDR` | Remote syslog address | - |
+| `SYSLOG_TAG` | syslog tag | `newapi` |
 
-📖 **Full Configuration**: Please refer to NEWAPI environment variable documentation + university custom configuration guide
+LDAP / CAS are configured in the console under System Settings → Authentication, not via the env vars above.
+
+📖 **Full configuration**: NEWAPI environment-variable docs plus `docker-compose/` and `kubernetes/` in this repo
 
 ---
 

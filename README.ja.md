@@ -11,7 +11,7 @@
 毎日リハビリに通っており時間と体力に限りがあり、収入がないため、トークンは各プラットフォームの新規ユーザー枠や招待特典に頼っています。現在、開発効率は限界に達しています。トークンに余裕のある方はぜひご支援ください）
 ###GLMとアリババクラウド百煉に感謝します
 
-> ⚠️ **現在の進捗**：現在はキャンパスアカウント統合（学籍番号/職員番号ログイン）のみ実装されています。その他の大学カスタム機能はすべて計画中で、まだ開発されていません。貢献を歓迎します！
+> ⚠️ **現在の進捗**：キャンパス LDAP / CAS ログイン、グループ×チャネル固定、トークンの所属グループ固定、JWT セッション、Syslog、Kubernetes / Docker Compose デプロイは実装済みです。コース管理やクラス管理はまだ計画中です。貢献を歓迎します！
 
 <p align="center">
   <a href="./README.zh_CN.md">简体中文</a> |
@@ -66,21 +66,31 @@
 
 ## 🎯 大学カスタム機能
 
-### 🏫 教育シーンの最適化
+上流 [NEWAPI](https://github.com/Calcium-Ion/new-api) からの差分です。記載のない能力（モデル接続、課金、コンソール等）は上流を継承します。
 
-| 機能モジュール | 状態 | 説明 |
-|---------|------|------|
-| 🎓 教育アカウント管理 | ✅ 完了 | 学籍番号/職員番号の統一認証、キャンパスシステムとの統合 |
-| 🔐 キャンパスセキュリティ統合 | 🔜 計画中 | キャンパス統一ID認証システムのサポート |
+### 🏫 キャンパス認証と権限
 
-### 🛠️ 技術カスタマイズ
+| 機能 | 状態 | 説明 |
+|------|------|------|
+| LDAP ログイン | ✅ 完了 | キャンパス LDAP / AD。サーバー、Bind DN、ユーザーフィルター、属性マッピング、StartTLS |
+| CAS ログイン | ✅ 完了 | キャンパス CAS SSO。属性マッピングとアクセス属性制限 |
+| ディレクトリグループ自動割当 | ✅ 完了 | LDAP / CAS 属性の正規表現ルールで既存グループへ割当 |
+| グループ×チャネル固定 | ✅ 完了 | グループ+モデルごとにチャネルを固定。未設定モデルは上流のルーティング |
+| トークンの所属グループ固定 | ✅ 完了 | 作成/更新時にアカウントグループを強制。ユーザーはグループ選択や跨グループ再試行不可 |
+| ユーザーの一括グループ割当 | ✅ 完了 | 管理画面のユーザーページから対象グループへ一括移動 |
+| UI からグループ情報を隠す | ✅ 完了 | プロフィール、キー、モデル広場でグループ/ユーザー ID を非表示。モデル広場は所属グループのモデルのみ |
+| コース / クラス管理 | 🔜 計画中 | コース単位の権限と教員によるクラス管理 |
 
-| カスタム項目 | 状態 | 説明 |
-|---------|------|------|
-| 🏗️ ネットワーク適応 | 🔜 計画中 | 大学内ネットワーク環境の最適化、プロキシとファイアウォール設定のサポート |
-| 💾 データベース互換性 | 🔜 計画中 | 大学でよく使われるデータベース（MySQL、PostgreSQL、SQLite）への深い最適化 |
-| 🔄 インターフェース適応 | 🔜 計画中 | 大学内の他システムとの標準インターフェース提供 |
-| 📱 モバイル適応 | 🔜 計画中 | モバイルアクセス体験の最適化、キャンパスアプリ統合のサポート |
+### 🛠️ デプロイと運用
+
+| 機能 | 状態 | 説明 |
+|------|------|------|
+| SQLite 廃止 | ✅ 完了 | MySQL ≥ 5.7.8 / PostgreSQL ≥ 9.6 のみ。起動時に `SQL_DSN` 必須 |
+| JWT セッション | ✅ 完了 | Cookie Session を廃止し、コンソール認証を JWT に変更（`JWT_SECRET` / `JWT_EXPIRATION_SECONDS`） |
+| Syslog | ✅ 完了 | リモート/ローカル syslog。接続タイムアウトで起動ブロックを回避 |
+| Docker Compose スタック | ✅ 完了 | `docker-compose/` に PostgreSQL、Redis、ClickHouse、OpenLDAP と本サービス |
+| Kubernetes | ✅ 完了 | `kubernetes/` に Deployment、Service、HPA、ConfigMap/Secret と外部依存マニフェスト |
+| amd64 / arm64 ビルド | ✅ 完了 | `make` で Linux amd64/arm64 クロスコンパイル、純バックエンド / オールインワンイメージ |
 
 ---
 
@@ -88,44 +98,22 @@
 
 ### Docker Composeを使用（推奨）
 
-```bash
-# プロジェクトをクローン
-git clone [本プロジェクトアドレス]
-cd [プロジェクトディレクトリ]
-
-# docker-compose.yml 設定を編集
-nano docker-compose.yml
-
-# サービスを起動
-docker-compose up -d
-```
-
-<details>
-<summary><strong>Dockerコマンドを使用</strong></summary>
+`docker-compose/` は **New API Edu + PostgreSQL + Redis + ClickHouse + OpenLDAP** を起動します：
 
 ```bash
-# 最新のイメージをプル
-docker pull [カスタム版イメージ名]
+git clone https://gitee.com/ddbxiaoer/newapi_2_-edu.git
+cd newapi_2_-edu
 
-# SQLiteを使用（デフォルト）
-docker run --name new-api-edu -d --restart always \
-  -p 3000:3000 \
-  -e TZ=Asia/Shanghai \
-  -v ./data:/data \
-  [カスタム版イメージ名]:latest
+# オールインワンイメージをビルド（フロントエンド埋め込み）
+make docker-allinone
 
-# MySQLを使用
-docker run --name new-api-edu -d --restart always \
-  -p 3000:3000 \
-  -e SQL_DSN="root:123456@tcp(localhost:3306)/oneapi" \
-  -e TZ=Asia/Shanghai \
-  -v ./data:/data \
-  [カスタム版イメージ名]:latest
+# docker-compose/docker-compose.yml のパスワードと JWT_SECRET を変更してから起動
+docker compose -f docker-compose/docker-compose.yml up -d
 ```
 
-> **💡 ヒント:** `-v ./data:/data` は現在のディレクトリの `data` フォルダにデータを保存します。絶対パスに変更することもできます：`-v /your/custom/path:/data`
+純バックエンドイメージ（フロントエンドなし）は `make docker-backend` → `newapi-edu-pure`。
 
-</details>
+> **⚠️ 本番では** PostgreSQL / Redis / LDAP のデフォルトパスワードと `JWT_SECRET` を必ず変更してください。起動には `SQL_DSN` と `LOG_SQL_DSN` が必要です（`REQUIRED_ENV_VARS=""` でチェックを無効化できます）。
 
 ---
 
@@ -142,11 +130,9 @@ docker run --name new-api-edu -d --restart always \
 - **NEWAPI デプロイガイド**: [https://docs.newapi.pro/zh/docs/installation](https://docs.newapi.pro/zh/docs/installation)
 
 ### 🎓 大学カスタム版ドキュメント
-**カスタム機能ドキュメント：**
-- 大学アカウント管理設定
-- キャンパスシステム統合ガイド
-- 教育権限設定説明
-- データ統計分析機能
+- LDAP / CAS：システム設定 → 認証
+- グループ×チャネル固定：課金 / グループ設定
+- デプロイマニフェスト：`docker-compose/`、`kubernetes/`
 
 ---
 
@@ -171,13 +157,16 @@ docker run --name new-api-edu -d --restart always \
 - ✅ キャッシュ課金サポート（OpenAI、Azure、DeepSeek、Claude、Qwenなどすべてのサポートされているモデル）
 - ✅ 柔軟な課金ポリシー設定
 
-### 🎓 大学カスタム新機能
+### 🎓 上流からの差分
 
-- 🏫 **キャンパスID認証**（✅ 完了）：学籍番号/職員番号ログインをサポート
-- 📚 **コース管理**（🔜 計画中）：コースごとにAI使用権限を割り当て
-- 👨‍🏫 **教員管理**（🔜 計画中）：教員はクラスの学生を管理可能
-- 📊 **教育統計**（🔜 計画中）：AI使用データ分析
-- 🔐 **セキュリティ監査**（🔜 計画中）：完全な操作ログと監査機能
+- 🏫 **LDAP / CAS キャンパスログイン**：学籍番号/職員番号でキャンパス SSO に接続
+- 🧭 **ディレクトリグループ自動割当**：LDAP / CAS 属性の正規表現で既存グループへ割当
+- 🔗 **グループ×チャネル固定**：グループ+モデルでチャネルを固定。未設定は上流ルーティング
+- 🔒 **トークンの所属グループ固定**：ユーザーはトークングループを選べない。モデル広場は所属グループのモデルのみ
+- 👥 **ユーザーの一括グループ割当**：管理画面から対象グループへ一括移動
+- 🧾 **JWT + syslog**：Cookie Session 廃止。任意の syslog、接続タイムアウトで起動ブロック回避
+- 🚢 **大学向けデプロイ**：SQLite 廃止。Docker Compose スタックと Kubernetes + HPA
+- 📚 **コース / クラス管理**（🔜 計画中）
 
 ---
 
@@ -228,22 +217,34 @@ make build-backend-pure-linux-arm64  # Linux arm64
 
 | コンポーネント | 要件 |
 |------|------|
-| **ローカルデータベース** | SQLite（Dockerは `/data` ディレクトリをマウントする必要があります）|
-| **リモートデータベース** | MySQL ≥ 5.7.8 または PostgreSQL ≥ 9.6 |
-| **コンテナエンジン** | Docker / Docker Compose |
-| **ネットワーク環境** | 大学内ネットワーク環境設定をサポート |
+| **メインデータベース** | MySQL ≥ 5.7.8 または PostgreSQL ≥ 9.6（`SQL_DSN` **必須**、SQLite 廃止） |
+| **ログデータベース** | `LOG_SQL_DSN`。独立 DB / ClickHouse 対応 |
+| **キャッシュ** | Redis（ノード間でレート制限を共有する場合必須） |
+| **コンテナ / オーケストレーション** | Docker Compose（`docker-compose/`）または Kubernetes（`kubernetes/`、HPA 含む） |
+
+Kubernetes 例：
+
+```bash
+kubectl apply -k kubernetes/
+```
 
 ### ⚙️ 大学カスタム環境変数
 
-| 変数名 | 説明 | デフォルト値 |
+| 変数名 | 説明 | デフォルト |
 |--------|------|--------|
-| `EDU_MODE` | 大学モードを有効にする | `true` |
-| `CAMPUS_AUTH_URL` | キャンパス認証アドレス | - |
-| `CAMPUS_API_KEY` | キャンパスAPIキー | - |
-| `EDU_DOMAIN` | 教育ドメイン制限 | - |
-| `ALLOWED_DOMAINS` | アクセス許可ドメインリスト | - |
+| `SQL_DSN` | メイン DB 接続文字列（必須） | - |
+| `LOG_SQL_DSN` | ログ DB 接続文字列（デフォルト必須） | - |
+| `REQUIRED_ENV_VARS` | 起動時必須変数リスト。空文字でチェック無効 | `SQL_DSN,LOG_SQL_DSN` |
+| `JWT_SECRET` | JWT 署名シークレット（未設定時は `SESSION_SECRET`） | `uuid` |
+| `JWT_EXPIRATION_SECONDS` | JWT 有効期限（秒） | `604800` |
+| `SYSLOG_ENABLED` | syslog を有効化 | `false` |
+| `SYSLOG_NETWORK` | syslog プロトコル（`udp`/`tcp`、空ならローカル socket） | - |
+| `SYSLOG_ADDR` | リモート syslog アドレス | - |
+| `SYSLOG_TAG` | syslog タグ | `newapi` |
 
-📖 **完全な設定**：NEWAPI 環境変数ドキュメント + 大学カスタム設定説明を参照してください
+LDAP / CAS はコンソールの「システム設定 → 認証」で設定し、上記の環境変数は使いません。
+
+📖 **完全な設定**：NEWAPI 環境変数ドキュメント + 本リポジトリの `docker-compose/`、`kubernetes/`
 
 ---
 

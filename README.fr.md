@@ -11,7 +11,7 @@ Remarque : Toutes les modifications actuelles de ce projet ont été effectuées
 Je vais à l'hôpital chaque jour pour la rééducation, mon temps et mon énergie sont limités, et sans travail ni revenu, les tokens dépendent entièrement des quotas pour nouveaux utilisateurs et des invitations offertes par les plateformes. L'efficacité du développement a atteint sa limite. Les personnes disposant de tokens en abondance sont les bienvenues pour contribuer)
 ###Remerciements à GLM et Alibaba Cloud Bailian
 
-> ⚠️ **Avancement actuel** : Seule l'intégration des comptes de campus (connexion par numéro d'étudiant/employé) est actuellement implémentée. Toutes les autres fonctionnalités universitaires personnalisées sont prévues mais PAS ENCORE développées. Les contributions sont les bienvenues !
+> ⚠️ **Avancement actuel** : Connexion LDAP / CAS campus, liaison groupe-canal, jetons verrouillés sur le groupe du compte, sessions JWT, syslog et déploiement Kubernetes / Docker Compose sont implémentés. La gestion des cours et des classes reste prévue. Les contributions sont les bienvenues !
 
 <p align="center">
   <a href="./README.zh_CN.md">简体中文</a> |
@@ -66,21 +66,31 @@ Ce projet est développé sur la base de **NEWAPI** ([GitHub - Calcium-Ion/new-a
 
 ## 🎯 Fonctionnalités personnalisées pour l'université
 
-### 🏫 Optimisation pour le contexte éducatif
+Différences par rapport à l'amont [NEWAPI](https://github.com/Calcium-Ion/new-api). Le reste (accès aux modèles, facturation, console) est hérité.
 
-| Module fonctionnel | Statut | Description |
-|---------|------|------|
-| 🎓 Gestion des comptes éducatifs | ✅ Fait | Authentification unifiée par numéro d'étudiant/employé, intégration avec le système du campus |
-| 🔐 Intégration de la sécurité du campus | 🔜 Prévu | Prise en charge du système d'authentification unifiée du campus |
+### 🏫 Identité et accès campus
 
-### 🛠️ Personnalisation technique
+| Fonctionnalité | Statut | Description |
+|----------------|--------|-------------|
+| Connexion LDAP | ✅ Fait | LDAP / AD campus ; URL, Bind DN, filtre utilisateur, mapping d'attributs, StartTLS |
+| Connexion CAS | ✅ Fait | SSO CAS campus ; mapping d'attributs et restriction d'attribut d'accès |
+| Affectation automatique de groupe | ✅ Fait | Mapper les attributs LDAP / CAS vers les groupes existants par règles regex |
+| Liaison groupe-canal | ✅ Fait | Épingler les canaux par groupe+modèle ; les modèles non liés gardent le routage amont |
+| Jetons verrouillés sur le groupe du compte | ✅ Fait | Création/mise à jour force le groupe du compte ; pas de choix de groupe ni de retry inter-groupes |
+| Affectation groupée des utilisateurs | ✅ Fait | L'admin peut déplacer une sélection d'utilisateurs vers un groupe |
+| Masquer le groupe dans l'UI | ✅ Fait | Profil, clés et place des modèles masquent groupe/ID ; la place n'affiche que les modèles du groupe courant |
+| Gestion des cours / classes | 🔜 Prévu | Droits par cours et gestion des classes par les enseignants |
 
-| Élément personnalisé | Statut | Description |
-|---------|------|------|
-| 🏗️ Adaptation réseau | 🔜 Prévu | Optimisation de l'environnement intranet universitaire, prise en charge du proxy et de la configuration du pare-feu |
-| 💾 Compatibilité des bases de données | 🔜 Prévu | Optimisation approfondie pour les bases de données courantes (MySQL, PostgreSQL, SQLite) |
-| 🔄 Adaptation des interfaces | 🔜 Prévu | Fourniture d'interfaces standard avec les autres systèmes de l'établissement |
-| 📱 Adaptation mobile | 🔜 Prévu | Optimisation de l'expérience d'accès mobile, prise en charge de l'intégration avec l'application du campus |
+### 🛠️ Déploiement et exploitation
+
+| Fonctionnalité | Statut | Description |
+|----------------|--------|-------------|
+| Plus de SQLite | ✅ Fait | MySQL ≥ 5.7.8 ou PostgreSQL ≥ 9.6 uniquement ; `SQL_DSN` obligatoire au démarrage |
+| Sessions JWT | ✅ Fait | Cookies de session retirés ; auth console en JWT (`JWT_SECRET` / `JWT_EXPIRATION_SECONDS`) |
+| Syslog | ✅ Fait | Syslog distant/local optionnel ; timeout de connexion pour ne pas bloquer le démarrage |
+| Stack Docker Compose | ✅ Fait | `docker-compose/` fournit PostgreSQL, Redis, ClickHouse, OpenLDAP et ce service |
+| Kubernetes | ✅ Fait | `kubernetes/` : Deployment, Service, HPA, ConfigMap/Secret et dépendances externes |
+| Builds amd64 / arm64 | ✅ Fait | `make` compile Linux amd64/arm64, images backend-seul et all-in-one |
 
 ---
 
@@ -88,44 +98,22 @@ Ce projet est développé sur la base de **NEWAPI** ([GitHub - Calcium-Ion/new-a
 
 ### Utilisation de Docker Compose (recommandé)
 
-```bash
-# Cloner le projet
-git clone [adresse du projet]
-cd [répertoire du projet]
-
-# Modifier la configuration docker-compose.yml
-nano docker-compose.yml
-
-# Démarrer le service
-docker-compose up -d
-```
-
-<details>
-<summary><strong>Utilisation des commandes Docker</strong></summary>
+`docker-compose/` démarre **New API Edu + PostgreSQL + Redis + ClickHouse + OpenLDAP** :
 
 ```bash
-# Tirer la dernière image
-docker pull [nom de l'image personnalisée]
+git clone https://gitee.com/ddbxiaoer/newapi_2_-edu.git
+cd newapi_2_-edu
 
-# Utilisation de SQLite (par défaut)
-docker run --name new-api-edu -d --restart always \
-  -p 3000:3000 \
-  -e TZ=Asia/Shanghai \
-  -v ./data:/data \
-  [nom de l'image personnalisée]:latest
+# Construire l'image all-in-one (frontend intégré)
+make docker-allinone
 
-# Utilisation de MySQL
-docker run --name new-api-edu -d --restart always \
-  -p 3000:3000 \
-  -e SQL_DSN="root:123456@tcp(localhost:3306)/oneapi" \
-  -e TZ=Asia/Shanghai \
-  -v ./data:/data \
-  [nom de l'image personnalisée]:latest
+# Modifier d'abord les mots de passe et JWT_SECRET dans docker-compose/docker-compose.yml
+docker compose -f docker-compose/docker-compose.yml up -d
 ```
 
-> **💡 Astuce:** `-v ./data:/data` sauvegardera les données dans le dossier `data` du répertoire actuel, vous pouvez également le changer en chemin absolu comme `-v /your/custom/path:/data`
+Image backend seul (sans frontend intégré) : `make docker-backend` → `newapi-edu-pure`.
 
-</details>
+> **⚠️ En production**, changez les mots de passe PostgreSQL / Redis / LDAP et `JWT_SECRET`. Le démarrage exige `SQL_DSN` et `LOG_SQL_DSN` (mettez `REQUIRED_ENV_VARS=""` pour désactiver le contrôle).
 
 ---
 
@@ -142,11 +130,9 @@ docker run --name new-api-edu -d --restart always \
 - **Guide de déploiement NEWAPI**: [https://docs.newapi.pro/zh/docs/installation](https://docs.newapi.pro/zh/docs/installation)
 
 ### 🎓 Documentation de l'édition universitaire personnalisée
-**Documentation des fonctionnalités personnalisées :**
-- Configuration de la gestion des comptes universitaires
-- Guide d'intégration des systèmes du campus
-- Instructions de configuration des autorisations éducatives
-- Fonctionnalités d'analyse statistique des données
+- LDAP / CAS : Paramètres système → Authentification
+- Liaison groupe-canal : facturation / paramètres de groupe
+- Manifestes de déploiement : `docker-compose/`, `kubernetes/`
 
 ---
 
@@ -171,13 +157,16 @@ docker run --name new-api-edu -d --restart always \
 - ✅ Prise en charge de la facturation du cache (OpenAI, Azure, DeepSeek, Claude, Qwen et tous les modèles pris en charge)
 - ✅ Configuration flexible des politiques de facturation
 
-### 🎓 Nouvelles fonctionnalités personnalisées pour l'université
+### 🎓 Différences par rapport à l'amont
 
-- 🏫 **Authentification du campus** (✅ Fait) : prise en charge de la connexion par numéro d'étudiant/employé
-- 📚 **Gestion des cours** (🔜 Prévu) : attribution des droits d'utilisation de l'IA par cours
-- 👨‍🏫 **Gestion des enseignants** (🔜 Prévu) : les enseignants peuvent gérer les étudiants de leur classe
-- 📊 **Statistiques éducatives** (🔜 Prévu) : analyse des données d'utilisation de l'IA
-- 🔐 **Audit de sécurité** (🔜 Prévu) : journalisation complète des opérations et fonctionnalités d'audit
+- 🏫 **Connexion LDAP / CAS campus** : numéro d'étudiant/employé contre le SSO campus
+- 🧭 **Affectation automatique de groupe** : mapper les attributs LDAP / CAS vers les groupes existants
+- 🔗 **Liaison groupe-canal** : épingler les canaux par groupe+modèle ; les modèles non liés gardent le routage amont
+- 🔒 **Jetons verrouillés sur le groupe du compte** : l'utilisateur ne choisit pas le groupe du jeton ; la place n'affiche que les modèles du groupe courant
+- 👥 **Affectation groupée des utilisateurs** : l'admin peut déplacer une sélection vers un groupe
+- 🧾 **JWT + syslog** : cookies de session retirés ; syslog optionnel avec timeout de connexion
+- 🚢 **Déploiement campus** : plus de SQLite ; stack Docker Compose et Kubernetes + HPA
+- 📚 **Gestion des cours / classes** (🔜 Prévu)
 
 ---
 
@@ -228,22 +217,34 @@ make build-backend-pure-linux-arm64  # Linux arm64
 
 | Composant | Exigence |
 |------|------|
-| **Base de données locale** | SQLite (Docker doit monter le répertoire `/data`) |
-| **Base de données distante** | MySQL ≥ 5.7.8 ou PostgreSQL ≥ 9.6 |
-| **Moteur de conteneur** | Docker / Docker Compose |
-| **Environnement réseau** | Prise en charge de la configuration de l'environnement intranet universitaire |
+| **Base principale** | MySQL ≥ 5.7.8 ou PostgreSQL ≥ 9.6 (`SQL_DSN` **obligatoire** ; SQLite retiré) |
+| **Base de logs** | `LOG_SQL_DSN` ; base séparée / ClickHouse |
+| **Cache** | Redis (obligatoire si les nœuds partagent le rate limit) |
+| **Conteneurs / orchestration** | Docker Compose (`docker-compose/`) ou Kubernetes (`kubernetes/`, HPA inclus) |
+
+Exemple Kubernetes :
+
+```bash
+kubectl apply -k kubernetes/
+```
 
 ### ⚙️ Variables d'environnement personnalisées pour l'université
 
-| Nom de variable | Description | Valeur par défaut |
+| Variable | Description | Défaut |
 |--------|------|--------|
-| `EDU_MODE` | Activer le mode universitaire | `true` |
-| `CAMPUS_AUTH_URL` | Adresse d'authentification du campus | - |
-| `CAMPUS_API_KEY` | Clé API du campus | - |
-| `EDU_DOMAIN` | Restriction de domaine éducatif | - |
-| `ALLOWED_DOMAINS` | Liste des domaines autorisés | - |
+| `SQL_DSN` | DSN de la base principale (obligatoire) | - |
+| `LOG_SQL_DSN` | DSN de la base de logs (obligatoire par défaut) | - |
+| `REQUIRED_ENV_VARS` | Liste des variables requises au démarrage ; chaîne vide pour désactiver | `SQL_DSN,LOG_SQL_DSN` |
+| `JWT_SECRET` | Secret de signature JWT (repli sur `SESSION_SECRET`) | `uuid` |
+| `JWT_EXPIRATION_SECONDS` | Durée de vie JWT en secondes | `604800` |
+| `SYSLOG_ENABLED` | Activer syslog | `false` |
+| `SYSLOG_NETWORK` | Protocole syslog (`udp`/`tcp` ; vide = socket local) | - |
+| `SYSLOG_ADDR` | Adresse syslog distante | - |
+| `SYSLOG_TAG` | Tag syslog | `newapi` |
 
-📖 **Configuration complète** : veuillez consulter la documentation des variables d'environnement NEWAPI + la description de la configuration personnalisée pour l'université
+LDAP / CAS se configurent dans la console : Paramètres système → Authentification, pas via les variables ci-dessus.
+
+📖 **Configuration complète** : documentation des variables d'environnement NEWAPI + `docker-compose/` et `kubernetes/` de ce dépôt
 
 ---
 

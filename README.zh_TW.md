@@ -11,7 +11,7 @@
 由於我每天要去醫院康復，時間精力有限，而且由於沒工作沒收入，token全靠各大平台新用戶額度和邀請贈送，目前開發效率已經到極限了。token富裕的大哥可以自己上）
 ###在此感謝GLM 阿里云百煉
 
-> ⚠️ **目前進度**：目前僅實現了校園帳號整合（學號/工號登入），其餘高校定制功能均為規劃中，尚未開發。歡迎貢獻！
+> ⚠️ **目前進度**：校園 LDAP / CAS 登入、分組渠道綁定、令牌鎖定帳號分組、JWT 會話、Syslog 與 Kubernetes / Docker Compose 部署已落地。課程管理、教師班級管理等教學業務仍在規劃中。歡迎貢獻！
 
 <p align="center">
   <a href="./README.zh_CN.md">简体中文</a> |
@@ -66,21 +66,31 @@
 
 ## 🎯 高校定制功能
 
-### 🏫 教育場景優化
+相對上游 [NEWAPI](https://github.com/Calcium-Ion/new-api) 的增量能力如下。未列出的能力（模型接入、計費、控制台等）仍繼承上游。
 
-| 功能模組 | 狀態 | 說明 |
-|---------|------|------|
-| 🎓 教育帳號管理 | ✅ 已完成 | 支援學號/工號統一認證，與校園系統整合 |
-| 🔐 校園安全整合 | 🔜 規劃中 | 支援校園統一身份認證系統 |
+### 🏫 校園身份與權限
 
-### 🛠️ 技術定制
+| 功能 | 狀態 | 說明 |
+|------|------|------|
+| LDAP 登入 | ✅ 已完成 | 對接校園 LDAP / AD；可配置伺服器、Bind DN、使用者過濾器、屬性對應、StartTLS |
+| CAS 登入 | ✅ 已完成 | 對接校園 CAS 統一身份認證；支援屬性對應與存取屬性限制 |
+| 目錄分組自動分配 | ✅ 已完成 | 按 LDAP / CAS 屬性正則規則，把使用者對應到既有分組 |
+| 分組渠道綁定 | ✅ 已完成 | 按「分組 + 模型」釘死可用渠道；未綁定模型回退上游原有調度 |
+| 令牌鎖定帳號分組 | ✅ 已完成 | 建立/更新令牌時強制繼承帳號分組，使用者無法自選分組或跨組重試 |
+| 批次分配使用者分組 | ✅ 已完成 | 管理端使用者頁可批次把使用者劃入指定分組 |
+| 隱藏使用者分組資訊 | ✅ 已完成 | 個人資料、令牌頁和模型廣場不展示分組/使用者 ID，模型廣場只顯示當前分組模型 |
+| 課程 / 班級管理 | 🔜 規劃中 | 按課程授權、教師管理班級學生 |
 
-| 定制項目 | 狀態 | 說明 |
-|---------|------|------|
-| 🏗️ 網路適配 | 🔜 規劃中 | 優化高校內網環境，支援代理和防火牆配置 |
-| 💾 資料庫兼容 | 🔜 規劃中 | 針對高校常用資料庫（MySQL、PostgreSQL、SQLite）深度優化 |
-| 🔄 介面適配 | 🔜 規劃中 | 提供與高校其他系統的標準介面 |
-| 📱 移動端適配 | 🔜 規劃中 | 優化移動端訪問體驗，支援校園APP整合 |
+### 🛠️ 部署與維運
+
+| 功能 | 狀態 | 說明 |
+|------|------|------|
+| 去掉 SQLite | ✅ 已完成 | 僅支援 MySQL ≥ 5.7.8 / PostgreSQL ≥ 9.6；啟動必須提供 `SQL_DSN` |
+| JWT 會話 | ✅ 已完成 | 去掉 Cookie Session，控制台鑑權改為 JWT（`JWT_SECRET` / `JWT_EXPIRATION_SECONDS`） |
+| Syslog | ✅ 已完成 | 可選輸出到遠端/本機 syslog，連線逾時避免阻塞啟動 |
+| Docker Compose 全棧 | ✅ 已完成 | `docker-compose/` 提供 PostgreSQL、Redis、ClickHouse、OpenLDAP 與本服務 |
+| Kubernetes | ✅ 已完成 | `kubernetes/` 含 Deployment、Service、HPA、ConfigMap/Secret 及外部依賴清單 |
+| amd64 / arm64 構建 | ✅ 已完成 | `make` 可交叉編譯 Linux amd64/arm64，以及純後端 / 全棧鏡像 |
 
 ---
 
@@ -88,44 +98,22 @@
 
 ### 使用 Docker Compose（推薦）
 
-```bash
-# 克隆項目
-git clone [本項目地址]
-cd [項目目錄]
-
-# 編輯 docker-compose.yml 配置
-nano docker-compose.yml
-
-# 啟動服務
-docker-compose up -d
-```
-
-<details>
-<summary><strong>使用 Docker 命令</strong></summary>
+本倉庫 `docker-compose/` 會拉起 **New API Edu + PostgreSQL + Redis + ClickHouse + OpenLDAP**：
 
 ```bash
-# 拉取最新鏡像
-docker pull [定制版鏡像名稱]
+git clone https://gitee.com/ddbxiaoer/newapi_2_-edu.git
+cd newapi_2_-edu
 
-# 使用 SQLite（預設）
-docker run --name new-api-edu -d --restart always \
-  -p 3000:3000 \
-  -e TZ=Asia/Shanghai \
-  -v ./data:/data \
-  [定制版鏡像名稱]:latest
+# 先構建鏡像（全棧鏡像內嵌前端）
+make docker-allinone
 
-# 使用 MySQL
-docker run --name new-api-edu -d --restart always \
-  -p 3000:3000 \
-  -e SQL_DSN="root:123456@tcp(localhost:3306)/oneapi" \
-  -e TZ=Asia/Shanghai \
-  -v ./data:/data \
-  [定制版鏡像名稱]:latest
+# 按需修改 docker-compose/docker-compose.yml 中的密碼與 JWT_SECRET
+docker compose -f docker-compose/docker-compose.yml up -d
 ```
 
-> **💡 提示：** `-v ./data:/data` 會將數據保存在當前目錄的 `data` 資料夾中，你也可以改為絕對路徑如 `-v /your/custom/path:/data`
+僅後端鏡像（不含內嵌前端）用 `make docker-backend`，鏡像名為 `newapi-edu-pure`。
 
-</details>
+> **⚠️ 生產環境務必修改** PostgreSQL / Redis / LDAP 預設密碼，以及 `JWT_SECRET`。啟動必須提供 `SQL_DSN` 與 `LOG_SQL_DSN`（可用 `REQUIRED_ENV_VARS=""` 關閉檢查）。
 
 ---
 
@@ -142,11 +130,9 @@ docker run --name new-api-edu -d --restart always \
 - **NEWAPI 部署指南**: [https://docs.newapi.pro/zh/docs/installation](https://docs.newapi.pro/zh/docs/installation)
 
 ### 🎓 高校定制版文檔
-**定制功能文檔：**
-- 高校帳號管理配置
-- 校園系統整合指南
-- 教育權限設置說明
-- 數據統計分析功能
+- LDAP / CAS：系統設置 → 認證
+- 分組渠道綁定：計費 / 分組設置
+- 部署清單：`docker-compose/`、`kubernetes/`
 
 ---
 
@@ -171,13 +157,16 @@ docker run --name new-api-edu -d --restart always \
 - ✅ 快取計費支援（OpenAI、Azure、DeepSeek、Claude、Qwen等所有支援的模型）
 - ✅ 靈活的計費策略配置
 
-### 🎓 高校定制新增功能
+### 🎓 相對上游的新增能力
 
-- 🏫 **校園身份認證**（✅ 已完成）：支援學號/工號登錄
-- 📚 **課程管理**（🔜 規劃中）：按課程分配 AI 使用權限
-- 👨‍🏫 **教師管理**（🔜 規劃中）：教師可管理班級學生
-- 📊 **教育統計**（🔜 規劃中）：AI 使用數據分析
-- 🔐 **安全審計**（🔜 規劃中）：完整的操作日誌和審計功能
+- 🏫 **LDAP / CAS 校園登入**：學號/工號對接校園統一身份認證
+- 🧭 **目錄分組自動分配**：按 LDAP / CAS 屬性正則對應到既有分組
+- 🔗 **分組渠道綁定**：按分組+模型釘死渠道，未綁定則走上游調度
+- 🔒 **令牌鎖定帳號分組**：使用者不能自選令牌分組；模型廣場只顯示當前分組模型
+- 👥 **批次分配使用者分組**：管理端可批次劃入指定分組
+- 🧾 **JWT + Syslog**：去掉 Cookie Session；可選 syslog，逾時不阻塞啟動
+- 🚢 **高校部署清單**：去掉 SQLite；提供 Docker Compose 全棧與 Kubernetes + HPA
+- 📚 **課程 / 班級管理**（🔜 規劃中）
 
 ---
 
@@ -228,22 +217,34 @@ make build-backend-pure-linux-arm64  # Linux arm64
 
 | 組件 | 要求 |
 |------|------|
-| **本地資料庫** | SQLite（Docker 需掛載 `/data` 目錄）|
-| **遠端資料庫** | MySQL ≥ 5.7.8 或 PostgreSQL ≥ 9.6 |
-| **容器引擎** | Docker / Docker Compose |
-| **網路環境** | 支援高校內網環境配置 |
+| **主資料庫** | MySQL ≥ 5.7.8 或 PostgreSQL ≥ 9.6（**必須**設置 `SQL_DSN`，已去掉 SQLite） |
+| **日誌庫** | 透過 `LOG_SQL_DSN` 配置，支援獨立庫 / ClickHouse |
+| **快取** | Redis（多節點共享限流時必須） |
+| **容器 / 編排** | Docker Compose（`docker-compose/`）或 Kubernetes（`kubernetes/`，含 HPA） |
+
+Kubernetes 示例：
+
+```bash
+kubectl apply -k kubernetes/
+```
 
 ### ⚙️ 高校定制環境變數
 
 | 變數名 | 說明 | 預設值 |
 |--------|------|--------|
-| `EDU_MODE` | 啟用高校模式 | `true` |
-| `CAMPUS_AUTH_URL` | 校園認證地址 | - |
-| `CAMPUS_API_KEY` | 校園 API 密鑰 | - |
-| `EDU_DOMAIN` | 教育域名限制 | - |
-| `ALLOWED_DOMAINS` | 允許訪問的域名列表 | - |
+| `SQL_DSN` | 主庫連接串（必填） | - |
+| `LOG_SQL_DSN` | 日誌庫連接串（預設必填） | - |
+| `REQUIRED_ENV_VARS` | 啟動必填變數列表；設為空字串可關閉檢查 | `SQL_DSN,LOG_SQL_DSN` |
+| `JWT_SECRET` | JWT 簽名密鑰（未設置時回退 `SESSION_SECRET`） | `uuid` |
+| `JWT_EXPIRATION_SECONDS` | JWT 過期時間（秒） | `604800` |
+| `SYSLOG_ENABLED` | 啟用 syslog | `false` |
+| `SYSLOG_NETWORK` | syslog 協議（`udp`/`tcp`，空則本機 socket） | - |
+| `SYSLOG_ADDR` | 遠端 syslog 地址 | - |
+| `SYSLOG_TAG` | syslog 標識 | `newapi` |
 
-📖 **完整配置**：請參考 NEWAPI 環境變數文檔 + 高校定制配置說明
+LDAP / CAS 在控制台「系統設置 → 認證」中配置，不走上述環境變數。
+
+📖 **完整配置**：請參考 NEWAPI 環境變數文檔 + 本倉庫 `docker-compose/`、`kubernetes/`
 
 ---
 
