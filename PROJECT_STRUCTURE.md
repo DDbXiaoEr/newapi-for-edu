@@ -259,12 +259,6 @@ newapi_2_-edu/
 │   └── ldap/
 │       ├── entrypoint.sh
 │       └── init-data.ldif
-├── dockercompose/
-│   ├── db.yml
-│   ├── docker-compose.yml
-│   └── ldap/
-│       ├── entrypoint.sh
-│       └── init-data.ldif
 ├── docker/
 │   ├── Dockerfile.allinone
 │   └── Dockerfile.backend
