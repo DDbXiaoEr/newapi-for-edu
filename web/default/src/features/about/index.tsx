@@ -28,6 +28,23 @@ import { requireServerSuccess } from '@/lib/server-error-message'
 
 import { getAboutContent } from './api'
 
+function AboutUrlFrame(props: { src: string; title: string }) {
+  // Admin-configured about URLs are trusted and often SPAs. Without
+  // allow-same-origin the frame origin is opaque (`null`), so the page's
+  // own CSS/scripts fail CORS. Combined with allow-scripts this is unsafe
+  // for same-origin src; isHttpUrl() keeps this src cross-origin http(s).
+  /* oxlint-disable react/iframe-missing-sandbox */
+  return (
+    <iframe
+      src={props.src}
+      className='h-[calc(100vh-3.5rem)] w-full border-0'
+      title={props.title}
+      sandbox='allow-forms allow-popups allow-popups-to-escape-sandbox allow-scripts allow-same-origin allow-top-navigation-by-user-activation'
+    />
+  )
+  /* oxlint-enable react/iframe-missing-sandbox */
+}
+
 function EmptyAboutState() {
   const { t } = useTranslation()
   const currentYear = new Date().getFullYear()
@@ -149,12 +166,7 @@ export function About() {
   if (isUrl) {
     return (
       <PublicLayout showMainContainer={false}>
-        <iframe
-          src={rawContent}
-          className='h-[calc(100vh-3.5rem)] w-full border-0'
-          title={t('About')}
-          sandbox='allow-forms allow-popups allow-popups-to-escape-sandbox allow-scripts'
-        />
+        <AboutUrlFrame src={rawContent} title={t('About')} />
       </PublicLayout>
     )
   }

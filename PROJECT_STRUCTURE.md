@@ -2193,6 +2193,8 @@ newapi_2_-edu/
         │   ├── env.d.ts
         │   ├── features/
         │   │   ├── about/
+        │   │   │   ├── __tests__/
+        │   │   │   │   └── about-page.test.tsx
         │   │   │   ├── api.ts
         │   │   │   ├── index.tsx
         │   │   │   └── types.ts
