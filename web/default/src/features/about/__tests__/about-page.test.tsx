@@ -32,6 +32,14 @@ vi.mock('../api', () => ({
   getAboutContent: vi.fn(),
 }))
 
+vi.mock('@/components/rich-content', () => ({
+  RichContent: (props: { mode?: string; content: string }) => (
+    <div data-testid='rich-content' data-mode={props.mode}>
+      {props.content}
+    </div>
+  ),
+}))
+
 let client: QueryClient
 
 beforeEach(() => {
@@ -59,15 +67,51 @@ describe('about page', () => {
       success: true,
       message: '',
       data: 'https://www.9thnet.cn',
+      content_type: 'html',
     })
 
     showAbout()
 
     const frame = await screen.findByTitle('About')
     expect(frame).toHaveAttribute('src', 'https://www.9thnet.cn')
+    expect(frame).not.toHaveAttribute('srcDoc')
     expect(frame.getAttribute('sandbox')?.split(/\s+/)).toEqual(
       expect.arrayContaining(['allow-scripts', 'allow-same-origin'])
     )
+  })
+
+  it('embeds HTML markup in an iframe srcDoc when the format is HTML', async () => {
+    vi.mocked(getAboutContent).mockResolvedValue({
+      success: true,
+      message: '',
+      data: '<p>About us</p>',
+      content_type: 'html',
+    })
+
+    showAbout()
+
+    const frame = await screen.findByTitle('About')
+    expect(frame).toHaveAttribute('srcDoc', '<p>About us</p>')
+    expect(frame).not.toHaveAttribute('src')
+    expect(frame.getAttribute('sandbox')?.split(/\s+/)).not.toEqual(
+      expect.arrayContaining(['allow-same-origin'])
+    )
+  })
+
+  it('renders Markdown content instead of an iframe when the format is Markdown', async () => {
+    vi.mocked(getAboutContent).mockResolvedValue({
+      success: true,
+      message: '',
+      data: '# About us',
+      content_type: 'markdown',
+    })
+
+    showAbout()
+
+    const content = await screen.findByTestId('rich-content')
+    expect(content).toHaveAttribute('data-mode', 'markdown')
+    expect(content).toHaveTextContent('# About us')
+    expect(screen.queryByTitle('About')).not.toBeInTheDocument()
   })
 
   it('shows the empty state when the administrator has not set about content', async () => {

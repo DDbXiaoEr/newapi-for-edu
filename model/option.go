@@ -1,6 +1,7 @@
 package model
 
 import (
+	"errors"
 	"maps"
 	"strconv"
 	"strings"
@@ -81,6 +82,7 @@ func InitOptionMap() {
 	common.OptionMap["SMTPForceAuthLogin"] = strconv.FormatBool(common.SMTPForceAuthLogin)
 	common.OptionMap["Notice"] = ""
 	common.OptionMap["About"] = ""
+	common.OptionMap["AboutContentType"] = ""
 	common.OptionMap["HomePageContent"] = ""
 	common.OptionMap["Footer"] = common.Footer
 	common.OptionMap["SystemName"] = common.SystemName
@@ -242,7 +244,19 @@ func validateOptionValue(key string, value string) error {
 	if key == "MaxTokenAutoGroups" {
 		return setting.ValidateMaxTokenAutoGroups(value)
 	}
+	if key == "AboutContentType" {
+		return validateAboutContentType(value)
+	}
 	return nil
+}
+
+func validateAboutContentType(value string) error {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "", "html", "markdown":
+		return nil
+	default:
+		return errors.New("AboutContentType must be html or markdown")
+	}
 }
 
 func UpdateOption(key string, value string) error {

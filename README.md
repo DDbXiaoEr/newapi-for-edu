@@ -46,7 +46,8 @@ I go to the hospital for rehabilitation every day, with limited time and energy.
 ## 📝 Project Description
 
 > [!IMPORTANT]
-> - This project is a university environment custom version based on **NEWAPI**, specially optimized for existing campus environments
+> - The repository name includes `edu` and the docs are written for campuses, but the core is still a general-purpose AI API gateway. Enterprises, research labs, and other industries can deploy it as-is; it is not locked to education workflows.
+> - This project is a university environment custom version based on **NEWAPI**, specially optimized for existing campus environments. Campus LDAP / CAS, group-channel bindings, and tokens locked to the account group also map cleanly to enterprise LDAP/AD, SSO, and access isolation.
 > - This project is for personal learning purposes only, with no guarantee of stability and no technical support
 > - Users must comply with OpenAI's [Terms of Use](https://openai.com/policies/terms-of-use) and applicable **laws and regulations**, and must not use it for illegal purposes
 > - In accordance with the [Interim Measures for the Management of Generative Artificial Intelligence Services](http://www.cac.gov.cn/2023-07/13/c_1690898327029107.htm), please do not provide any unregistered generative AI services to the public in China

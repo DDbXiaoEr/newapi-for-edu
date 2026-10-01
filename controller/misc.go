@@ -188,8 +188,9 @@ func GetNotice(c *gin.Context) {
 func GetAbout(c *gin.Context) {
 	common.OptionMapRWMutex.RLock()
 	about := common.OptionMap["About"]
+	contentType := common.OptionMap["AboutContentType"]
 	common.OptionMapRWMutex.RUnlock()
-	serveRevalidatedJSON(c, about)
+	serveRevalidatedAboutJSON(c, about, contentType)
 }
 
 func GetUserAgreement(c *gin.Context) {

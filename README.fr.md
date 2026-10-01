@@ -46,7 +46,8 @@ Je vais à l'hôpital chaque jour pour la rééducation, mon temps et mon énerg
 ## 📝 Description du projet
 
 > [!IMPORTANT]
-> - Ce projet est une version personnalisée pour l'environnement universitaire basée sur **NEWAPI**, spécialement optimisée pour les environnements existants des établissements d'enseignement supérieur
+> - Le nom du dépôt contient `edu` et la documentation vise le campus, mais le cœur reste une passerelle API d’IA généraliste. Les entreprises, laboratoires et autres secteurs peuvent le déployer tel quel ; il n’est pas verrouillé aux processus éducatifs.
+> - Ce projet est une version personnalisée pour l'environnement universitaire basée sur **NEWAPI**, spécialement optimisée pour les environnements existants des établissements d'enseignement supérieur. LDAP / CAS campus, liaisons groupe-canal et jetons verrouillés sur le groupe du compte s’appliquent aussi à LDAP/AD, SSO et l’isolation d’accès en entreprise.
 > - Ce projet est uniquement destiné à des fins d'apprentissage personnel, sans garantie de stabilité ni de support technique.
 > - Les utilisateurs doivent se conformer aux [Conditions d'utilisation](https://openai.com/policies/terms-of-use) d'OpenAI et aux **lois et réglementations applicables**, et ne doivent pas l'utiliser à des fins illégales.
 > - Conformément aux [《Mesures provisoires pour la gestion des services d'intelligence artificielle générative》](http://www.cac.gov.cn/2023-07/13/c_1690898327029107.htm), veuillez ne fournir aucun service d'IA générative non enregistré au public en Chine.

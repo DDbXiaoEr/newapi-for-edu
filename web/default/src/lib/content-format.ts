@@ -30,3 +30,24 @@ export function isLikelyHtml(value: string): boolean {
     value
   )
 }
+
+export const ABOUT_CONTENT_TYPES = ['html', 'markdown'] as const
+
+export type AboutContentType = (typeof ABOUT_CONTENT_TYPES)[number]
+
+export function normalizeAboutContentType(
+  contentType: string | undefined,
+  content: string
+): AboutContentType {
+  const normalized = contentType?.trim().toLowerCase()
+  if (normalized === 'html' || normalized === 'markdown') {
+    return normalized
+  }
+
+  const trimmed = content.trim()
+  if (isHttpUrl(trimmed) || isLikelyHtml(trimmed)) {
+    return 'html'
+  }
+
+  return 'markdown'
+}

@@ -13,7 +13,7 @@ AI API gateway/proxy built with Go. Aggregates 40+ upstream AI providers (OpenAI
 ## Tech Stack
 
 - **Backend**: Go 1.22+, Gin web framework, GORM v2 ORM
-- **Frontend**: React 18, Vite (classic) / Rsbuild + TanStack Router (default), Semi Design UI (@douyinfe/semi-ui)
+- **Frontend**: React 19, TypeScript, Rsbuild + TanStack Router (`web/default/`)
 - **Databases**: MySQL, PostgreSQL (both must be supported); ClickHouse is optional for logs only
 - **Cache**: Redis (go-redis) + in-memory cache
 - **Auth**: JWT, WebAuthn/Passkeys, OAuth (GitHub, Discord, OIDC, etc.)
@@ -37,7 +37,7 @@ Layered architecture: Router -> Controller -> Service -> Model
 | DTO | `dto/` | Data transfer objects |
 | Constant | `constant/` | Constants and enums |
 | Types | `types/` | Core type definitions |
-| Frontend | `web/classic/` (Vite+JS), `web/default/` (Rsbuild+TS+TanStack) | Two independent React frontends |
+| Frontend | `web/default/` (Rsbuild+TS+TanStack) | React frontend embedded by `main.go` |
 
 ## Key Conventions
 
@@ -62,7 +62,7 @@ Do NOT call `encoding/json` marshal/unmarshal directly. `json.RawMessage` etc. a
 
 ### Frontend — Prefer Bun
 
-Use `bun` for the frontend (`web/`):
+Use `bun` for the frontend (`web/default/`):
 - `bun install`, `bun run dev`, `bun run build`, `bun run i18n:*`
 
 ### New Channel StreamOptions
@@ -88,9 +88,9 @@ For request structs parsed from client JSON and re-marshaled upstream:
 - Library: `nicksnyder/go-i18n/v2`
 - Languages: en, zh
 
-### Frontend (`web/src/i18n/`)
+### Frontend (`web/default/src/i18n/`)
 - Library: `i18next` + `react-i18next`
 - Languages: zh (fallback), en, fr, ru, ja, vi
-- Translation files: `web/src/i18n/locales/{lang}.json` (flat JSON, keys are Chinese source strings)
+- Translation files: `web/default/src/i18n/locales/{lang}.json` (flat JSON, keys are Chinese source strings)
 - Usage: `useTranslation()` hook, call `t('中文key')`
 - CLI tools: `bun run i18n:extract`, `bun run i18n:sync`, `bun run i18n:lint`

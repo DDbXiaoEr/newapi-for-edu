@@ -23,23 +23,31 @@ import { useTranslation } from 'react-i18next'
 import { PublicLayout } from '@/components/layout'
 import { RichContent } from '@/components/rich-content'
 import { Skeleton } from '@/components/ui/skeleton'
-import { isHttpUrl, isLikelyHtml } from '@/lib/content-format'
+import { isHttpUrl, normalizeAboutContentType } from '@/lib/content-format'
 import { requireServerSuccess } from '@/lib/server-error-message'
 
 import { getAboutContent } from './api'
 
-function AboutUrlFrame(props: { src: string; title: string }) {
-  // Admin-configured about URLs are trusted and often SPAs. Without
-  // allow-same-origin the frame origin is opaque (`null`), so the page's
-  // own CSS/scripts fail CORS. Combined with allow-scripts this is unsafe
-  // for same-origin src; isHttpUrl() keeps this src cross-origin http(s).
+function AboutHtmlFrame(props: {
+  src?: string
+  srcDoc?: string
+  title: string
+}) {
+  // URL frames are admin-configured and often SPAs. Without allow-same-origin
+  // the frame origin is opaque (`null`), so the page's own CSS/scripts fail
+  // CORS. Combined with allow-scripts this is unsafe for same-origin src;
+  // isHttpUrl() keeps this src cross-origin http(s). srcDoc frames stay
+  // opaque so the markup cannot read the parent origin.
   /* oxlint-disable react/iframe-missing-sandbox */
+  const sandbox = props.src
+    ? 'allow-forms allow-popups allow-popups-to-escape-sandbox allow-scripts allow-same-origin allow-top-navigation-by-user-activation'
+    : 'allow-forms allow-popups allow-popups-to-escape-sandbox allow-scripts'
   return (
     <iframe
-      src={props.src}
+      {...(props.src ? { src: props.src } : { srcDoc: props.srcDoc })}
       className='h-[calc(100vh-3.5rem)] w-full border-0'
       title={props.title}
-      sandbox='allow-forms allow-popups allow-popups-to-escape-sandbox allow-scripts allow-same-origin allow-top-navigation-by-user-activation'
+      sandbox={sandbox}
     />
   )
   /* oxlint-enable react/iframe-missing-sandbox */
@@ -59,7 +67,7 @@ function EmptyAboutState() {
           <h2 className='text-2xl font-bold'>{t('No About Content Set')}</h2>
           <p className='text-muted-foreground'>
             {t(
-              'The administrator has not configured any about content yet. You can set it in the settings page, supporting HTML or URL.'
+              'The administrator has not configured any about content yet. You can set it in the settings page as HTML (iframe) or Markdown.'
             )}
           </p>
         </div>
@@ -139,8 +147,9 @@ export function About() {
 
   const rawContent = data?.data?.trim() ?? ''
   const hasContent = rawContent.length > 0
-  const isUrl = hasContent && isHttpUrl(rawContent)
-  const contentIsHtml = hasContent && isLikelyHtml(rawContent)
+  const contentType = normalizeAboutContentType(data?.content_type, rawContent)
+  const isHtml = contentType === 'html'
+  const isUrl = isHtml && hasContent && isHttpUrl(rawContent)
 
   if (isLoading) {
     return (
@@ -163,22 +172,13 @@ export function About() {
     )
   }
 
-  if (isUrl) {
+  if (isHtml) {
     return (
       <PublicLayout showMainContainer={false}>
-        <AboutUrlFrame src={rawContent} title={t('About')} />
-      </PublicLayout>
-    )
-  }
-
-  if (contentIsHtml) {
-    return (
-      <PublicLayout showMainContainer={false}>
-        <RichContent
-          mode='html'
-          htmlVariant='isolated'
-          content={rawContent}
-          className='prose-neutral dark:prose-invert max-w-none'
+        <AboutHtmlFrame
+          src={isUrl ? rawContent : undefined}
+          srcDoc={isUrl ? undefined : rawContent}
+          title={t('About')}
         />
       </PublicLayout>
     )

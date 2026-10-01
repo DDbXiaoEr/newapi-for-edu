@@ -68,6 +68,10 @@ export function useUpdateOption() {
           }
         }
 
+        if (variables.key === 'About' || variables.key === 'AboutContentType') {
+          queryClient.invalidateQueries({ queryKey: ['about-content'] })
+        }
+
         toast.success(i18next.t('Setting updated successfully'))
       } else {
         handleServerError(data, i18next.t('Failed to update setting'))

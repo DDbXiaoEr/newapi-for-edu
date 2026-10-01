@@ -31,7 +31,14 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  ABOUT_CONTENT_TYPES,
+  normalizeAboutContentType,
+  type AboutContentType,
+} from '@/lib/content-format'
 
 import { FormDirtyIndicator } from '../components/form-dirty-indicator'
 import { FormNavigationGuard } from '../components/form-navigation-guard'
@@ -53,6 +60,7 @@ const _systemInfoSchema = z.object({
   Logo: z.string().url().optional().or(z.literal('')),
   Footer: z.string().optional(),
   About: z.string().optional(),
+  AboutContentType: z.enum(ABOUT_CONTENT_TYPES),
   HomePageContent: z.string().optional(),
   legal: z.object({
     user_agreement: z.string().optional(),
@@ -63,7 +71,9 @@ const _systemInfoSchema = z.object({
 type SystemInfoFormValues = z.infer<typeof _systemInfoSchema>
 
 type SystemInfoSectionProps = {
-  defaultValues: SystemInfoFormValues
+  defaultValues: Omit<SystemInfoFormValues, 'AboutContentType'> & {
+    AboutContentType?: string
+  }
 }
 
 function normalizeValue(value: unknown): string {
@@ -82,6 +92,10 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
     Logo: normalizeValue(defaultValues.Logo),
     Footer: normalizeValue(defaultValues.Footer),
     About: normalizeValue(defaultValues.About),
+    AboutContentType: normalizeAboutContentType(
+      defaultValues.AboutContentType,
+      normalizeValue(defaultValues.About)
+    ),
     HomePageContent: normalizeValue(defaultValues.HomePageContent),
     legal: {
       user_agreement: normalizeValue(defaultValues.legal?.user_agreement),
@@ -103,6 +117,7 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
     Logo: z.string().url().optional().or(z.literal('')),
     Footer: z.string().optional(),
     About: z.string().optional(),
+    AboutContentType: z.enum(ABOUT_CONTENT_TYPES),
     HomePageContent: z.string().optional(),
     legal: z.object({
       user_agreement: z.string().optional(),
@@ -248,30 +263,95 @@ export function SystemInfoSection({ defaultValues }: SystemInfoSectionProps) {
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name='About'
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('About')}</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder={t(
-                          'Enter HTML code (e.g., <p>About us...</p>) or a URL (e.g., https://example.com) to embed as iframe'
+              <SettingsFormGridItem span='full'>
+                <FormField
+                  control={form.control}
+                  name='AboutContentType'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('About content format')}</FormLabel>
+                      <FormControl>
+                        <RadioGroup
+                          aria-label={t('About content format')}
+                          value={field.value}
+                          onValueChange={(value) =>
+                            field.onChange(value as AboutContentType)
+                          }
+                          className='gap-2 sm:grid-cols-2'
+                        >
+                          {ABOUT_CONTENT_TYPES.map((mode) => (
+                            <div key={mode} className='rounded-lg border'>
+                              <Label
+                                htmlFor={`about-content-type-${mode}`}
+                                className='hover:bg-muted/30 flex h-full cursor-pointer items-center gap-3 rounded-lg px-4 py-3 font-normal'
+                              >
+                                <RadioGroupItem
+                                  id={`about-content-type-${mode}`}
+                                  value={mode}
+                                  onClick={() => field.onChange(mode)}
+                                />
+                                <span>
+                                  {mode === 'html'
+                                    ? t('HTML (iframe)')
+                                    : t('Markdown')}
+                                </span>
+                              </Label>
+                            </div>
+                          ))}
+                        </RadioGroup>
+                      </FormControl>
+                      <FormDescription>
+                        {t(
+                          'HTML embeds a URL or HTML document in an iframe. Markdown is rendered on the about page.'
                         )}
-                        rows={4}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      {t(
-                        'Supports HTML markup or iframe embedding. Enter HTML code directly, or provide a complete URL to automatically embed it as an iframe.'
-                      )}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </SettingsFormGridItem>
+
+              <SettingsFormGridItem span='full'>
+                <FormField
+                  control={form.control}
+                  name='About'
+                  render={({ field }) => {
+                    const contentType = form.watch('AboutContentType')
+                    const isMarkdown = contentType === 'markdown'
+
+                    return (
+                      <FormItem>
+                        <FormLabel>{t('About')}</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder={
+                              isMarkdown
+                                ? t(
+                                    'Enter Markdown for the about page (e.g., # About us)'
+                                  )
+                                : t(
+                                    'Enter HTML code (e.g., <p>About us...</p>) or a URL (e.g., https://example.com) to embed as iframe'
+                                  )
+                            }
+                            rows={6}
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          {isMarkdown
+                            ? t(
+                                'Markdown is rendered on the about page. Use headings, lists, links, and images.'
+                              )
+                            : t(
+                                'HTML is shown in an iframe. Enter HTML markup, or a complete URL to embed as the iframe source.'
+                              )}
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )
+                  }}
+                />
+              </SettingsFormGridItem>
 
               <SettingsFormGridItem span='full'>
                 <FormField
