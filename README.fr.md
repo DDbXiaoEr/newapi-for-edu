@@ -313,7 +313,7 @@ Si les politiques de votre organisation ne permettent pas l'utilisation de logic
 
 ### 💖 Merci d'utiliser New API Édition universitaire personnalisée
 
-Si ce projet vous est utile, n'hésitez pas à nous donner une ⭐️ Étoile !
+Si ce projet vous est utile, n'hésitez pas à donner une ⭐️ Étoile à moi ou à [new-api](https://github.com/Calcium-Ion/new-api) !
 
 **[Documentation officielle NEWAPI](https://docs.newapi.pro/zh/docs)** • **[Retours sur les problèmes](https://github.com/Calcium-Ion/new-api/issues)** • **[Dernière version](https://github.com/Calcium-Ion/new-api/releases)**
 

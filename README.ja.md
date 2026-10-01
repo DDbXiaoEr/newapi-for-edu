@@ -313,7 +313,7 @@ LDAP / CAS はコンソールの「システム設定 → 認証」で設定し�
 
 ### 💖 New API 大学カスタム版をご利用いただきありがとうございます
 
-このプロジェクトがあなたのお役に立てたなら、ぜひ ⭐️ スターをください！
+このプロジェクトがあなたのお役に立てたなら、ぜひ私または [new-api](https://github.com/Calcium-Ion/new-api) に ⭐️ スターをください！
 
 **[NEWAPI 公式ドキュメント](https://docs.newapi.pro/zh/docs)** • **[問題フィードバック](https://github.com/Calcium-Ion/new-api/issues)** • **[最新リリース](https://github.com/Calcium-Ion/new-api/releases)**
 

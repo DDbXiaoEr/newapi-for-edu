@@ -313,7 +313,7 @@ LDAP / CAS 在控制台「系統設置 → 認證」中配置，不走上述環�
 
 ### 💖 感謝使用 New API 高校定制版
 
-如果這個項目對你有幫助，歡迎給我們一個 ⭐️ Star！
+如果這個項目對你有幫助，歡迎給我或 [new-api](https://github.com/Calcium-Ion/new-api) 一個 ⭐️ Star！
 
 **[NEWAPI 官方文檔](https://docs.newapi.pro/zh/docs)** • **[問題回饋](https://github.com/Calcium-Ion/new-api/issues)** • **[最新發布](https://github.com/Calcium-Ion/new-api/releases)**
 

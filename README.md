@@ -313,7 +313,7 @@ If your organization's policies do not permit the use of AGPLv3-licensed softwar
 
 ### 💖 Thank You for Using New API University Custom Edition
 
-If this project helps you, please give us a ⭐️ Star!
+If this project helps you, please give me or [new-api](https://github.com/Calcium-Ion/new-api) a ⭐️ Star!
 
 **[NEWAPI Official Documentation](https://docs.newapi.pro/zh/docs)** • **[Issue Feedback](https://github.com/Calcium-Ion/new-api/issues)** • **[Latest Release](https://github.com/Calcium-Ion/new-api/releases)**
 
