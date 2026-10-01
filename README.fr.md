@@ -9,7 +9,7 @@
 ###
 Remarque : Toutes les modifications actuelles de ce projet ont été effectuées par une IA. L'auteur a subi une hémorragie cérébrale l'année dernière, entraînant une hémiplégie, et ne peut actuellement utiliser qu'une seule main. De nombreuses fonctionnalités ne sont donc pas encore implémentées.
 Je vais à l'hôpital chaque jour pour la rééducation, mon temps et mon énergie sont limités, et sans travail ni revenu, les tokens dépendent entièrement des quotas pour nouveaux utilisateurs et des invitations offertes par les plateformes. L'efficacité du développement a atteint sa limite. Les personnes disposant de tokens en abondance sont les bienvenues pour contribuer)
-###Remerciements à GLM et Alibaba Cloud Bailian
+###Remerciements à GLM, Alibaba Cloud Bailian, DeepSeek (Liang Wengu) et mon [bon ami](https://github.com/FireSpoonYZ) qui a fourni un accès à grok
 
 > ⚠️ **Avancement actuel** : Connexion LDAP / CAS campus, liaison groupe-canal, jetons verrouillés sur le groupe du compte, sessions JWT, syslog et déploiement Kubernetes / Docker Compose sont implémentés. La gestion des cours et des classes reste prévue. Les contributions sont les bienvenues !
 

@@ -9,7 +9,7 @@
 ###
 Note: All current modifications to this project have been done by AI. The author suffered a cerebral hemorrhage last year resulting in hemiplegia, and currently only has the use of one hand, so many features have not yet been implemented.
 I go to the hospital for rehabilitation every day, with limited time and energy. Without a job or income, tokens rely entirely on free new-user quotas and invitation rewards from various platforms. Development efficiency has reached its limit. Those with abundant tokens are welcome to contribute)
-###Thanks to GLM and Alibaba Cloud Bailian
+###Thanks to GLM, Alibaba Cloud Bailian, DeepSeek (Liang Wengu) and my [good friend](https://github.com/FireSpoonYZ) who provided grok access
 
 > ⚠️ **Current Progress**: Campus LDAP / CAS login, group-channel bindings, tokens locked to the account group, JWT sessions, syslog, and Kubernetes / Docker Compose deployment are implemented. Course and class-management features are still planned. Contributions are welcome!
 
