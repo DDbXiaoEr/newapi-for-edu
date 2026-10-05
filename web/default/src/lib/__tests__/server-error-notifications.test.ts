@@ -277,54 +277,96 @@ it('handles circular error causes and prioritizes translated stable error codes'
   expect(notify).toHaveBeenCalledTimes(1)
 })
 
-it('treats a 401 as terminal and never attempts a refresh', async () => {
-  window.history.replaceState({}, '', '/sign-in')
-  const original: AuthBundle = {
-    access_token: 'expired-access',
-    token_type: 'Bearer',
-    access_expires_at: 1,
-    user: { id: 1, username: 'test-user', role: 1 },
-    session: {
-      sid: 'test-session',
-      current: true,
-      login_method: 'password',
-      ip: '',
-      user_agent: '',
-      created_at: 1,
-      last_active_at: 1,
-      expires_at: 2_000_000_000,
-    },
+it.each([200, 401])(
+  'refreshes a 401 through the real auth client and only reports a terminal failure (refresh HTTP %i)',
+  async (refreshStatus) => {
+    window.history.replaceState({}, '', '/sign-in')
+    const original: AuthBundle = {
+      access_token: 'expired-access',
+      token_type: 'Bearer',
+      access_expires_at: 1,
+      user: { id: 1, username: 'test-user', role: 1 },
+      session: {
+        sid: 'test-session',
+        current: true,
+        login_method: 'password',
+        ip: '',
+        user_agent: '',
+        created_at: 1,
+        last_active_at: 1,
+        expires_at: 2_000_000_000,
+      },
+    }
+    useAuthStore.getState().auth.setBundle(original)
+    const fresh = {
+      ...original,
+      access_token: 'fresh-access',
+      access_expires_at: 2_000_000_000,
+    }
+    const open = vi.spyOn(XMLHttpRequest.prototype, 'open')
+    vi.spyOn(XMLHttpRequest.prototype, 'send').mockImplementation(
+      function (this: XMLHttpRequest) {
+        Object.defineProperties(this, {
+          status: { value: refreshStatus, configurable: true },
+          statusText: { value: 'Refresh response', configurable: true },
+          responseText: {
+            value: JSON.stringify({
+              success: refreshStatus === 200,
+              data: fresh,
+            }),
+            configurable: true,
+          },
+          readyState: { value: 4, configurable: true },
+        })
+        this.onloadend?.(new ProgressEvent('loadend'))
+      }
+    )
+    let requests = 0
+    api.defaults.adapter = async (config) => {
+      requests++
+      if (!config.authRetry) {
+        throw new AxiosError('HTTP 401', 'ERR_BAD_REQUEST', config, undefined, {
+          data: { message: 'Access token expired' },
+          status: 401,
+          statusText: 'Unauthorized',
+          headers: {},
+          config,
+        })
+      }
+      expect(config.headers.get('Authorization')).toBe('Bearer fresh-access')
+      return {
+        data: { success: true },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config,
+      }
+    }
+    const notify = vi.spyOn(toast, 'error').mockReturnValue('error')
+    const client = createAppQueryClient()
+    await client
+      .fetchQuery({
+        queryKey: ['refresh', refreshStatus],
+        queryFn: () => api.get('/protected'),
+        retry: false,
+      })
+      .catch(handleServerError)
+    expect(open).toHaveBeenCalledTimes(1)
+    expect(open.mock.calls[0][1]).toBe('/api/user/auth/refresh')
+    if (refreshStatus === 200) {
+      expect(requests).toBe(2)
+      expect(notify).not.toHaveBeenCalled()
+      expect(useAuthStore.getState().auth.accessToken).toBe('fresh-access')
+    } else {
+      expect(requests).toBe(1)
+      expect(notify.mock.calls.map(([message]) => message)).toEqual([
+        'Session expired!',
+      ])
+      expect(useAuthStore.getState().auth.accessToken).toBeNull()
+    }
+    client.clear()
   }
-  useAuthStore.getState().auth.setBundle(original)
-  const open = vi.spyOn(XMLHttpRequest.prototype, 'open')
-  let requests = 0
-  api.defaults.adapter = async (config) => {
-    requests++
-    throw new AxiosError('HTTP 401', 'ERR_BAD_REQUEST', config, undefined, {
-      data: { message: 'Access token expired' },
-      status: 401,
-      statusText: 'Unauthorized',
-      headers: {},
-      config,
-    })
-  }
-  const notify = vi.spyOn(toast, 'error').mockReturnValue('error')
-  const client = createAppQueryClient()
-  await client
-    .fetchQuery({
-      queryKey: ['terminal-401'],
-      queryFn: () => api.get('/protected'),
-      retry: false,
-    })
-    .catch(handleServerError)
-  expect(requests).toBe(1)
-  expect(open).not.toHaveBeenCalled()
-  expect(notify.mock.calls.map(([message]) => message)).toEqual([
-    'Session expired!',
-  ])
-  expect(useAuthStore.getState().auth.accessToken).toBeNull()
-  client.clear()
-})
+)
 
 it('never refreshes or replays a failed single-use authorization request', async () => {
   useAuthStore.getState().auth.setBundle({

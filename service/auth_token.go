@@ -20,6 +20,7 @@ const (
 	AccessTokenTTL        = 15 * time.Minute
 	SecurityProofTTL      = time.Minute
 	LoginSessionTTL       = 30 * 24 * time.Hour
+	RefreshReplayWindow   = 30 * time.Second
 	accessTokenUse        = "access"
 	securityProofTokenUse = "security_proof"
 	authTokenIssuer       = "new-api"
@@ -56,23 +57,12 @@ func authSigningKey(purpose string) []byte {
 	return mac.Sum(nil)
 }
 
-// accessTokenTTL is the lifetime of a dashboard access token. Refresh tokens
-// were removed, so the access token itself must outlive a normal browser visit;
-// the default (JWT_EXPIRATION_SECONDS) is 7 days and must not exceed
-// LoginSessionTTL, after which the server-side session is gone anyway.
-func accessTokenTTL() time.Duration {
-	if common.JWTExpirationSeconds > 0 {
-		return time.Duration(common.JWTExpirationSeconds) * time.Second
-	}
-	return AccessTokenTTL
-}
-
 func IssueAccessToken(identity AuthIdentity) (string, int64, error) {
 	if identity.UserID <= 0 || identity.SessionID == "" || identity.UserAuthVersion <= 0 || identity.SessionVersion <= 0 {
 		return "", 0, ErrAuthTokenInvalid
 	}
 	now := time.Now()
-	expiresAt := now.Add(accessTokenTTL())
+	expiresAt := now.Add(AccessTokenTTL)
 	claims := authClaims{
 		TokenUse:        accessTokenUse,
 		SessionID:       identity.SessionID,

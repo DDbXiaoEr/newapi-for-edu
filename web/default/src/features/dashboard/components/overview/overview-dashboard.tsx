@@ -59,10 +59,12 @@ import { requireServerSuccess } from '@/lib/server-error-message'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
 
+import { useDashboardQueryRefresh } from '../../hooks/use-dashboard-auto-refresh'
 import {
   useApiInfo,
   useDashboardContentVisibility,
 } from '../../hooks/use-status-data'
+import { DashboardAutoRefreshToggle } from '../dashboard-auto-refresh-toggle'
 import { AnnouncementsPanel } from './announcements-panel'
 import { ApiInfoPanel } from './api-info-panel'
 import { FAQPanel } from './faq-panel'
@@ -481,6 +483,7 @@ export function OverviewDashboard() {
   const usedQuota = Number(user?.used_quota ?? 0)
   const isAdmin = Boolean(user?.role && user.role >= ROLE.ADMIN)
 
+  const refresh = useDashboardQueryRefresh()
   const apiKeysQuery = useQuery({
     queryKey: ['dashboard', 'overview', 'api-keys'],
     queryFn: async () => {
@@ -488,6 +491,7 @@ export function OverviewDashboard() {
       return result.success ? (result.data?.items ?? []) : []
     },
     staleTime: 60 * 1000,
+    ...refresh,
   })
 
   const modelsQuery = useQuery({
@@ -497,6 +501,7 @@ export function OverviewDashboard() {
       return result.success ? (result.data ?? []) : []
     },
     staleTime: 5 * 60 * 1000,
+    ...refresh,
   })
 
   const preferredKey = useMemo(
@@ -644,6 +649,7 @@ export function OverviewDashboard() {
             {t('Setup guide')}
           </Button>
         )}
+        <DashboardAutoRefreshToggle />
       </SectionPageLayout.Actions>
       <SectionPageLayout.Content>
         <div className='flex flex-col gap-4'>

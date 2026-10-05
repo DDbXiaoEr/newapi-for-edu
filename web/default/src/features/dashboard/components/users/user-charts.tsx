@@ -31,6 +31,7 @@ import {
   TIME_GRANULARITY_OPTIONS,
   TIME_RANGE_PRESETS,
 } from '@/features/dashboard/constants'
+import { useDashboardQueryRefresh } from '@/features/dashboard/hooks/use-dashboard-auto-refresh'
 import {
   getDefaultDays,
   saveGranularity,
@@ -41,7 +42,7 @@ import type {
   UserChartsFilters,
 } from '@/features/dashboard/types'
 import { requireServerSuccess } from '@/lib/server-error-message'
-import { getRollingDateRange, type TimeGranularity } from '@/lib/time'
+import { computeTimeRange, type TimeGranularity } from '@/lib/time'
 import { VCHART_OPTION } from '@/lib/vchart'
 
 let themeManagerPromise: Promise<
@@ -87,13 +88,7 @@ export function UserCharts(props: UserChartsProps) {
   const topUserLimit = props.filters.topUserLimit
   const onFiltersChange = props.onFiltersChange
 
-  const timeRange = useMemo(() => {
-    const { start, end } = getRollingDateRange(selectedRange)
-    return {
-      start_timestamp: Math.floor(start.getTime() / 1000),
-      end_timestamp: Math.floor(end.getTime() / 1000),
-    }
-  }, [selectedRange])
+  const refresh = useDashboardQueryRefresh()
 
   const handleRangeChange = useCallback(
     (days: number) => {
@@ -138,11 +133,14 @@ export function UserCharts(props: UserChartsProps) {
   }, [resolvedTheme])
 
   const { data: userData, isLoading } = useQuery({
-    queryKey: ['dashboard', 'user-quota', timeRange],
+    queryKey: ['dashboard', 'user-quota', selectedRange],
     queryFn: async () =>
-      requireServerSuccess(await getUserQuotaDataByUsers(timeRange)),
+      requireServerSuccess(
+        await getUserQuotaDataByUsers(computeTimeRange(selectedRange))
+      ),
     select: (res) => (res.success ? res.data : []),
     staleTime: 60_000,
+    ...refresh,
   })
 
   const chartData = useMemo(

@@ -151,7 +151,7 @@ func CompleteLoginVerification(token string, verification *LoginVerification, me
 	if verification == nil || verification.Flow == nil || verification.State == nil {
 		return nil, nil, model.ErrAuthFlowInvalid
 	}
-	session, err := newLoginSession(verification.State.UserID, verification.payload.AuthVersion, verification.payload.LoginMethod, ip, userAgent)
+	session, refreshSecret, err := newLoginSession(verification.State.UserID, verification.payload.AuthVersion, verification.payload.LoginMethod, ip, userAgent)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -180,7 +180,7 @@ func CompleteLoginVerification(token string, verification *LoginVerification, me
 	}); err != nil {
 		return nil, nil, err
 	}
-	bundle, err := issueAuthBundle(session, true)
+	bundle, err := issueAuthBundle(session, session.SID+"."+refreshSecret, true)
 	if err != nil {
 		_, _ = model.RevokeUserSession(session.UserID, session.SID, "token_issue_failed")
 		return nil, nil, err

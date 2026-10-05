@@ -80,6 +80,8 @@ newapi_2_-edu/
 │   ├── rate-limit_test.go
 │   ├── redis.go
 │   ├── request_body_limit.go
+│   ├── session_cookie.go
+│   ├── session_cookie_test.go
 │   ├── ssrf_protection.go
 │   ├── ssrf_protection_test.go
 │   ├── str.go
@@ -342,6 +344,8 @@ newapi_2_-edu/
 ├── middleware/
 │   ├── audit.go
 │   ├── auth.go
+│   ├── auth_origin.go
+│   ├── auth_origin_test.go
 │   ├── auth_test.go
 │   ├── body_cleanup.go
 │   ├── cache.go
@@ -1654,6 +1658,8 @@ newapi_2_-edu/
         │   │   │   ├── index.tsx
         │   │   │   └── types.ts
         │   │   ├── auth/
+        │   │   │   ├── __tests__/
+        │   │   │   │   └── auth-layout.test.tsx
         │   │   │   ├── api.test.ts
         │   │   │   ├── api.ts
         │   │   │   ├── auth-layout.tsx
@@ -1848,6 +1854,7 @@ newapi_2_-edu/
         │   │   ├── dashboard/
         │   │   │   ├── api.ts
         │   │   │   ├── components/
+        │   │   │   │   ├── dashboard-auto-refresh-toggle.tsx
         │   │   │   │   ├── flow/
         │   │   │   │   │   ├── flow-charts.tsx
         │   │   │   │   │   └── flow-node-filter.tsx
@@ -1860,6 +1867,7 @@ newapi_2_-edu/
         │   │   │   │   │   └── performance-overview.tsx
         │   │   │   │   ├── overview/
         │   │   │   │   │   ├── __tests__/
+        │   │   │   │   │   │   ├── auto-refresh.test.tsx
         │   │   │   │   │   │   └── setup-guide.test.tsx
         │   │   │   │   │   ├── announcement-detail-dialog.tsx
         │   │   │   │   │   ├── announcements-panel.tsx
@@ -1877,10 +1885,13 @@ newapi_2_-edu/
         │   │   │   │       └── user-charts.tsx
         │   │   │   ├── constants.ts
         │   │   │   ├── hooks/
+        │   │   │   │   ├── use-dashboard-auto-refresh.tsx
         │   │   │   │   ├── use-dashboard-config.tsx
         │   │   │   │   └── use-status-data.ts
         │   │   │   ├── index.tsx
         │   │   │   ├── lib/
+        │   │   │   │   ├── __tests__/
+        │   │   │   │   │   └── filters.test.ts
         │   │   │   │   ├── api-info.ts
         │   │   │   │   ├── charts.ts
         │   │   │   │   ├── filters.ts
@@ -1902,6 +1913,8 @@ newapi_2_-edu/
         │   │   ├── home/
         │   │   │   ├── api.ts
         │   │   │   ├── components/
+        │   │   │   │   ├── __tests__/
+        │   │   │   │   │   └── protocol-inspector.test.tsx
         │   │   │   │   ├── connection-line.tsx
         │   │   │   │   ├── feature-item.tsx
         │   │   │   │   ├── gateway-card.tsx
@@ -1911,6 +1924,9 @@ newapi_2_-edu/
         │   │   │   │   ├── index.ts
         │   │   │   │   ├── scrolling-icons.tsx
         │   │   │   │   ├── sections/
+        │   │   │   │   │   ├── __tests__/
+        │   │   │   │   │   │   ├── layout.test.tsx
+        │   │   │   │   │   │   └── stats-locale.test.tsx
         │   │   │   │   │   ├── cta.tsx
         │   │   │   │   │   ├── features.tsx
         │   │   │   │   │   ├── hero.tsx
@@ -1923,7 +1939,8 @@ newapi_2_-edu/
         │   │   │   │   └── use-home-page-content.ts
         │   │   │   ├── index.tsx
         │   │   │   ├── lib/
-        │   │   │   │   └── icon-mapper.tsx
+        │   │   │   │   ├── icon-mapper.tsx
+        │   │   │   │   └── protocol-routes.ts
         │   │   │   └── types.ts
         │   │   ├── groups/
         │   │   │   ├── __tests__/
@@ -2804,6 +2821,7 @@ newapi_2_-edu/
         │   │   │   ├── http-cache.test.ts
         │   │   │   ├── localized-text.test.ts
         │   │   │   ├── server-error-notifications.test.ts
+        │   │   │   ├── session-hint.test.ts
         │   │   │   └── status-query.test.tsx
         │   │   ├── admin-permissions.ts
         │   │   ├── api.ts
@@ -2842,6 +2860,7 @@ newapi_2_-edu/
         │   │   ├── server-error-message.test.ts
         │   │   ├── server-error-message.ts
         │   │   ├── session-flag.ts
+        │   │   ├── session-hint.ts
         │   │   ├── show-submitted-data.tsx
         │   │   ├── status-query.ts
         │   │   ├── theme-customization.ts

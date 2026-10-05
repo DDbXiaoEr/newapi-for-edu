@@ -316,21 +316,33 @@ func TestCleanupAuthArtifactsContinuesWithRevokedCleanupAfterExpiredBatchFailure
 	assert.ErrorIs(t, model.DB.First(&revoked, "sid = ?", "independent-revoked-cleanup").Error, gorm.ErrRecordNotFound)
 }
 
-func TestLoginSessionCreateAndRevoke(t *testing.T) {
+func TestLoginSessionCreateRefreshAndRevoke(t *testing.T) {
 	useTestSessionSecret(t)
 	user := setupAuthSessionTestDB(t)
 
 	bundle, err := CreateLoginSession(user.Id, "password", "127.0.0.1", "test-agent")
 	require.NoError(t, err)
+	assert.NotEmpty(t, bundle.RefreshToken)
 	identity, err := ParseAccessToken(bundle.AccessToken)
 	require.NoError(t, err)
 	_, cachedUser, err := ValidateLoginSession(identity)
 	require.NoError(t, err)
 	assert.Equal(t, user.Id, cachedUser.Id)
+	require.NoError(t, RevokeByRefreshToken(bundle.Session.SID+".wrong-refresh-secret", "", "logout"))
+	_, _, err = ValidateLoginSession(identity)
+	require.NoError(t, err, "a caller that only knows sid must not be able to revoke the session")
 
-	revoked, err := model.RevokeUserSession(user.Id, bundle.Session.SID, "logout")
+	refreshed, _, err := RefreshLoginSession(bundle.RefreshToken, bundle.Session.SID, "127.0.0.2", "test-agent-2")
 	require.NoError(t, err)
-	assert.True(t, revoked)
+	assert.NotEqual(t, bundle.RefreshToken, refreshed.RefreshToken)
+	recovered, _, err := RefreshLoginSession(bundle.RefreshToken, bundle.Session.SID, "127.0.0.2", "test-agent-2")
+	require.NoError(t, err)
+	assert.Equal(t, refreshed.RefreshToken, recovered.RefreshToken, "a concurrent refresh must recover the winner's rotated token")
+
+	_, _, err = RefreshLoginSession(refreshed.RefreshToken, "different-session", "127.0.0.2", "test-agent-2")
+	assert.ErrorIs(t, err, ErrLoginSessionMismatch)
+
+	require.NoError(t, RevokeByRefreshToken(refreshed.RefreshToken, refreshed.Session.SID, "logout"))
 	_, _, err = ValidateLoginSession(identity)
 	assert.True(t, errors.Is(err, ErrLoginSessionRevoked))
 }
@@ -352,11 +364,13 @@ func TestIndependentRedisSessionRevokeConvergesAfterCacheTTL(t *testing.T) {
 	assert.NotEmpty(t, cachedLoginSessionKey(t, serverB), "node B must hold its own session cache entry")
 
 	common.RDB = clientA
-	_, err = model.RevokeUserSession(user.Id, bundle.Session.SID, "logout")
-	require.NoError(t, err)
+	require.NoError(t, RevokeByRefreshToken(bundle.RefreshToken, bundle.Session.SID, "logout"))
 
-	serverB.FastForward(3 * time.Second)
 	common.RDB = clientB
+	_, _, err = ValidateLoginSession(identity)
+	require.NoError(t, err, "an independent Redis copy keeps the live Session until its own key expires")
+
+	serverB.Del(cachedLoginSessionKey(t, serverB))
 	_, _, err = ValidateLoginSession(identity)
 	assert.ErrorIs(t, err, ErrLoginSessionRevoked)
 }
@@ -387,8 +401,16 @@ func TestIndependentRedisAuthVersionAdvanceConvergesAfterCacheTTL(t *testing.T) 
 	assert.Greater(t, newIdentity.SessionVersion, oldIdentity.SessionVersion)
 	assert.Greater(t, newIdentity.UserAuthVersion, oldIdentity.UserAuthVersion)
 
-	serverB.FastForward(3 * time.Second)
 	common.RDB = clientB
+	_, _, err = ValidateLoginSession(oldIdentity)
+	require.NoError(t, err, "an independent Redis copy keeps the pre-rotation Session until its own key expires")
+
+	serverB.Del(cacheKey)
+	for _, key := range serverB.Keys() {
+		if strings.HasPrefix(key, "user:") || strings.HasPrefix(key, "auth:user:") {
+			serverB.Del(key)
+		}
+	}
 	_, _, err = ValidateLoginSession(newIdentity)
 	require.NoError(t, err)
 	_, _, err = ValidateLoginSession(oldIdentity)

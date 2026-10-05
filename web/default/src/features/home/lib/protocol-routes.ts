@@ -16,32 +16,31 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-export {
-  cleanFilters,
-  buildQueryParams,
-  getSavedGranularity,
-  saveGranularity,
-  getDefaultDays,
-  getSavedChartPreferences,
-  saveChartPreferences,
-  buildDefaultDashboardFilters,
-  getDashboardRangeDays,
-  getDashboardTimeQueryKey,
-  resolveDashboardTimeRange,
-} from './filters'
-export {
-  getLatencyColorClass,
-  testUrlLatency,
-  openExternalSpeedTest,
-  getDefaultPingStatus,
-} from './api-info'
-export { processChartData, processUserChartData } from './charts'
-export {
-  buildDashboardFlowData,
-  buildFlowSankeySpec,
-  flowNodeFilterFromSankeyDatum,
-  flowSankeyDatumValue,
-  getFlowStages,
-} from './flow'
-export { safeDivide, calculateDashboardStats } from './stats'
-export { getPreviewText } from './text'
+export const PROTOCOL_ROUTES = [
+  {
+    id: 'gpt-chat',
+    label: 'Chat',
+    method: 'POST',
+    path: '/v1/chat/completions',
+  },
+  {
+    id: 'responses',
+    label: 'Responses',
+    method: 'POST',
+    path: '/v1/responses',
+  },
+  {
+    id: 'claude',
+    label: 'Claude',
+    method: 'POST',
+    path: '/v1/messages',
+  },
+  {
+    id: 'gemini',
+    label: 'Gemini',
+    method: 'POST',
+    path: '/v1beta/models/{model}:generateContent',
+  },
+] as const
+
+export type ProtocolRoute = (typeof PROTOCOL_ROUTES)[number]

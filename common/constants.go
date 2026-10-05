@@ -36,6 +36,8 @@ var SessionSecret = uuid.New().String()
 var CryptoSecret = uuid.New().String()
 var JWTSecret = uuid.New().String()
 var JWTExpirationSeconds = 7 * 24 * 60 * 60 // 7 days
+var SessionCookieSecure = false
+var SessionCookieTrustedURLs []string
 
 const (
 	DefaultUserSessionActiveLimit           = 50
@@ -95,8 +97,8 @@ var LogConsumeEnabled = true
 
 var SyslogEnabled bool
 var SyslogNetwork string
-var SyslogAddr    string
-var SyslogTag     = "newapi"
+var SyslogAddr string
+var SyslogTag = "newapi"
 
 var TLSInsecureSkipVerify bool
 var InsecureTLSConfig = &tls.Config{InsecureSkipVerify: true}

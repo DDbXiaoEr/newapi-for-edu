@@ -41,6 +41,7 @@ import {
 import {
   buildDefaultDashboardFilters,
   cleanFilters,
+  getDashboardRangeDays,
 } from '@/features/dashboard/lib'
 import type {
   DashboardChartPreferences,
@@ -70,18 +71,6 @@ function granularityForRangeDays(days: number): TimeGranularity {
   return 'day'
 }
 
-// Highlights the matching quick-range button when the applied range spans an
-// exact preset; custom ranges leave every quick button unselected.
-function detectQuickRangeDays(
-  filters: DashboardFilters | undefined
-): number | null {
-  const start = filters?.start_timestamp
-  const end = filters?.end_timestamp
-  if (!start || !end) return null
-  const days = Math.round((end.getTime() - start.getTime()) / 86_400_000)
-  return TIME_RANGE_PRESETS.some((preset) => preset.days === days) ? days : null
-}
-
 /**
  * Section divider component for better visual organization
  */
@@ -108,7 +97,7 @@ export function ModelsFilter(props: ModelsFilterProps) {
       props.currentFilters ?? buildDefaultDashboardFilters(props.preferences)
   )
   const [selectedRange, setSelectedRange] = useState<number | null>(() =>
-    detectQuickRangeDays(props.currentFilters)
+    getDashboardRangeDays(props.currentFilters)
   )
 
   const handleOpenChange = (nextOpen: boolean) => {
@@ -118,7 +107,7 @@ export function ModelsFilter(props: ModelsFilterProps) {
       const applied =
         props.currentFilters ?? buildDefaultDashboardFilters(props.preferences)
       setFilters(applied)
-      setSelectedRange(detectQuickRangeDays(applied))
+      setSelectedRange(getDashboardRangeDays(applied))
     }
     setOpen(nextOpen)
   }
@@ -150,8 +139,9 @@ export function ModelsFilter(props: ModelsFilterProps) {
     value: Date | string | undefined
   ) => {
     setFilters((prev) => ({ ...prev, [field]: value }))
-    if (field === 'start_timestamp' || field === 'end_timestamp')
+    if (field === 'start_timestamp' || field === 'end_timestamp') {
       setSelectedRange(null)
+    }
   }
 
   const handleQuickRange = (days: number) => {
@@ -257,12 +247,10 @@ export function ModelsFilter(props: ModelsFilterProps) {
           <div className='grid gap-2'>
             <Label htmlFor='time_granularity'>{t('Time Granularity')}</Label>
             <Select
-              items={[
-                ...TIME_GRANULARITY_OPTIONS.map((option) => ({
-                  value: option.value,
-                  label: t(option.label),
-                })),
-              ]}
+              items={TIME_GRANULARITY_OPTIONS.map((option) => ({
+                value: option.value,
+                label: t(option.label),
+              }))}
               value={filters.time_granularity}
               onValueChange={(value) =>
                 handleChange('time_granularity', value as TimeGranularity)

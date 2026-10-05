@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { QueryClient } from '@tanstack/react-query'
-import { afterEach, describe, expect, test } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vitest'
 
 import { useAuthStore, type AuthBundle } from '../stores/auth-store'
 import {
@@ -26,8 +26,10 @@ import {
   clearAuthenticatedClientState,
   createRefreshRunner,
   isAuthBundle,
+  resolveAuthentication,
   type AuthRefreshRuntime,
 } from './auth-session'
+import { SESSION_HINT_COOKIE_NAME } from './session-hint'
 
 const bundle: AuthBundle = {
   access_token: 'access-token',
@@ -50,20 +52,79 @@ const bundle: AuthBundle = {
   },
 }
 
+function clearCookies() {
+  for (const part of document.cookie.split(';')) {
+    const name = part.split('=')[0]?.trim()
+    if (name) {
+      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`
+    }
+  }
+}
+
+function mockRefreshResponse(status: number, data: unknown) {
+  const open = vi.spyOn(XMLHttpRequest.prototype, 'open')
+  vi.spyOn(XMLHttpRequest.prototype, 'send').mockImplementation(function (
+    this: XMLHttpRequest
+  ) {
+    Object.defineProperties(this, {
+      status: { value: status, configurable: true },
+      statusText: { value: 'Refresh response', configurable: true },
+      responseText: {
+        value: JSON.stringify(data),
+        configurable: true,
+      },
+      readyState: { value: 4, configurable: true },
+    })
+    this.onloadend?.(new ProgressEvent('loadend'))
+  })
+  return open
+}
+
 afterEach(() => {
   useAuthStore.getState().auth.reset('idle')
+  clearCookies()
+  vi.restoreAllMocks()
 })
 
 describe('authentication session coordination', () => {
   test('bootstrap distinguishes a completed anonymous check from an active session', async () => {
     useAuthStore.getState().auth.reset('complete')
-    expect(await bootstrapAuthentication()).toEqual({ kind: 'anonymous' })
+    expect(await resolveAuthentication()).toEqual({ kind: 'anonymous' })
 
     useAuthStore.getState().auth.setBundle(bundle)
     expect(await bootstrapAuthentication()).toEqual({
       kind: 'authenticated',
       bundle,
     })
+  })
+
+  test('bootstrap without a session hint skips refresh and stays idle', async () => {
+    const open = vi.spyOn(XMLHttpRequest.prototype, 'open')
+    expect(await bootstrapAuthentication()).toEqual({ kind: 'anonymous' })
+    expect(useAuthStore.getState().auth.bootstrapState).toBe('idle')
+    expect(open).not.toHaveBeenCalled()
+  })
+
+  test('bootstrap with a session hint refreshes from the server', async () => {
+    document.cookie = `${SESSION_HINT_COOKIE_NAME}=1`
+    const open = mockRefreshResponse(200, { success: true, data: bundle })
+    expect(await bootstrapAuthentication()).toEqual({
+      kind: 'authenticated',
+      bundle,
+    })
+    expect(open).toHaveBeenCalledTimes(1)
+    expect(open.mock.calls[0]?.[1]).toBe('/api/user/auth/refresh')
+    expect(useAuthStore.getState().auth.accessToken).toBe(bundle.access_token)
+  })
+
+  test('resolveAuthentication refreshes even when the session hint is missing', async () => {
+    const open = mockRefreshResponse(200, { success: true, data: bundle })
+    expect(await resolveAuthentication()).toEqual({
+      kind: 'authenticated',
+      bundle,
+    })
+    expect(open).toHaveBeenCalledTimes(1)
+    expect(open.mock.calls[0]?.[1]).toBe('/api/user/auth/refresh')
   })
 
   test('a session mismatch clears only local state and retries without the stale SID', async () => {

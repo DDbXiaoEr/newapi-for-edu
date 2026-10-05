@@ -601,6 +601,7 @@
     "Auto groups must not contain duplicates": "Les groupes Auto ne doivent pas contenir de doublons",
     "Auto negotiates HTTP/2 when available. HTTP/1.1 forces multiple keep-alive connections under concurrency.": "Le mode Auto négocie HTTP/2 lorsque c’est disponible. HTTP/1.1 force plusieurs connexions keep-alive en concurrence.",
     "Auto refresh": "Actualisation automatique",
+    "Auto refresh (30s)": "Actualiser auto (30 s)",
     "Auto refresh (5s)": "Actualiser auto (5 s)",
     "Auto Sync Upstream Models": "Synchronisation automatique des modèles en amont",
     "Auto-disable channel": "Désactivation auto",

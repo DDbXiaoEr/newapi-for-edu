@@ -14,33 +14,84 @@ import (
 	"gorm.io/gorm"
 )
 
-func AuthLogout(c *gin.Context) {
+func RefreshAuth(c *gin.Context) {
 	setAuthNoStore(c)
-	expectedSID := strings.TrimSpace(c.GetHeader("X-Auth-Session"))
-	rawAccessToken, ok := dashboardBearer(c.GetHeader("Authorization"))
-	if !ok {
-		// Nothing but the (already client-side) token identifies the session.
-		c.JSON(http.StatusOK, gin.H{"success": true, "message": ""})
+	rawRefreshToken, err := c.Cookie(service.RefreshCookieName)
+	if err != nil || rawRefreshToken == "" {
+		service.ClearRefreshCookie(c)
+		writeAuthSessionError(c, service.ErrRefreshTokenInvalid)
 		return
 	}
-	identity, err := service.ParseAccessToken(rawAccessToken)
+	bundle, user, err := service.RefreshLoginSession(rawRefreshToken, c.GetHeader("X-Auth-Session"), c.ClientIP(), c.Request.UserAgent())
 	if err != nil {
+		if errors.Is(err, service.ErrRefreshTokenInvalid) || errors.Is(err, service.ErrLoginSessionRevoked) {
+			service.ClearRefreshCookie(c)
+		}
 		writeAuthSessionError(c, err)
 		return
 	}
-	if expectedSID != "" && expectedSID != identity.SessionID {
-		writeAuthSessionError(c, service.ErrLoginSessionMismatch)
-		return
-	}
-	if _, err := model.RevokeUserSession(identity.UserID, identity.SessionID, "logout"); err != nil {
-		writeAuthSessionError(c, err)
-		return
-	}
+	service.WriteRefreshCookie(c, bundle.RefreshToken)
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
-		"data":    gin.H{"revoked_sid": identity.SessionID},
+		"data": gin.H{
+			"access_token":      bundle.AccessToken,
+			"token_type":        bundle.TokenType,
+			"access_expires_at": bundle.AccessExpiresAt,
+			"user":              buildSelfUserData(user),
+			"session":           bundle.Session,
+		},
 	})
+}
+
+func AuthLogout(c *gin.Context) {
+	setAuthNoStore(c)
+	expectedSID := strings.TrimSpace(c.GetHeader("X-Auth-Session"))
+	rawRefreshToken, cookieErr := c.Cookie(service.RefreshCookieName)
+	cookieSID, hasCookieSID := service.RefreshTokenSID(rawRefreshToken)
+	if expectedSID != "" && cookieErr == nil && hasCookieSID && cookieSID != expectedSID {
+		writeAuthSessionError(c, service.ErrLoginSessionMismatch)
+		return
+	}
+
+	if rawAccessToken, ok := dashboardBearer(c.GetHeader("Authorization")); ok {
+		if identity, err := service.ParseAccessToken(rawAccessToken); err == nil {
+			if expectedSID != "" && expectedSID != identity.SessionID {
+				writeAuthSessionError(c, service.ErrLoginSessionMismatch)
+				return
+			}
+			if _, err := model.RevokeUserSession(identity.UserID, identity.SessionID, "logout"); err != nil {
+				writeAuthSessionError(c, err)
+				return
+			}
+			cookieCleared := false
+			if cookieErr == nil && hasCookieSID && cookieSID == identity.SessionID {
+				if err := service.RevokeByRefreshToken(rawRefreshToken, identity.SessionID, "logout"); err != nil {
+					writeAuthSessionError(c, err)
+					return
+				}
+				service.ClearRefreshCookie(c)
+				cookieCleared = true
+			}
+			c.JSON(http.StatusOK, gin.H{
+				"success": true,
+				"message": "",
+				"data":    gin.H{"revoked_sid": identity.SessionID, "cookie_cleared": cookieCleared},
+			})
+			return
+		}
+	}
+	if cookieErr != nil || rawRefreshToken == "" {
+		service.ClearRefreshCookie(c)
+		c.JSON(http.StatusOK, gin.H{"success": true, "message": ""})
+		return
+	}
+	if err := service.RevokeByRefreshToken(rawRefreshToken, expectedSID, "logout"); err != nil {
+		writeAuthSessionError(c, err)
+		return
+	}
+	service.ClearRefreshCookie(c)
+	c.JSON(http.StatusOK, gin.H{"success": true, "message": ""})
 }
 
 func GetLoginSessions(c *gin.Context) {
@@ -74,6 +125,12 @@ func DeleteLoginSession(c *gin.Context) {
 	if !revoked {
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "code": "AUTH_SESSION_NOT_FOUND", "message": "session not found"})
 		return
+	}
+	if rawRefreshToken, cookieErr := c.Cookie(service.RefreshCookieName); cookieErr == nil {
+		cookieSID, ok := service.RefreshTokenSID(rawRefreshToken)
+		if ok && cookieSID == sid {
+			service.ClearRefreshCookie(c)
+		}
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "message": "", "data": gin.H{"revoked_sid": sid, "current": sid == identity.SessionID}})
 }

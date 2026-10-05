@@ -35,10 +35,12 @@ import { ROLE } from '@/lib/roles'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
 
+import { DashboardAutoRefreshToggle } from './components/dashboard-auto-refresh-toggle'
 import { ModelsChartPreferences } from './components/models/models-chart-preferences'
 import { ModelsFilter } from './components/models/models-filter-dialog'
 import { OverviewDashboard } from './components/overview/overview-dashboard'
 import { DEFAULT_TIME_GRANULARITY } from './constants'
+import { DashboardAutoRefreshProvider } from './hooks/use-dashboard-auto-refresh'
 import {
   buildDefaultDashboardFilters,
   getDefaultDays,
@@ -191,7 +193,7 @@ const SECTION_META: Record<DashboardSectionId, { titleKey: string }> = {
   },
 }
 
-export function Dashboard() {
+function DashboardContent() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const params = route.useParams()
@@ -340,11 +342,10 @@ export function Dashboard() {
             ) : (
               <div />
             )}
-            {sectionActions != null && (
-              <div className='flex shrink-0 flex-wrap items-center gap-1.5 sm:gap-2'>
-                {sectionActions}
-              </div>
-            )}
+            <div className='flex shrink-0 flex-wrap items-center gap-1.5 sm:gap-2'>
+              <DashboardAutoRefreshToggle />
+              {sectionActions}
+            </div>
           </div>
           {activeSection === 'models' && (
             <>
@@ -414,5 +415,13 @@ export function Dashboard() {
         </div>
       </SectionPageLayout.Content>
     </SectionPageLayout>
+  )
+}
+
+export function Dashboard() {
+  return (
+    <DashboardAutoRefreshProvider>
+      <DashboardContent />
+    </DashboardAutoRefreshProvider>
   )
 }

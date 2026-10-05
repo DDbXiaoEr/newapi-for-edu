@@ -601,6 +601,7 @@
     "Auto groups must not contain duplicates": "Auto 分組不得重複",
     "Auto negotiates HTTP/2 when available. HTTP/1.1 forces multiple keep-alive connections under concurrency.": "自動在可用時協商 HTTP/2。HTTP/1.1 會在並發時使用多條保持連線的連線。",
     "Auto refresh": "自動重新整理",
+    "Auto refresh (30s)": "自動重新整理（30秒）",
     "Auto refresh (5s)": "自動重新整理（5秒）",
     "Auto Sync Upstream Models": "自動同步上游模型",
     "Auto-disable channel": "異常自動停用",

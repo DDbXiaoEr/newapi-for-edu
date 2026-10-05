@@ -61,14 +61,16 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { getFlowQuotaDates } from '@/features/dashboard/api'
+import { useDashboardQueryRefresh } from '@/features/dashboard/hooks/use-dashboard-auto-refresh'
 import {
   buildDashboardFlowData,
   buildFlowSankeySpec,
   buildQueryParams,
   flowNodeFilterFromSankeyDatum,
   flowSankeyDatumValue,
-  getDefaultDays,
+  getDashboardTimeQueryKey,
   getFlowStages,
+  resolveDashboardTimeRange,
 } from '@/features/dashboard/lib'
 import {
   compactFlowSelectionLabel,
@@ -87,7 +89,6 @@ import type {
 import { formatQuota } from '@/lib/format'
 import { ROLE } from '@/lib/roles'
 import { requireServerSuccess } from '@/lib/server-error-message'
-import { computeTimeRange } from '@/lib/time'
 import { useChartTheme } from '@/lib/use-chart-theme'
 import { cn } from '@/lib/utils'
 import { VCHART_OPTION } from '@/lib/vchart'
@@ -312,23 +313,8 @@ export function FlowCharts(props: FlowChartsProps) {
     })
   }
 
-  const timeRange = useMemo(
-    () =>
-      computeTimeRange(
-        getDefaultDays(props.filters?.time_granularity),
-        props.filters?.start_timestamp,
-        props.filters?.end_timestamp
-      ),
-    [
-      props.filters?.end_timestamp,
-      props.filters?.start_timestamp,
-      props.filters?.time_granularity,
-    ]
-  )
-  const flowQueryParams = useMemo(
-    () => buildQueryParams(timeRange, props.filters),
-    [props.filters, timeRange]
-  )
+  const refresh = useDashboardQueryRefresh()
+  const timeQueryKey = getDashboardTimeQueryKey(props.filters)
 
   const {
     data: flowRows,
@@ -336,12 +322,27 @@ export function FlowCharts(props: FlowChartsProps) {
     isError,
     isLoading,
   } = useQuery({
-    queryKey: ['dashboard', 'flow', flowQueryParams, flowRole],
-    queryFn: async () =>
-      requireServerSuccess(await getFlowQuotaDates(flowQueryParams, isAdmin)),
+    queryKey: [
+      'dashboard',
+      'flow',
+      timeQueryKey,
+      props.filters?.time_granularity,
+      props.filters?.username,
+      flowRole,
+    ],
+    queryFn: async () => {
+      const flowQueryParams = buildQueryParams(
+        resolveDashboardTimeRange(props.filters),
+        props.filters
+      )
+      return requireServerSuccess(
+        await getFlowQuotaDates(flowQueryParams, isAdmin)
+      )
+    },
     select: (res) =>
       requireSuccessfulFlowRows(res, t('Please try again later.')),
     staleTime: 60_000,
+    ...refresh,
   })
 
   const maskSensitive = props.sensitiveVisible === false

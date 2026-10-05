@@ -601,6 +601,7 @@
     "Auto groups must not contain duplicates": "Auto グループを重複させることはできません",
     "Auto negotiates HTTP/2 when available. HTTP/1.1 forces multiple keep-alive connections under concurrency.": "自動は利用可能な場合に HTTP/2 を交渉します。HTTP/1.1 は同時実行時に複数のキープアライブ接続を使用します。",
     "Auto refresh": "自動更新",
+    "Auto refresh (30s)": "自動更新（30秒）",
     "Auto refresh (5s)": "自動更新（5秒）",
     "Auto Sync Upstream Models": "アップストリームモデルの自動同期",
     "Auto-disable channel": "チャネル自動無効化",

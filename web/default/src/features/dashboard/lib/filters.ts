@@ -31,7 +31,11 @@ import type {
   DashboardFilters,
   ModelAnalyticsChartTab,
 } from '@/features/dashboard/types'
-import { getRollingDateRange, type TimeGranularity } from '@/lib/time'
+import {
+  computeTimeRange,
+  getRollingDateRange,
+  type TimeGranularity,
+} from '@/lib/time'
 
 function isTimeGranularity(value: unknown): value is TimeGranularity {
   return value === 'hour' || value === 'day' || value === 'week'
@@ -138,6 +142,42 @@ export function saveChartPreferences(
 export function getDefaultDays(granularity?: TimeGranularity): number {
   if (!granularity) return getSavedChartPreferences().defaultTimeRangeDays
   return TIME_RANGE_BY_GRANULARITY[getSavedGranularity(granularity)]
+}
+
+export function getDashboardRangeDays(
+  filters: DashboardFilters | undefined
+): number | null {
+  const start = filters?.start_timestamp
+  const end = filters?.end_timestamp
+  if (!start || !end) return null
+  const days = Math.round((end.getTime() - start.getTime()) / 86_400_000)
+  return TIME_RANGE_PRESETS.some((preset) => preset.days === days) ? days : null
+}
+
+export function resolveDashboardTimeRange(filters?: DashboardFilters): {
+  start_timestamp: number
+  end_timestamp: number
+} {
+  const days = getDashboardRangeDays(filters)
+  if (days != null) return computeTimeRange(days)
+  return computeTimeRange(
+    getDefaultDays(filters?.time_granularity),
+    filters?.start_timestamp,
+    filters?.end_timestamp
+  )
+}
+
+export function getDashboardTimeQueryKey(filters?: DashboardFilters): {
+  rollingDays?: number
+  start?: number
+  end?: number
+} {
+  const days = getDashboardRangeDays(filters)
+  if (days != null) return { rollingDays: days }
+  return {
+    start: filters?.start_timestamp?.getTime(),
+    end: filters?.end_timestamp?.getTime(),
+  }
 }
 
 export function buildDefaultDashboardFilters(

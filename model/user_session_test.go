@@ -96,66 +96,42 @@ func newTestUserSession(sid string, userID int, now int64) *UserSession {
 	}
 }
 
-func TestUserSessionCacheTTLUsesShortCacheWindow(t *testing.T) {
+func TestUserSessionCacheTTLFollowsSessionLifetime(t *testing.T) {
 	setupUserSessionTest(t)
 	server := useUserCacheMiniRedis(t)
 	now := time.Now().Unix()
-	tests := []struct {
-		name       string
-		status     string
-		expiresAt  int64
-		wantMaxTTL time.Duration
-	}{
-		{name: "active", status: UserSessionStatusActive, expiresAt: now + 300, wantMaxTTL: 2 * time.Second},
-		{name: "revoking", status: UserSessionStatusRevoking, expiresAt: now + 300, wantMaxTTL: 2 * time.Second},
-		{name: "revoked", status: UserSessionStatusRevoked, expiresAt: now + 300, wantMaxTTL: 2 * time.Second},
-		{name: "already expired", status: UserSessionStatusRevoked, expiresAt: now - 1, wantMaxTTL: time.Second},
-	}
 
-	for index, test := range tests {
-		sid := fmt.Sprintf("short-cache-ttl-%d", index)
-		entry := newTestUserSession(sid, 1100+index, now).cacheEntry()
-		entry.Status = test.status
-		entry.ExpiresAt = test.expiresAt
-		if test.status != UserSessionStatusActive {
-			entry.RevokedAt = now
-		}
+	active := newTestUserSession("session-lifetime-active", 1100, now).cacheEntry()
+	active.ExpiresAt = now + 300
+	require.NoError(t, writeUserSessionCache(active, userSessionCacheDeadline()))
+	activeTTL := server.TTL(userSessionCacheKey(active.SID))
+	assert.Greater(t, activeTTL, 299*time.Second)
+	assert.LessOrEqual(t, activeTTL, 300*time.Second)
 
-		cacheDeadline := time.Time{}
-		if test.status == UserSessionStatusActive {
-			cacheDeadline = userSessionCacheDeadline()
-		}
-		require.NoError(t, writeUserSessionCache(entry, cacheDeadline), test.name)
-		ttl := server.TTL(userSessionCacheKey(sid))
-		assert.Positive(t, ttl, test.name)
-		assert.LessOrEqual(t, ttl, test.wantMaxTTL, test.name)
-	}
-
-	initialTTL := server.TTL(userSessionCacheKey("short-cache-ttl-0"))
+	initialTTL := activeTTL
 	server.FastForward(time.Second)
-	_, err := getUserSessionCache("short-cache-ttl-0")
+	_, err := getUserSessionCache(active.SID)
 	require.NoError(t, err)
-	remainingTTL := server.TTL(userSessionCacheKey("short-cache-ttl-0"))
+	remainingTTL := server.TTL(userSessionCacheKey(active.SID))
 	assert.Positive(t, remainingTTL)
-	assert.LessOrEqual(t, remainingTTL, initialTTL-time.Second, "cache reads must not renew the bounded TTL")
+	assert.LessOrEqual(t, remainingTTL, initialTTL-time.Second, "cache reads must not renew the Session TTL")
 
-	common.SyncFrequency = 10
-	nearExpiry := newTestUserSession("short-cache-ttl-near-expiry", 1199, now).cacheEntry()
+	nearExpiry := newTestUserSession("session-lifetime-near-expiry", 1199, now).cacheEntry()
 	nearExpiry.ExpiresAt = time.Now().Add(2 * time.Second).Unix()
-	nearExpiryDeadline := userSessionCacheDeadline()
 	remainingLifetime := time.Until(time.Unix(nearExpiry.ExpiresAt, 0))
-	require.NoError(t, writeUserSessionCache(nearExpiry, nearExpiryDeadline))
+	require.NoError(t, writeUserSessionCache(nearExpiry, userSessionCacheDeadline()))
 	nearExpiryTTL := server.TTL(userSessionCacheKey(nearExpiry.SID))
 	assert.Positive(t, nearExpiryTTL)
 	assert.LessOrEqual(t, nearExpiryTTL, remainingLifetime, "cache TTL must not exceed the Session remaining lifetime")
 
-	common.SyncFrequency = 0
-	fallback := newTestUserSession("short-cache-ttl-fallback", 1200, now).cacheEntry()
-	fallback.ExpiresAt = now + 300
-	require.NoError(t, writeUserSessionCache(fallback, userSessionCacheDeadline()))
-	fallbackTTL := server.TTL(userSessionCacheKey(fallback.SID))
-	assert.Greater(t, fallbackTTL, 59*time.Second)
-	assert.LessOrEqual(t, fallbackTTL, 60*time.Second, "non-positive cache frequency must use the existing 60-second fallback")
+	denied := newTestUserSession("session-lifetime-denied", 1101, now).cacheEntry()
+	denied.Status = UserSessionStatusRevoked
+	denied.RevokedAt = now
+	denied.ExpiresAt = now + 300
+	require.NoError(t, writeUserSessionCache(denied, time.Time{}))
+	denyTTL := server.TTL(userSessionCacheKey(denied.SID))
+	assert.Positive(t, denyTTL)
+	assert.LessOrEqual(t, denyTTL, time.Duration(userCacheTTLSeconds())*time.Second)
 }
 
 func TestStaleActiveSessionCacheFillCannotRestartWindowAfterDenyExpires(t *testing.T) {
@@ -179,17 +155,18 @@ func TestStaleActiveSessionCacheFillCannotRestartWindowAfterDenyExpires(t *testi
 	assert.False(t, server.Exists(cacheKey), "a delayed pre-revoke active snapshot must not restart a fresh cache window")
 }
 
-func TestActiveSessionCacheFillUsesRemainingObservationWindow(t *testing.T) {
+func TestActiveSessionCacheFillKeepsSessionLifetime(t *testing.T) {
 	setupUserSessionTest(t)
 	server := useUserCacheMiniRedis(t)
 	now := time.Now().Unix()
-	entry := newTestUserSession("bounded-active-cache-fill", 1202, now).cacheEntry()
+	entry := newTestUserSession("session-lifetime-cache-fill", 1202, now).cacheEntry()
+	entry.ExpiresAt = now + 300
 	deadline := time.Now().Add(1500 * time.Millisecond)
 
 	require.NoError(t, writeUserSessionCache(entry, deadline))
 	ttl := server.TTL(userSessionCacheKey(entry.SID))
-	assert.Positive(t, ttl)
-	assert.LessOrEqual(t, ttl, 1500*time.Millisecond, "a delayed fill must inherit only the unused observation window")
+	assert.Greater(t, ttl, 299*time.Second)
+	assert.LessOrEqual(t, ttl, 300*time.Second, "an active fill must live until the Session expires")
 }
 
 func TestSessionCacheLuaUsesAbsoluteActiveAndRelativeDenyExpiry(t *testing.T) {
@@ -200,8 +177,9 @@ func TestSessionCacheLuaUsesAbsoluteActiveAndRelativeDenyExpiry(t *testing.T) {
 	common.RDB.AddHook(setMiniRedisTimeOnEvalHook{server: server, at: deadline.Add(time.Second)})
 
 	active := newTestUserSession("delayed-active-cache-eval", 1203, now).cacheEntry()
-	require.NoError(t, writeUserSessionCache(active, deadline))
-	assert.False(t, server.Exists(userSessionCacheKey(active.SID)), "an active fill executed after its absolute deadline must not recreate the cache")
+	err := writeUserSessionCache(active, time.Now().Add(-time.Millisecond))
+	assert.ErrorIs(t, err, errUserSessionCacheObservationStale)
+	assert.False(t, server.Exists(userSessionCacheKey(active.SID)), "an active fill started after its writer deadline must not recreate the cache")
 
 	denied := newTestUserSession("delayed-deny-cache-eval", 1204, now).cacheEntry()
 	denied.Status = UserSessionStatusRevoked
@@ -210,7 +188,7 @@ func TestSessionCacheLuaUsesAbsoluteActiveAndRelativeDenyExpiry(t *testing.T) {
 	require.NoError(t, writeUserSessionCache(denied, time.Time{}))
 	denyTTL := server.TTL(userSessionCacheKey(denied.SID))
 	assert.Positive(t, denyTTL)
-	assert.LessOrEqual(t, denyTTL, 2*time.Second, "a delayed deny publication must receive a full relative short TTL at Redis execution")
+	assert.LessOrEqual(t, denyTTL, time.Duration(userCacheTTLSeconds())*time.Second, "a delayed deny publication must receive a full relative short TTL at Redis execution")
 }
 
 func TestUserSessionCreateListAndRevokeOne(t *testing.T) {
@@ -308,11 +286,11 @@ func TestUserSessionPreviousRefreshHashNormalizesLegacyPadding(t *testing.T) {
 	assert.True(t, revoked, "refresh-cookie logout must accept a legacy CHAR-padded previous digest inside its grace window")
 }
 
-func TestUserSessionCacheExcludesRefreshDigests(t *testing.T) {
+func TestUserSessionCacheStoresRefreshDigests(t *testing.T) {
 	setupUserSessionTest(t)
 	useUserCacheMiniRedis(t)
 	now := time.Now().Unix()
-	session := newTestUserSession("cache-without-refresh-digests", 1011, now)
+	session := newTestUserSession("cache-with-refresh-digests", 1011, now)
 	session.PreviousRefreshHash = strings.Repeat("a", 64)
 	session.PreviousValidUntil = now + 30
 	require.NoError(t, writeUserSessionCache(session.cacheEntry(), userSessionCacheDeadline()))
@@ -320,21 +298,16 @@ func TestUserSessionCacheExcludesRefreshDigests(t *testing.T) {
 	cacheKey := userSessionCacheKey(session.SID)
 	fields, err := common.RDB.HGetAll(context.Background(), cacheKey).Result()
 	require.NoError(t, err)
-	assert.NotContains(t, fields, "RefreshHash")
-	assert.NotContains(t, fields, "PreviousRefreshHash")
-	assert.NotContains(t, fields, "PreviousValidUntil")
+	assert.Equal(t, session.RefreshHash, fields["RefreshHash"])
+	assert.Equal(t, session.PreviousRefreshHash, fields["PreviousRefreshHash"])
+	assert.Equal(t, fmt.Sprintf("%d", session.PreviousValidUntil), fields["PreviousValidUntil"])
 
-	require.NoError(t, common.RDB.HSet(context.Background(), cacheKey,
-		"RefreshHash", strings.Repeat("b", 64),
-		"PreviousRefreshHash", strings.Repeat("c", 64)+"   ",
-		"PreviousValidUntil", now+30,
-	).Err())
 	entry, err := getUserSessionCache(session.SID)
 	require.NoError(t, err)
 	cachedSession := entry.session()
-	assert.Empty(t, cachedSession.RefreshHash)
-	assert.Empty(t, cachedSession.PreviousRefreshHash)
-	assert.Zero(t, cachedSession.PreviousValidUntil)
+	assert.Equal(t, session.RefreshHash, cachedSession.RefreshHash)
+	assert.Equal(t, session.PreviousRefreshHash, cachedSession.PreviousRefreshHash)
+	assert.Equal(t, session.PreviousValidUntil, cachedSession.PreviousValidUntil)
 }
 
 func TestRevokeOtherUserSessionsKeepsCurrent(t *testing.T) {

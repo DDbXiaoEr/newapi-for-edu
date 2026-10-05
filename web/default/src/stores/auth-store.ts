@@ -83,58 +83,6 @@ export interface PendingLoginVerification {
   redirectTo?: string
 }
 
-/**
- * The refresh flow was removed, so the access token is the only credential a
- * reload has. Persist the whole bundle (token + user + session) per browser so
- * a cold start can restore the dashboard without a network round trip.
- *
- * This is localStorage, not a cookie: it carries no ambient authority, so it is
- * never attached automatically to requests and cannot be abused cross-site.
- * It is however readable by injected script, which is the accepted trade-off of
- * dropping HttpOnly refresh cookies.
- */
-export const AUTH_PERSIST_KEY = 'new-api:auth'
-
-function isPersistedBundle(value: unknown): value is AuthBundle {
-  if (!value || typeof value !== 'object') return false
-  const bundle = value as Partial<AuthBundle>
-  return (
-    typeof bundle.access_token === 'string' &&
-    bundle.access_token.length > 0 &&
-    typeof bundle.access_expires_at === 'number' &&
-    Number.isFinite(bundle.access_expires_at) &&
-    Boolean(bundle.user) &&
-    typeof bundle.user === 'object' &&
-    Boolean(bundle.session) &&
-    typeof bundle.session === 'object'
-  )
-}
-
-export function loadPersistedAuthBundle(): AuthBundle | null {
-  if (typeof window === 'undefined') return null
-  try {
-    const raw = window.localStorage.getItem(AUTH_PERSIST_KEY)
-    if (!raw) return null
-    const parsed: unknown = JSON.parse(raw)
-    return isPersistedBundle(parsed) ? parsed : null
-  } catch {
-    return null
-  }
-}
-
-function persistAuthBundle(bundle: AuthBundle | null): void {
-  if (typeof window === 'undefined') return
-  try {
-    if (bundle) {
-      window.localStorage.setItem(AUTH_PERSIST_KEY, JSON.stringify(bundle))
-    } else {
-      window.localStorage.removeItem(AUTH_PERSIST_KEY)
-    }
-  } catch {
-    // Persistence is best-effort when storage is unavailable or full.
-  }
-}
-
 interface AuthState {
   auth: {
     user: AuthUser | null
@@ -153,18 +101,15 @@ interface AuthState {
   }
 }
 
-const persistedAuth = loadPersistedAuthBundle()
-
-export const useAuthStore = create<AuthState>()((set, get) => ({
+export const useAuthStore = create<AuthState>()((set) => ({
   auth: {
-    user: persistedAuth?.user ?? null,
-    accessToken: persistedAuth?.access_token ?? null,
-    accessExpiresAt: persistedAuth?.access_expires_at ?? null,
-    session: persistedAuth?.session ?? null,
+    user: null,
+    accessToken: null,
+    accessExpiresAt: null,
+    session: null,
     pendingLoginVerification: null,
     bootstrapState: 'idle',
-    setBundle: (bundle) => {
-      persistAuthBundle(bundle)
+    setBundle: (bundle) =>
       set((state) => ({
         ...state,
         auth: {
@@ -176,19 +121,8 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
           pendingLoginVerification: null,
           bootstrapState: 'complete',
         },
-      }))
-    },
-    setUser: (user) => {
-      const current = get().auth
-      if (current.accessToken && current.session && user) {
-        persistAuthBundle({
-          access_token: current.accessToken,
-          token_type: 'Bearer',
-          access_expires_at: current.accessExpiresAt ?? 0,
-          user,
-          session: current.session,
-        })
-      }
+      })),
+    setUser: (user) =>
       set((state) => ({
         ...state,
         auth: {
@@ -199,8 +133,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
               ? state.auth.pendingLoginVerification
               : null,
         },
-      }))
-    },
+      })),
     setPendingLoginVerification: (pendingLoginVerification) =>
       set((state) => ({
         ...state,
@@ -211,8 +144,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
         ...state,
         auth: { ...state.auth, bootstrapState },
       })),
-    reset: (bootstrapState = 'complete') => {
-      persistAuthBundle(null)
+    reset: (bootstrapState = 'complete') =>
       set((state) => ({
         ...state,
         auth: {
@@ -224,7 +156,6 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
           pendingLoginVerification: null,
           bootstrapState,
         },
-      }))
-    },
+      })),
   },
 }))

@@ -23,6 +23,7 @@ import { useTranslation } from 'react-i18next'
 
 import { IconBadge, type IconBadgeTone } from '@/components/ui/icon-badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useDashboardQueryRefresh } from '@/features/dashboard/hooks/use-dashboard-auto-refresh'
 import { getPerfMetricsSummary } from '@/features/performance-metrics/api'
 import {
   formatLatency,
@@ -40,6 +41,7 @@ const TOP_MODEL_LIMIT = 6
 
 export function PerformanceOverview() {
   const { t } = useTranslation()
+  const refresh = useDashboardQueryRefresh()
   const metricsQuery = useQuery({
     queryKey: ['perf-metrics-summary', PERFORMANCE_WINDOW_HOURS],
     queryFn: async () =>
@@ -48,6 +50,7 @@ export function PerformanceOverview() {
       ),
     staleTime: 60 * 1000,
     retry: false,
+    ...refresh,
   })
 
   const models = useMemo(

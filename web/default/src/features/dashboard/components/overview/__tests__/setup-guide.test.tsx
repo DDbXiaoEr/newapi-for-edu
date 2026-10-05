@@ -77,6 +77,13 @@ beforeEach(() => {
         }
       case '/api/user/models':
         return { data: { success: true, data: ['gpt-4o-mini'] } }
+      case '/api/user/self':
+        return {
+          data: {
+            success: true,
+            data: useAuthStore.getState().auth.user,
+          },
+        }
       case '/api/data/self':
         return { data: { success: true, data: [] } }
       default:

@@ -601,6 +601,7 @@
     "Auto groups must not contain duplicates": "Các nhóm Auto không được trùng lặp",
     "Auto negotiates HTTP/2 when available. HTTP/1.1 forces multiple keep-alive connections under concurrency.": "Tự động đàm phán HTTP/2 khi khả dụng. HTTP/1.1 buộc dùng nhiều kết nối keep-alive khi có đồng thời.",
     "Auto refresh": "Tự động làm mới",
+    "Auto refresh (30s)": "Tự làm mới (30 giây)",
     "Auto refresh (5s)": "Tự làm mới (5 giây)",
     "Auto Sync Upstream Models": "Tự động đồng bộ mô hình nguồn",
     "Auto-disable channel": "Tự động tắt kênh",

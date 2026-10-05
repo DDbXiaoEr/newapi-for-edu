@@ -79,6 +79,9 @@ func InitEnv() {
 	} else {
 		CryptoSecret = SessionSecret
 	}
+	if err := InitSessionCookieSettings(); err != nil {
+		log.Fatal(err)
+	}
 	initUserSessionSettings()
 	if *LogDir != "" {
 		var err error

@@ -18,7 +18,7 @@ const (
 	UserSessionStatusRevoking = "revoking"
 	UserSessionStatusRevoked  = "revoked"
 
-	userSessionCacheSchema      = 1
+	userSessionCacheSchema      = 2
 	userSessionListLimit        = 100
 	userSessionRevokeBatchSize  = 500
 	userSessionCleanupScanLimit = 1000
@@ -36,9 +36,11 @@ var (
 	errUserSessionCacheObservationStale = errors.New("user session cache observation is stale")
 )
 
-// UserSession is the server-side control plane for short-lived access JWTs.
+// UserSession is the server-side control plane for dashboard login sessions.
 // RefreshHash values are HMAC digests supplied by the service layer; opaque
-// refresh secrets are never persisted.
+// refresh secrets are never persisted. Redis holds the live copy (including
+// refresh digests) until ExpiresAt; the database remains the source of truth
+// for listing, issuance limits and cleanup.
 type UserSession struct {
 	SID                 string `json:"sid" gorm:"column:sid;type:varchar(64);primaryKey"`
 	UserID              int    `json:"user_id" gorm:"column:user_id;not null;index:idx_user_sessions_user_status_expiry,priority:1;index:idx_user_sessions_user_created,priority:1"`
@@ -68,56 +70,65 @@ func (session *UserSession) AfterFind(_ *gorm.DB) error {
 }
 
 type userSessionCacheEntry struct {
-	SID             string
-	UserID          int
-	Version         int64
-	UserAuthVersion int64
-	Status          string
-	LoginMethod     string
-	IP              string
-	UserAgent       string
-	CreatedAt       int64
-	LastActiveAt    int64
-	ExpiresAt       int64
-	RevokedAt       int64
-	RevokedReason   string
-	CacheSchema     int
+	SID                 string
+	UserID              int
+	Version             int64
+	UserAuthVersion     int64
+	Status              string
+	RefreshHash         string
+	PreviousRefreshHash string
+	PreviousValidUntil  int64
+	LoginMethod         string
+	IP                  string
+	UserAgent           string
+	CreatedAt           int64
+	LastActiveAt        int64
+	ExpiresAt           int64
+	RevokedAt           int64
+	RevokedReason       string
+	CacheSchema         int
 }
 
 func (session *UserSession) cacheEntry() *userSessionCacheEntry {
 	return &userSessionCacheEntry{
-		SID:             session.SID,
-		UserID:          session.UserID,
-		Version:         session.Version,
-		UserAuthVersion: session.UserAuthVersion,
-		Status:          session.Status,
-		LoginMethod:     session.LoginMethod,
-		IP:              session.IP,
-		UserAgent:       session.UserAgent,
-		CreatedAt:       session.CreatedAt,
-		LastActiveAt:    session.LastActiveAt,
-		ExpiresAt:       session.ExpiresAt,
-		RevokedAt:       session.RevokedAt,
-		RevokedReason:   session.RevokedReason,
-		CacheSchema:     userSessionCacheSchema,
+		SID:                 session.SID,
+		UserID:              session.UserID,
+		Version:             session.Version,
+		UserAuthVersion:     session.UserAuthVersion,
+		Status:              session.Status,
+		RefreshHash:         session.RefreshHash,
+		PreviousRefreshHash: strings.TrimSpace(session.PreviousRefreshHash),
+		PreviousValidUntil:  session.PreviousValidUntil,
+		LoginMethod:         session.LoginMethod,
+		IP:                  session.IP,
+		UserAgent:           session.UserAgent,
+		CreatedAt:           session.CreatedAt,
+		LastActiveAt:        session.LastActiveAt,
+		ExpiresAt:           session.ExpiresAt,
+		RevokedAt:           session.RevokedAt,
+		RevokedReason:       session.RevokedReason,
+		CacheSchema:         userSessionCacheSchema,
 	}
 }
 
 func (entry *userSessionCacheEntry) session() *UserSession {
 	return &UserSession{
-		SID:             entry.SID,
-		UserID:          entry.UserID,
-		Version:         entry.Version,
-		UserAuthVersion: entry.UserAuthVersion,
-		Status:          entry.Status,
-		LoginMethod:     entry.LoginMethod,
-		IP:              entry.IP,
-		UserAgent:       entry.UserAgent,
-		CreatedAt:       entry.CreatedAt,
-		LastActiveAt:    entry.LastActiveAt,
-		ExpiresAt:       entry.ExpiresAt,
-		RevokedAt:       entry.RevokedAt,
-		RevokedReason:   entry.RevokedReason,
+		SID:                 entry.SID,
+		UserID:              entry.UserID,
+		Version:             entry.Version,
+		UserAuthVersion:     entry.UserAuthVersion,
+		Status:              entry.Status,
+		RefreshHash:         entry.RefreshHash,
+		PreviousRefreshHash: strings.TrimSpace(entry.PreviousRefreshHash),
+		PreviousValidUntil:  entry.PreviousValidUntil,
+		LoginMethod:         entry.LoginMethod,
+		IP:                  entry.IP,
+		UserAgent:           entry.UserAgent,
+		CreatedAt:           entry.CreatedAt,
+		LastActiveAt:        entry.LastActiveAt,
+		ExpiresAt:           entry.ExpiresAt,
+		RevokedAt:           entry.RevokedAt,
+		RevokedReason:       entry.RevokedReason,
 	}
 }
 
@@ -266,6 +277,7 @@ func getUserSessionCache(sid string) (*userSessionCacheEntry, error) {
 	if err := common.RedisHGetObj(userSessionCacheKey(sid), &entry); err != nil {
 		return nil, err
 	}
+	entry.PreviousRefreshHash = strings.TrimSpace(entry.PreviousRefreshHash)
 	if entry.CacheSchema != userSessionCacheSchema || entry.SID != sid || entry.UserID <= 0 || entry.Version <= 0 || entry.UserAuthVersion <= 0 {
 		return nil, fmt.Errorf("user session cache schema is stale")
 	}
@@ -275,12 +287,12 @@ func getUserSessionCache(sid string) (*userSessionCacheEntry, error) {
 	return &entry, nil
 }
 
-// writeUserSessionCache writes a bounded Session snapshot. Active snapshots
-// must carry a deadline captured immediately before their authoritative
-// database read or mutation. Delayed fills inherit the unspent portion of that
-// window, so a stale active snapshot cannot outlive a short deny tombstone and
-// reactivate a revoked Session after the tombstone expires. Deny states pass a
-// zero deadline because their TTL starts when they are published.
+// writeUserSessionCache writes the live Session copy to Redis. Active
+// snapshots expire at ExpiresAt so the refresh digest stays available for the
+// whole login. cacheDeadline is only a writer liveness bound: a fill that
+// starts after it must not recreate an active key, otherwise a delayed
+// pre-revoke snapshot could outlive a deny tombstone. Deny states pass a zero
+// deadline and receive a short relative TTL.
 func writeUserSessionCache(entry *userSessionCacheEntry, cacheDeadline time.Time) error {
 	if entry == nil || !common.RedisEnabled {
 		return nil
@@ -290,24 +302,16 @@ func writeUserSessionCache(entry *userSessionCacheEntry, cacheDeadline time.Time
 	sessionTTL := sessionExpiresAt.Sub(now)
 	var redisExpiration int64
 	if entry.Status == UserSessionStatusActive {
-		if cacheDeadline.IsZero() {
-			return ErrUserSessionInvalid
-		}
-		cacheTTL := cacheDeadline.Sub(now)
-		if cacheTTL <= 0 {
+		if cacheDeadline.IsZero() || !now.Before(cacheDeadline) {
 			return errUserSessionCacheObservationStale
 		}
 		if sessionTTL <= 0 {
 			return ErrUserSessionInactive
 		}
-		cacheExpiresAt := cacheDeadline
-		if sessionExpiresAt.Before(cacheExpiresAt) {
-			cacheExpiresAt = sessionExpiresAt
-		}
-		if cacheExpiresAt.Sub(now) < time.Millisecond {
+		if sessionTTL < time.Millisecond {
 			return errUserSessionCacheObservationStale
 		}
-		redisExpiration = cacheExpiresAt.UnixMilli()
+		redisExpiration = sessionExpiresAt.UnixMilli()
 	} else {
 		ttl := min(sessionTTL, time.Duration(userCacheTTLSeconds())*time.Second)
 		if ttl <= 0 {
@@ -319,6 +323,7 @@ func writeUserSessionCache(entry *userSessionCacheEntry, cacheDeadline time.Time
 		}
 	}
 	entry.CacheSchema = userSessionCacheSchema
+	entry.PreviousRefreshHash = strings.TrimSpace(entry.PreviousRefreshHash)
 	const script = `
 local current_status = redis.call('HGET', KEYS[1], 'Status')
 local current_version = tonumber(redis.call('HGET', KEYS[1], 'Version') or '0')
@@ -331,17 +336,19 @@ end
 redis.call('HSET', KEYS[1],
   'SID', ARGV[1], 'UserID', ARGV[2], 'Version', ARGV[3],
   'UserAuthVersion', ARGV[4], 'Status', ARGV[5],
-  'LoginMethod', ARGV[6], 'IP', ARGV[7], 'UserAgent', ARGV[8],
-  'CreatedAt', ARGV[9], 'LastActiveAt', ARGV[10], 'ExpiresAt', ARGV[11],
-  'RevokedAt', ARGV[12], 'RevokedReason', ARGV[13], 'CacheSchema', ARGV[14])
+  'RefreshHash', ARGV[6], 'PreviousRefreshHash', ARGV[7], 'PreviousValidUntil', ARGV[8],
+  'LoginMethod', ARGV[9], 'IP', ARGV[10], 'UserAgent', ARGV[11],
+  'CreatedAt', ARGV[12], 'LastActiveAt', ARGV[13], 'ExpiresAt', ARGV[14],
+  'RevokedAt', ARGV[15], 'RevokedReason', ARGV[16], 'CacheSchema', ARGV[17])
 if ARGV[5] == 'active' then
-  redis.call('PEXPIREAT', KEYS[1], ARGV[15])
+  redis.call('PEXPIREAT', KEYS[1], ARGV[18])
 else
-  redis.call('PEXPIRE', KEYS[1], ARGV[15])
+  redis.call('PEXPIRE', KEYS[1], ARGV[18])
 end
 return 1`
 	result, err := common.RDB.Eval(context.Background(), script, []string{userSessionCacheKey(entry.SID)},
 		entry.SID, entry.UserID, entry.Version, entry.UserAuthVersion, entry.Status,
+		entry.RefreshHash, entry.PreviousRefreshHash, entry.PreviousValidUntil,
 		entry.LoginMethod, entry.IP, entry.UserAgent, entry.CreatedAt, entry.LastActiveAt,
 		entry.ExpiresAt, entry.RevokedAt, entry.RevokedReason, entry.CacheSchema, redisExpiration,
 	).Int()
@@ -351,14 +358,8 @@ return 1`
 	if result == 0 {
 		return ErrUserSessionInactive
 	}
-	if entry.Status == UserSessionStatusActive {
-		completedAt := time.Now()
-		if !completedAt.Before(cacheDeadline) {
-			return errUserSessionCacheObservationStale
-		}
-		if !completedAt.Before(sessionExpiresAt) {
-			return ErrUserSessionInactive
-		}
+	if entry.Status == UserSessionStatusActive && !time.Now().Before(sessionExpiresAt) {
+		return ErrUserSessionInactive
 	}
 	return nil
 }

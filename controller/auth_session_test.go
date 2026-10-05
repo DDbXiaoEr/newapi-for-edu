@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestAuthLogoutRejectsSessionMismatch(t *testing.T) {
+func TestAuthLogoutRejectsRefreshCookieSessionMismatch(t *testing.T) {
 	previousRedis := common.RedisEnabled
 	previousSecret := common.SessionSecret
 	db := testdb.OpenBound(t, &model.DB, &model.LOG_DB, model.InitColumnNames, testdb.Options{Models: []any{&model.User{}, &model.UserSession{}}})
@@ -41,7 +41,8 @@ func TestAuthLogoutRejectsSessionMismatch(t *testing.T) {
 	c, _ := gin.CreateTestContext(recorder)
 	c.Request = httptest.NewRequest(http.MethodPost, "/api/user/auth/logout", nil)
 	c.Request.Header.Set("Authorization", "Bearer "+sessionA.AccessToken)
-	c.Request.Header.Set("X-Auth-Session", sessionB.Session.SID)
+	c.Request.Header.Set("X-Auth-Session", sessionA.Session.SID)
+	c.Request.AddCookie(&http.Cookie{Name: service.RefreshCookieName, Value: sessionB.RefreshToken})
 
 	AuthLogout(c)
 

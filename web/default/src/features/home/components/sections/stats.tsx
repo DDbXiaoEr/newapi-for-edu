@@ -19,23 +19,25 @@ For commercial licensing, please contact support@quantumnous.com
 import { useRef, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { toIntlLocale } from '@/i18n/languages'
+import { formatNumber } from '@/lib/format'
+
 interface CounterProps {
   end: number
   suffix?: string
-  prefix?: string
   duration?: number
-  decimals?: number
 }
 
 function Counter(props: CounterProps) {
-  const { end, suffix = '', prefix = '', duration = 1600, decimals = 0 } = props
+  const { end, suffix = '', duration = 1600 } = props
+  const { i18n } = useTranslation()
+  const locale = toIntlLocale(i18n.resolvedLanguage || i18n.language)
   const ref = useRef<HTMLSpanElement>(null)
   const startedRef = useRef(false)
 
   const formatValue = useCallback(
-    (v: number) =>
-      decimals > 0 ? v.toFixed(decimals) : Math.round(v).toLocaleString(),
-    [decimals]
+    (v: number) => formatNumber(Math.round(v), locale),
+    [locale]
   )
 
   const animate = useCallback(() => {
@@ -45,19 +47,19 @@ function Counter(props: CounterProps) {
     const step = (now: number) => {
       const progress = Math.min((now - start) / duration, 1)
       const eased = 1 - Math.pow(1 - progress, 3)
-      el.textContent = `${prefix}${formatValue(eased * end)}${suffix}`
+      el.textContent = `${formatValue(eased * end)}${suffix}`
       if (progress < 1) requestAnimationFrame(step)
     }
     requestAnimationFrame(step)
-  }, [end, duration, prefix, suffix, formatValue])
+  }, [end, duration, suffix, formatValue])
 
   useEffect(() => {
     const el = ref.current
     if (!el) return
 
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
-    if (mq.matches) {
-      el.textContent = `${prefix}${formatValue(end)}${suffix}`
+    if (mq.matches || startedRef.current) {
+      el.textContent = `${formatValue(end)}${suffix}`
       return
     }
 
@@ -74,27 +76,23 @@ function Counter(props: CounterProps) {
 
     observer.observe(el)
     return () => observer.disconnect()
-  }, [animate, end, prefix, suffix, formatValue])
+  }, [animate, end, suffix, formatValue])
 
   return (
     <span ref={ref} className='tabular-nums'>
-      {prefix}0{suffix}
+      {formatValue(0)}
+      {suffix}
     </span>
   )
-}
-
-interface StatsProps {
-  className?: string
 }
 
 interface StatItem {
   end: number
   suffix: string
   label: string
-  decimals?: number
 }
 
-export function Stats(_props: StatsProps) {
+export function Stats() {
   const { t } = useTranslation()
 
   const stats: StatItem[] = [
@@ -105,18 +103,15 @@ export function Stats(_props: StatsProps) {
   ]
 
   return (
-    <div className='border-border/40 bg-muted/10 relative z-10 border-y'>
+    <div className='border-border relative z-10 border-y'>
       <div className='mx-auto max-w-6xl px-6 py-10 md:py-12'>
-        <div className='grid grid-cols-2 gap-8 md:grid-cols-4 md:gap-12'>
+        <div className='grid grid-cols-2 gap-x-8 gap-y-8 md:grid-cols-4 md:gap-12'>
           {stats.map((s) => (
-            <div
-              key={s.label}
-              className='flex flex-col items-center text-center'
-            >
-              <span className='text-2xl font-bold tracking-tight md:text-3xl'>
-                <Counter end={s.end} suffix={s.suffix} decimals={s.decimals} />
+            <div key={s.label} className='flex flex-col'>
+              <span className='text-2xl font-semibold tracking-tight md:text-3xl'>
+                <Counter end={s.end} suffix={s.suffix} />
               </span>
-              <span className='text-muted-foreground mt-1.5 text-xs'>
+              <span className='text-muted-foreground mt-1.5 text-sm'>
                 {s.label}
               </span>
             </div>

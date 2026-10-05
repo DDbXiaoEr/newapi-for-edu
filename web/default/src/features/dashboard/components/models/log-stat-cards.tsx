@@ -16,17 +16,20 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { IconBadge } from '@/components/ui/icon-badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getUserQuotaDates } from '@/features/dashboard/api'
+import { useDashboardQueryRefresh } from '@/features/dashboard/hooks/use-dashboard-auto-refresh'
 import { useModelStatCardsConfig } from '@/features/dashboard/hooks/use-dashboard-config'
 import {
   buildQueryParams,
   calculateDashboardStats,
-  getDefaultDays,
+  getDashboardTimeQueryKey,
+  resolveDashboardTimeRange,
 } from '@/features/dashboard/lib'
 import type {
   QuotaDataItem,
@@ -34,7 +37,7 @@ import type {
 } from '@/features/dashboard/types'
 import { toIntlLocale } from '@/i18n/languages'
 import { formatCompactNumber, formatNumber, formatQuota } from '@/lib/format'
-import { computeTimeRange } from '@/lib/time'
+import { requireServerSuccess } from '@/lib/server-error-message'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -63,57 +66,48 @@ export function LogStatCards(props: LogStatCardsProps) {
   const statCardsConfig = useModelStatCardsConfig()
   const user = useAuthStore((state) => state.auth.user)
   const isAdmin = !!(user?.role && user.role >= 10)
-  const [stats, setStats] = useState<{
-    totalQuota: number
-    totalCount: number
-    totalTokens: number
-  } | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
-
-  const [timeRangeMinutes, setTimeRangeMinutes] = useState(0)
-
+  const refresh = useDashboardQueryRefresh()
   const { filters, onDataUpdate } = props
+  const timeQueryKey = getDashboardTimeQueryKey(filters)
+
+  const quotaQuery = useQuery({
+    queryKey: [
+      'dashboard',
+      'model-quota',
+      timeQueryKey,
+      filters?.time_granularity,
+      filters?.username,
+      isAdmin,
+    ],
+    queryFn: async () => {
+      const timeRange = resolveDashboardTimeRange(filters)
+      const res = requireServerSuccess(
+        await getUserQuotaDates(buildQueryParams(timeRange, filters), isAdmin)
+      )
+      const data = res.data || []
+      return {
+        data,
+        stats: calculateDashboardStats(data),
+        timeRangeMinutes:
+          (timeRange.end_timestamp - timeRange.start_timestamp) / 60,
+      }
+    },
+    staleTime: 60_000,
+    ...refresh,
+  })
+
+  const stats = quotaQuery.data?.stats ?? null
+  const loading = quotaQuery.isLoading
+  const error = quotaQuery.isError
+  const timeRangeMinutes = quotaQuery.data?.timeRangeMinutes ?? 0
 
   useEffect(() => {
-    const abortController = new AbortController()
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLoading(true)
-
-    setError(false)
-    onDataUpdate?.([], true)
-
-    const timeRange = computeTimeRange(
-      getDefaultDays(filters?.time_granularity),
-      filters?.start_timestamp,
-      filters?.end_timestamp
-    )
-    const timeDiff = (timeRange.end_timestamp - timeRange.start_timestamp) / 60
-    setTimeRangeMinutes(timeDiff)
-
-    void getUserQuotaDates(buildQueryParams(timeRange, filters), isAdmin)
-      .then((res) => {
-        if (abortController.signal.aborted) return
-        const data = res?.data || []
-        setStats(calculateDashboardStats(data))
-        onDataUpdate?.(data, false)
-      })
-      .catch(() => {
-        if (abortController.signal.aborted) return
-        setStats(null)
-        setError(true)
-        onDataUpdate?.([], false)
-      })
-      .finally(() => {
-        if (!abortController.signal.aborted) {
-          setLoading(false)
-        }
-      })
-
-    return () => {
-      abortController.abort()
+    if (quotaQuery.isLoading) {
+      onDataUpdate?.([], true)
+      return
     }
-  }, [filters, isAdmin, onDataUpdate])
+    onDataUpdate?.(quotaQuery.data?.data ?? [], false)
+  }, [onDataUpdate, quotaQuery.data?.data, quotaQuery.isLoading])
 
   const adaptedStats = {
     rpm: stats?.totalCount ?? 0,

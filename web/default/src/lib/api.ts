@@ -19,6 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { api } from '@/lib/http-client'
 import { authRequestOptions, authResult } from '@/lib/secure-verification'
 import { requireServerSuccess } from '@/lib/server-error-message'
+import type { AuthUser } from '@/stores/auth-store'
 
 export {
   applyAuthBundle,
@@ -41,7 +42,11 @@ export type { ApiRequestConfig } from '@/lib/http-client'
 // User APIs
 // ============================================================================
 
-export async function getSelf() {
+export async function getSelf(): Promise<{
+  success: boolean
+  message?: string
+  data?: AuthUser
+}> {
   const res = await api.get('/api/user/self', {
     skipErrorHandler: true,
   })
