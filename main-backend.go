@@ -266,6 +266,12 @@ func InitResources() error {
 	}
 	common.LogModInitTime("load .env file", stepStart)
 
+	// Optional: when VAULT_ENABLED=true, override the values above with the
+	// secret stored in Vault. Disabled by default, keeping current behavior.
+	if err := common.LoadEnvFromVault(); err != nil {
+		return err
+	}
+
 	if err := common.CheckRequiredEnvVars(); err != nil {
 		return err
 	}

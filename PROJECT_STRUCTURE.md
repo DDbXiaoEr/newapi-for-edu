@@ -97,6 +97,8 @@ newapi_2_-edu/
 │   ├── user_session_test.go
 │   ├── utils.go
 │   ├── validate.go
+│   ├── vault.go
+│   ├── vault_test.go
 │   └── verification.go
 ├── constant/
 │   ├── README.md
