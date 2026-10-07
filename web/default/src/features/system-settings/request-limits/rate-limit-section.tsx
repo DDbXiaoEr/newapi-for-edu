@@ -35,6 +35,14 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 
 import {
@@ -78,6 +86,7 @@ const createRateLimitSchema = (t: (key: string) => string) =>
       .refine(isValidJSON, {
         message: t('Invalid JSON format or values out of allowed range'),
       }),
+    ModelRequestRateLimitMode: z.enum(['ip', 'api_key']),
   })
 
 type RateLimitFormValues = z.infer<ReturnType<typeof createRateLimitSchema>>
@@ -143,6 +152,40 @@ export function RateLimitSection({ defaultValues }: RateLimitSectionProps) {
                   />
                 </FormControl>
               </SettingsSwitchItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name='ModelRequestRateLimitMode'
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t('Rate limit by')}</FormLabel>
+                <Select
+                  items={[
+                    { value: 'api_key', label: t('API Key') },
+                    { value: 'ip', label: t('Client IP') },
+                  ]}
+                  onValueChange={field.onChange}
+                  value={field.value}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent alignItemWithTrigger={false}>
+                    <SelectGroup>
+                      <SelectItem value='api_key'>{t('API Key')}</SelectItem>
+                      <SelectItem value='ip'>{t('Client IP')}</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                <FormDescription>
+                  {t('Count the limit per API key or per client IP address.')}
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
             )}
           />
 

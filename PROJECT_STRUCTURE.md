@@ -1507,7 +1507,6 @@ newapi_2_-edu/
         │   │   │   │   ├── app-header.tsx
         │   │   │   │   ├── app-sidebar.tsx
         │   │   │   │   ├── authenticated-layout.tsx
-        │   │   │   │   ├── chat-presets-item.tsx
         │   │   │   │   ├── footer.tsx
         │   │   │   │   ├── glow.tsx
         │   │   │   │   ├── header-logo.tsx
@@ -1989,6 +1988,7 @@ newapi_2_-edu/
         │   │   │   │   ├── __tests__/
         │   │   │   │   │   └── auto-group-form.test.ts
         │   │   │   │   ├── api-key-form.ts
+        │   │   │   │   ├── cc-switch.ts
         │   │   │   │   └── index.ts
         │   │   │   └── types.ts
         │   │   ├── legal/
@@ -2243,6 +2243,15 @@ newapi_2_-edu/
         │   │   │   │   ├── index.ts
         │   │   │   │   └── user-settings.ts
         │   │   │   └── types.ts
+        │   │   ├── quick-access/
+        │   │   │   ├── __tests__/
+        │   │   │   │   └── quick-access.test.tsx
+        │   │   │   ├── components/
+        │   │   │   │   ├── client-detail.tsx
+        │   │   │   │   └── client-icon.tsx
+        │   │   │   ├── index.tsx
+        │   │   │   └── lib/
+        │   │   │       └── clients.ts
         │   │   ├── rankings/
         │   │   │   ├── api.ts
         │   │   │   ├── components/
@@ -2530,6 +2539,8 @@ newapi_2_-edu/
         │   │   │   │   ├── index.tsx
         │   │   │   │   └── section-registry.tsx
         │   │   │   ├── request-limits/
+        │   │   │   │   ├── __tests__/
+        │   │   │   │   │   └── rate-limit-mode.test.tsx
         │   │   │   │   ├── rate-limit-dialog.tsx
         │   │   │   │   ├── rate-limit-section.tsx
         │   │   │   │   ├── rate-limit-visual-editor.tsx
@@ -2913,6 +2924,7 @@ newapi_2_-edu/
         │   │   │   │   └── index.tsx
         │   │   │   ├── profile/
         │   │   │   │   └── index.tsx
+        │   │   │   ├── quick-access.tsx
         │   │   │   ├── redemption-codes/
         │   │   │   │   └── index.tsx
         │   │   │   ├── route.tsx

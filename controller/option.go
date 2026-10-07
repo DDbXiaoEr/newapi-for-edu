@@ -374,6 +374,11 @@ func UpdateOption(c *gin.Context) {
 			})
 			return
 		}
+	case "ModelRequestRateLimitMode":
+		if !setting.IsValidModelRequestRateLimitMode(option.Value.(string)) {
+			common.ApiErrorMsg(c, "限流依据只能是 ip 或 api_key")
+			return
+		}
 	case "AutomaticDisableStatusCodes":
 		_, err = operation_setting.ParseHTTPStatusCodeRanges(option.Value.(string))
 		if err != nil {

@@ -48,9 +48,11 @@ export async function fetchActiveChatKey() {
 }
 
 /**
- * Get the currently active API key for chat links
+ * Get the currently active API key for chat links. When `silent` is set the
+ * query does not surface a global error toast, so callers can show inline
+ * guidance instead (for example when the user has no enabled key yet).
  */
-export function useActiveChatKey(enabled: boolean) {
+export function useActiveChatKey(enabled: boolean, silent = false) {
   const userId = useAuthStore((state) => state.auth.user?.id)
 
   return useQuery({
@@ -59,5 +61,6 @@ export function useActiveChatKey(enabled: boolean) {
     enabled: enabled && Boolean(userId),
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
+    meta: silent ? { errorToast: false } : undefined,
   })
 }

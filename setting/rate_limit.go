@@ -18,12 +18,39 @@ const maxRateLimitDurationSeconds = 24 * 60 * 60
 // window of at most 24 hours.
 const maxModelRequestRateLimitCount int64 = math.MaxInt64 / maxRateLimitDurationSeconds
 
+// Model request rate limits can be counted per API key (token) or per client IP.
+const (
+	ModelRequestRateLimitModeIP     = "ip"
+	ModelRequestRateLimitModeAPIKey = "api_key"
+)
+
 var ModelRequestRateLimitEnabled = false
 var ModelRequestRateLimitDurationMinutes = 1
 var ModelRequestRateLimitCount = 0
 var ModelRequestRateLimitSuccessCount = 1000
 var ModelRequestRateLimitGroup = map[string][2]int{}
+var ModelRequestRateLimitMode = ModelRequestRateLimitModeAPIKey
 var ModelRequestRateLimitMutex sync.RWMutex
+
+// IsValidModelRequestRateLimitMode reports whether mode is a supported
+// rate-limit dimension.
+func IsValidModelRequestRateLimitMode(mode string) bool {
+	switch mode {
+	case ModelRequestRateLimitModeIP, ModelRequestRateLimitModeAPIKey:
+		return true
+	default:
+		return false
+	}
+}
+
+// NormalizeModelRequestRateLimitMode returns mode when it is supported and
+// otherwise falls back to the default (per API key).
+func NormalizeModelRequestRateLimitMode(mode string) string {
+	if IsValidModelRequestRateLimitMode(mode) {
+		return mode
+	}
+	return ModelRequestRateLimitModeAPIKey
+}
 
 func ModelRequestRateLimitGroup2JSONString() string {
 	ModelRequestRateLimitMutex.RLock()

@@ -832,4 +832,9 @@ export const STATIC_I18N_KEYS = [
   'Vendor name and icon must not exceed 128 characters.',
   'Shown',
   'Not shown',
+
+  // Quick access client descriptions.
+  'OpenCode is an open-source AI coding agent for the terminal. Register this service as an OpenAI-compatible provider in its config file.',
+  "Claude Code is Anthropic's coding agent for the terminal. Import it into CC Switch in one click, or point it at this service with environment variables.",
+  "Codex is OpenAI's coding CLI. Import it into CC Switch in one click, or configure an OpenAI-compatible provider that points at this service.",
 ] as const

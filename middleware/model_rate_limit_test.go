@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -11,10 +12,36 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/QuantumNous/new-api/setting"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestModelRateLimitIdentityFollowsConfiguredMode(t *testing.T) {
+	previousMode := setting.ModelRequestRateLimitMode
+	t.Cleanup(func() { setting.ModelRequestRateLimitMode = previousMode })
+
+	newContext := func(tokenID, userID int, remoteAddr string) *gin.Context {
+		c, _ := gin.CreateTestContext(httptest.NewRecorder())
+		c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
+		c.Request.RemoteAddr = remoteAddr
+		c.Set("id", userID)
+		if tokenID > 0 {
+			c.Set("token_id", tokenID)
+		}
+		return c
+	}
+
+	setting.ModelRequestRateLimitMode = setting.ModelRequestRateLimitModeAPIKey
+	assert.Equal(t, "token:11", modelRateLimitIdentity(newContext(11, 7, "192.0.2.1:1000")))
+	assert.Equal(t, "token:12", modelRateLimitIdentity(newContext(12, 7, "192.0.2.1:1000")))
+	assert.Equal(t, "user:7", modelRateLimitIdentity(newContext(0, 7, "192.0.2.1:1000")))
+
+	setting.ModelRequestRateLimitMode = setting.ModelRequestRateLimitModeIP
+	assert.Equal(t, "ip:192.0.2.1", modelRateLimitIdentity(newContext(11, 7, "192.0.2.1:1000")))
+	assert.Equal(t, "ip:192.0.2.2", modelRateLimitIdentity(newContext(12, 8, "192.0.2.2:1000")))
+}
 
 func TestModelRedisRateLimitUsesUTCRegardlessOfLocalTimezone(t *testing.T) {
 	redisServer, redisClient := useRateLimitMiniRedis(t)

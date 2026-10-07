@@ -19,6 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import {
   Activity,
   Box,
+  Cable,
   ClipboardList,
   CreditCard,
   FileText,
@@ -26,7 +27,6 @@ import {
   Key,
   LayoutDashboard,
   ListTodo,
-  MessageSquare,
   PlugZap,
   Radio,
   ServerCog,
@@ -56,7 +56,7 @@ export function useSidebarData(): SidebarData {
     navGroups: [
       {
         id: 'chat',
-        title: t('Chat'),
+        title: t('Quick Access'),
         items: [
           {
             title: t('Playground'),
@@ -64,9 +64,9 @@ export function useSidebarData(): SidebarData {
             icon: FlaskConical,
           },
           {
-            title: t('Chat'),
-            icon: MessageSquare,
-            type: 'chat-presets',
+            title: t('Quick Access'),
+            url: '/quick-access',
+            icon: Cable,
           },
         ],
       },
