@@ -99,14 +99,16 @@ services:
       GIN_MODE: release
       SQL_DSN: postgresql://root:123456@host.docker.internal:5432/newapi?sslmode=disable
       LOG_SQL_DSN: clickhouse://default:@host.docker.internal:9000/newapi_audit
-      REDIS_CONN_STRING: redis://:123456@host.docker.internal:6379
+      REDIS_CONN_STRING: redis://:123456@redis:6379
       ERROR_LOG_ENABLED: "true"
       BATCH_UPDATE_ENABLED: "true"
       NODE_NAME: new-api-node-1
-      JWT_SECRET: mxjjCVN360MeoXaPHrFSMkuf524sXIG8Rg3fc5wsi7w=
-      JWT_EXPIRATION_SECONDS: "604800"
       REQUIRED_ENV_VARS: SQL_DSN,LOG_SQL_DSN
       SYNC_FREQUENCY: "60"
+      VAULT_ENABLED: "false"
+      VAULT_ADDR: http://172.16.74.168:8200
+      VAULT_TOKEN: ""
+      VAULT_SECRET_PATH: secret/data/newapi_edu
     networks:
       - mcp_plat
 
