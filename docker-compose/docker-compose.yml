@@ -45,12 +45,18 @@ services:
     image: redis:v7.0.5
     container_name: redis
     restart: unless-stopped
+    user: "0"
     environment:
       REDIS_PASSWORD: "123456"
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        chown -R 1000:1000 /data
+        exec su redis -s /bin/bash -c 'exec /usr/bin/entrypoint.sh'
     healthcheck:
       test: ["CMD", "healthcheck.sh"]
       interval: 5s
