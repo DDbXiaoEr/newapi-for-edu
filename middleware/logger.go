@@ -29,6 +29,9 @@ func SetUpLogger(server *gin.Engine) {
 			tag = "web"
 		}
 		path := param.Path
+		if path == "/healthz" {
+			return ""
+		}
 		// OAuth callbacks carry one-time codes and state in the query string.
 		// Redact the log value only; the handler still needs the original query.
 		if strings.HasPrefix(path, "/api/oauth/") || strings.HasPrefix(path, "/oauth/") {

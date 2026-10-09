@@ -156,6 +156,7 @@ newapi_2_-edu/
 │   ├── group.go
 │   ├── group_channel.go
 │   ├── group_channel_test.go
+│   ├── healthz_test.go
 │   ├── image.go
 │   ├── log.go
 │   ├── login_ldap_test.go

@@ -898,6 +898,15 @@ func TestWebFallbackDoesNotCacheMissingAPIOrAssets(t *testing.T) {
 	assert.Equal(t, "no-cache", page.Header().Get("Cache-Control"))
 }
 
+func TestHealthzIsRegisteredWithoutAPIRateLimit(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	outer := gin.New()
+	SetApiRouter(outer)
+	response := performPluginRequest(outer, http.MethodGet, "/healthz")
+	assert.Equal(t, http.StatusOK, response.Code)
+	assert.JSONEq(t, `{"success":true,"message":"ok"}`, response.Body.String())
+}
+
 func TestSecurityRoutesDisableCachingBeforeAuthentication(t *testing.T) {
 	outer := gin.New()
 	SetApiRouter(outer)
