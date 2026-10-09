@@ -595,6 +595,9 @@ newapi_2_-edu/
 │   │   │   └── plugin.js
 │   │   ├── sunoapi/
 │   │   │   └── plugin.js
+│   │   ├── typesafe/
+│   │   │   ├── icon.png
+│   │   │   └── plugin.js
 │   │   ├── vertex-ai/
 │   │   │   └── plugin.js
 │   │   └── vidu/

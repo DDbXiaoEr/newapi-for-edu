@@ -5,6 +5,7 @@ import (
 	"cmp"
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io"
 	"maps"
@@ -40,6 +41,26 @@ type requestDescriptor struct {
 	Method         string            `json:"method"`
 	Headers        map[string]string `json:"headers"`
 	Body           any               `json:"body"`
+	Credentialless bool              `json:"credentialless"`
+	Action         string            `json:"action"`
+	Model          string            `json:"model"`
+	RewriteModel   string            `json:"rewriteModel"`
+	BodyType       string            `json:"bodyType"`
+	Parts          []requestPart     `json:"parts"`
+	// BodyText is the body as JSON.stringify wrote it, for a plugin that
+	// preserves JSON order: the upstream gets the members in that order.
+	BodyText json.RawMessage `json:"-"`
+}
+
+// orderedRequestDescriptor is requestDescriptor as a plugin that preserves
+// JSON order returns it: decoded from the JSON.stringify text of the result,
+// with the body kept as that text.
+type orderedRequestDescriptor struct {
+	ResponseType   string            `json:"responseType"`
+	URL            string            `json:"url"`
+	Method         string            `json:"method"`
+	Headers        map[string]string `json:"headers"`
+	Body           json.RawMessage   `json:"body"`
 	Credentialless bool              `json:"credentialless"`
 	Action         string            `json:"action"`
 	Model          string            `json:"model"`
@@ -88,6 +109,9 @@ type TaskAdaptor struct {
 	routeRequest   *pluginruntime.RouteRequestContext
 	requestHeaders map[string]string
 	files          []map[string]any
+	// requestBodyText is the decoded requestBody as JSON text, which hooks
+	// of a plugin that preserves JSON order receive instead.
+	requestBodyText json.RawMessage
 }
 
 func New(plugin *pluginruntime.LoadedPlugin) *TaskAdaptor { return &TaskAdaptor{plugin: plugin} }
@@ -98,7 +122,10 @@ func (a *TaskAdaptor) ValidateRequestAndSetAction(c *gin.Context, info *relaycom
 		if pinned, ok := pinnedValue.(pluginruntime.PinnedEndpoint); ok && pinned.Plugin == a.plugin {
 			if protocolValue, present := c.Get(pluginruntime.ContextKeyProtocolRequest); present {
 				if protocolContext, valid := protocolValue.(pluginruntime.ProtocolRequestContext); valid {
-					resolvedValue, callErr := a.plugin.Engine.CallPath(context.WithoutCancel(c.Request.Context()), "protocols", []string{pinned.Protocol, "decodeRequest"}, protocolContext.JSValue())
+					resolvedValue, requestBodyText, callErr := a.plugin.Engine.CallPathWithMemberJSON(
+						context.WithoutCancel(c.Request.Context()), 0, a.plugin.Meta.JSONTextMember("requestBody"),
+						"protocols", []string{pinned.Protocol, "decodeRequest"}, protocolContext.JSValueFor(a.plugin.Meta),
+					)
 					resolved, resolvedOK := resolvedValue.(map[string]any)
 					resolvedModel, modelOK := resolved["model"].(string)
 					if callErr != nil || !resolvedOK || !modelOK || resolvedModel != pinned.Model {
@@ -109,6 +136,9 @@ func (a *TaskAdaptor) ValidateRequestAndSetAction(c *gin.Context, info *relaycom
 					}
 					if body, present := resolved["requestBody"]; present {
 						c.Set("task_request", body)
+					}
+					if requestBodyText != nil {
+						c.Set(pluginruntime.ContextKeyRequestBodyText, requestBodyText)
 					}
 					if action, valid := resolved["action"].(string); valid && strings.TrimSpace(action) != "" {
 						c.Set("task_action", action)
@@ -309,7 +339,16 @@ func (a *TaskAdaptor) BuildRequestBody(c *gin.Context, info *relaycommon.RelayIn
 	if text, ok := descriptor.Body.(string); ok {
 		return strings.NewReader(text), nil
 	}
-	inlined, err := inlineJSONFilePlaceholders(c, descriptor.Body)
+	value := descriptor.Body
+	if descriptor.BodyText != nil {
+		if !bytes.Contains(descriptor.BodyText, []byte(`"__fileRef":`)) {
+			return bytes.NewReader(descriptor.BodyText), nil
+		}
+		if err := common.Unmarshal(descriptor.BodyText, &value); err != nil {
+			return nil, err
+		}
+	}
+	inlined, err := inlineJSONFilePlaceholders(c, value)
 	if err != nil {
 		return nil, err
 	}
@@ -593,11 +632,11 @@ func (a *TaskAdaptor) FetchBatchTasks(baseURL, key string, tasks []*model.Task, 
 	if err != nil {
 		return nil, err
 	}
-	value, err := a.plugin.Engine.Call(context.Background(), "buildBatchQueryRequest", ctx, taskContexts)
+	descriptor, err := a.requestDescriptor(context.Background(), "buildBatchQueryRequest", ctx, taskContexts)
 	if err != nil {
 		return nil, err
 	}
-	return a.doFetchDescriptor(baseURL, proxy, value)
+	return a.doFetchDescriptor(baseURL, proxy, descriptor)
 }
 
 func (a *TaskAdaptor) FetchTask(baseURL, key string, task *model.Task, proxy string) (*http.Response, error) {
@@ -605,18 +644,14 @@ func (a *TaskAdaptor) FetchTask(baseURL, key string, task *model.Task, proxy str
 	if err != nil {
 		return nil, err
 	}
-	value, err := a.plugin.Engine.Call(context.Background(), "buildQueryRequest", ctx)
+	descriptor, err := a.requestDescriptor(context.Background(), "buildQueryRequest", ctx)
 	if err != nil {
 		return nil, err
 	}
-	return a.doFetchDescriptor(baseURL, proxy, value)
+	return a.doFetchDescriptor(baseURL, proxy, descriptor)
 }
 
-func (a *TaskAdaptor) doFetchDescriptor(baseURL, proxy string, value any) (*http.Response, error) {
-	var descriptor requestDescriptor
-	if err := convert(value, &descriptor); err != nil {
-		return nil, err
-	}
+func (a *TaskAdaptor) doFetchDescriptor(baseURL, proxy string, descriptor requestDescriptor) (*http.Response, error) {
 	if err := pluginruntime.ValidateRequestURL(descriptor.URL, baseURL, a.plugin.Meta.AllowedHosts); err != nil {
 		return nil, err
 	}
@@ -624,6 +659,8 @@ func (a *TaskAdaptor) doFetchDescriptor(baseURL, proxy string, value any) (*http
 	if descriptor.Body != nil {
 		if bodyText, ok := descriptor.Body.(string); ok {
 			requestBody = strings.NewReader(bodyText)
+		} else if descriptor.BodyText != nil {
+			requestBody = bytes.NewReader(descriptor.BodyText)
 		} else {
 			encoded, marshalErr := common.Marshal(descriptor.Body)
 			if marshalErr != nil {
@@ -934,12 +971,8 @@ func (a *TaskAdaptor) BuildContentRequest(task *model.Task, artifactKey string, 
 	if a.plugin.Meta.Auth.Type == "" || a.plugin.Meta.Auth.Type == "none" || a.plugin.Meta.Auth.Type == "api_key" {
 		ctx["apiKey"] = a.info.ApiKey
 	}
-	value, err := a.plugin.Engine.Call(context.Background(), "buildContentRequest", ctx)
+	descriptor, err := a.requestDescriptor(context.Background(), "buildContentRequest", ctx)
 	if err != nil {
-		return nil, err
-	}
-	var descriptor requestDescriptor
-	if err = convert(value, &descriptor); err != nil {
 		return nil, err
 	}
 	method := strings.ToUpper(strings.TrimSpace(descriptor.Method))
@@ -970,6 +1003,8 @@ func (a *TaskAdaptor) BuildContentRequest(task *model.Task, artifactKey string, 
 	if descriptor.Body != nil {
 		if text, ok := descriptor.Body.(string); ok {
 			body = []byte(text)
+		} else if descriptor.BodyText != nil {
+			body = descriptor.BodyText
 		} else {
 			body, err = common.Marshal(descriptor.Body)
 			if err != nil {
@@ -1176,26 +1211,48 @@ func validateTaskArtifacts(value any) ([]channel.TaskArtifact, error) {
 	return artifacts, nil
 }
 
+// requestDescriptor runs a request-building hook. A plugin that preserves JSON
+// order has its descriptor decoded from the JSON.stringify text of the result,
+// with the body kept as that text (BodyText) for the upstream.
+func (a *TaskAdaptor) requestDescriptor(ctx context.Context, hook string, args ...any) (requestDescriptor, error) {
+	if !a.plugin.Meta.PreservesJSONOrder() {
+		var descriptor requestDescriptor
+		err := a.plugin.Engine.CallInto(ctx, &descriptor, hook, args...)
+		return descriptor, err
+	}
+	var ordered orderedRequestDescriptor
+	if err := a.plugin.Engine.CallJSONInto(ctx, &ordered, hook, args...); err != nil {
+		return requestDescriptor{}, err
+	}
+	descriptor := requestDescriptor{
+		ResponseType: ordered.ResponseType, URL: ordered.URL, Method: ordered.Method, Headers: ordered.Headers,
+		Credentialless: ordered.Credentialless, Action: ordered.Action, Model: ordered.Model,
+		RewriteModel: ordered.RewriteModel, BodyType: ordered.BodyType, Parts: ordered.Parts,
+	}
+	switch {
+	case len(ordered.Body) == 0 || string(ordered.Body) == "null":
+	case ordered.Body[0] == '"':
+		var text string
+		if err := common.Unmarshal(ordered.Body, &text); err != nil {
+			return requestDescriptor{}, err
+		}
+		descriptor.Body = text
+	default:
+		descriptor.Body, descriptor.BodyText = ordered.Body, ordered.Body
+	}
+	return descriptor, nil
+}
+
 func (a *TaskAdaptor) buildSubmit(c *gin.Context, info *relaycommon.RelayInfo) (*requestDescriptor, error) {
 	if a.submit != nil {
 		return a.submit, nil
 	}
 	started := time.Now()
-	value, err := a.plugin.Engine.Call(c.Request.Context(), "buildSubmitRequest", a.submitContext(c, info))
+	descriptor, err := a.requestDescriptor(c.Request.Context(), "buildSubmitRequest", a.submitContext(c, info))
 	if err != nil {
 		logger.LogDebug(
 			c,
 			"task_plugin subsystem=adaptor event=build_submit_failed plugin=%q stage=build_submit_request reason=hook_failed elapsed_ms=%d",
-			a.plugin.Meta.Key,
-			time.Since(started).Milliseconds(),
-		)
-		return nil, err
-	}
-	var descriptor requestDescriptor
-	if err = convert(value, &descriptor); err != nil {
-		logger.LogDebug(
-			c,
-			"task_plugin subsystem=adaptor event=build_submit_failed plugin=%q stage=build_submit_request reason=invalid_descriptor elapsed_ms=%d",
 			a.plugin.Meta.Key,
 			time.Since(started).Milliseconds(),
 		)
@@ -1284,6 +1341,10 @@ func (a *TaskAdaptor) submitContext(c *gin.Context, info *relaycommon.RelayInfo)
 		if taskRequest, exists := c.Get("task_request"); exists {
 			routeRequest.RequestBody = jsonValue(taskRequest)
 		}
+		a.requestBodyText = nil
+		if text, exists := c.Get(pluginruntime.ContextKeyRequestBodyText); exists && a.plugin.Meta.PreservesJSONOrder() {
+			a.requestBodyText, _ = text.(json.RawMessage)
+		}
 		if c.Request != nil {
 			if routeRequest.Path == "" {
 				routeRequest.Path = c.Request.URL.Path
@@ -1323,7 +1384,13 @@ func (a *TaskAdaptor) submitContext(c *gin.Context, info *relaycommon.RelayInfo)
 		a.files = append(a.files[:0], files...)
 	}
 	ctx := routeRequest.JSValue()
-	ctx["requestBody"] = jsonValue(routeRequest.RequestBody)
+	requestBody := routeRequest.RequestBody
+	if a.requestBodyText != nil {
+		requestBody = pluginruntime.RawJSON(a.requestBodyText)
+	} else {
+		requestBody = jsonValue(routeRequest.RequestBody)
+	}
+	ctx["requestBody"] = requestBody
 	ctx["requestHeaders"] = requestHeaders
 	ctx["files"] = files
 	ctx["action"] = info.Action

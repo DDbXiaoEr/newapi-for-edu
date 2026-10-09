@@ -1,6 +1,7 @@
 package jsplugin
 
 import (
+	"encoding/json"
 	"fmt"
 	"maps"
 	"net/http"
@@ -29,6 +30,10 @@ type Route struct {
 	Decode      string    `json:"decode,omitempty"`
 	Render      string    `json:"render,omitempty"`
 	TaskIDParam string    `json:"taskIdParam,omitempty"`
+	// RetainResult, when explicitly false on a submit or dynamic route, tells
+	// the host not to persist the upstream snapshot of an immediate terminal
+	// result. nil means the route did not declare it (retain).
+	RetainResult *bool `json:"retainResult,omitempty"`
 	// Models restricts this route to the listed models. The host matches the
 	// canonical top-level "model" body field before any JS hook runs; empty
 	// means unrestricted. Must be a subset of meta.models.
@@ -201,6 +206,10 @@ const (
 	ContextKeyPinnedEndpoint  = "task_plugin_pinned_endpoint"
 	ContextKeyRouteRequest    = "task_plugin_route_request"
 	ContextKeyProtocolRequest = "task_plugin_protocol_request"
+	// ContextKeyRequestBodyText holds, for a plugin that preserves JSON
+	// order, the decoded requestBody as JSON text (json.RawMessage) beside
+	// the Go value in task_request.
+	ContextKeyRequestBodyText = "task_plugin_request_body_text"
 )
 
 type PinnedPlugin struct {
@@ -239,6 +248,10 @@ type RouteRequestContext struct {
 	Body        any                 `json:"body"`
 	Files       []map[string]any    `json:"-"`
 	RequestBody any                 `json:"-"`
+	// BodyText is the JSON body as the client sent it, which JSValueFor
+	// gives to plugins that preserve JSON order; Body stays the Go value the
+	// host reads.
+	BodyText json.RawMessage `json:"-"`
 }
 
 func (r RouteRequestContext) JSValue() map[string]any {
@@ -255,6 +268,18 @@ func (r RouteRequestContext) JSValue() map[string]any {
 		"query":  query,
 		"body":   clonePluginRequestValue(r.Body),
 	}
+}
+
+// JSValueFor is JSValue for the decode hooks of the plugin meta describes. A
+// plugin that preserves JSON order receives a JSON body as its text, which the
+// engine parses in place, members in the client's order: a decoder reads the
+// body, so it is parsed for every call.
+func (r RouteRequestContext) JSValueFor(meta Meta) map[string]any {
+	value := r.JSValue()
+	if len(r.BodyText) > 0 && meta.PreservesJSONOrder() {
+		value["body"] = map[string]any{"kind": string(BodyJSON), "value": RawJSON(r.BodyText)}
+	}
+	return value
 }
 
 func clonePluginRequestValue(value any) any {
@@ -303,7 +328,14 @@ type ProtocolRequestContext struct {
 }
 
 func (p ProtocolRequestContext) JSValue() map[string]any {
-	value := p.RouteRequestContext.JSValue()
+	return p.withProtocol(p.RouteRequestContext.JSValue())
+}
+
+func (p ProtocolRequestContext) JSValueFor(meta Meta) map[string]any {
+	return p.withProtocol(p.RouteRequestContext.JSValueFor(meta))
+}
+
+func (p ProtocolRequestContext) withProtocol(value map[string]any) map[string]any {
 	value["protocol"] = p.Protocol
 	value["operation"] = p.Operation
 	value["model"] = p.Model
@@ -711,6 +743,9 @@ func validateRoute(route *Route) error {
 		}
 		if route.Action != "" {
 			return fmt.Errorf("query route %s %s must not declare action", route.Method, route.Path)
+		}
+		if route.RetainResult != nil {
+			return fmt.Errorf("query route %s %s must not declare retainResult", route.Method, route.Path)
 		}
 		if route.TaskIDParam == "" {
 			route.TaskIDParam = "task_id"

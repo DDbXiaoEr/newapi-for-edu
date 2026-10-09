@@ -324,6 +324,65 @@ export function buildSubmitRequest(ctx){return {url:ctx.baseUrl+"/submit"}} expo
 	assert.Contains(t, taskErr.Message, "pinned model")
 }
 
+const orderedProtocolPlugin = `
+export const meta = {apiVersion:1,key:"ordered",name:"Ordered",version:"1.0.0",author:{name:"Test"},models:["m"],fetchMode:"per_task",requiredCapabilities:["json-order@1"],protocols:[{name:"openai_responses",supports:["sync"]}]};
+export const protocols = {openai_responses:{decodeRequest:function(ctx){const b = ctx.body.value; return {kind:"submit",model:ctx.model,requestBody:{model:b.model,state:b.state,questions:b.questions}};},renderFinal:function(){return {};}}};
+export function buildSubmitRequest(ctx){const b = ctx.requestBody; return {url:ctx.baseUrl+"/submit",body:{model:b.model,state:b.state,questions:b.questions}}}
+export function parseSubmitResponse(){return {taskId:"one"}} export function buildQueryRequest(){return {}} export function parseTaskResult(){return {status:"SUCCESS"}}
+`
+
+func TestTaskAdaptorJSONOrderCapability(t *testing.T) {
+	client := `{"model":"m","state":{"zeta":"1","alpha":"2","mid":"&<>"},"questions":{"q2":{"type":"noul"},"q1":{"type":"noul"}}}`
+	undeclared := strings.Replace(orderedProtocolPlugin, `requiredCapabilities:["json-order@1"],`, "", 1)
+	cases := []struct {
+		name   string
+		source string
+		client string
+		want   string
+		status int
+	}{
+		{name: "declared keeps the client's order", source: orderedProtocolPlugin, client: client,
+			want: `{"model":"m","state":{"zeta":"1","alpha":"2","mid":"&<>"},"questions":{"q2":{"type":"noul"},"q1":{"type":"noul"}}}`},
+		{name: "undeclared stays sorted", source: undeclared, client: client,
+			want: `{"model":"m","questions":{"q1":{"type":"noul"},"q2":{"type":"noul"}},"state":{"alpha":"2","mid":"\u0026\u003c\u003e","zeta":"1"}}`},
+		{name: "declared still bounds billing quantities", source: orderedProtocolPlugin,
+			client: `{"model":"m","state":{"duration":3601},"questions":{}}`, status: http.StatusBadRequest},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			plugin, err := pluginruntime.NewRegistry().Register(tc.source, pluginruntime.Options{})
+			require.NoError(t, err)
+			var value any
+			require.NoError(t, common.Unmarshal([]byte(tc.client), &value))
+			protocolContext := pluginruntime.ProtocolRequestContext{
+				RouteRequestContext: pluginruntime.RouteRequestContext{Body: map[string]any{"kind": "json", "value": value}, BodyText: json.RawMessage(tc.client)},
+				Protocol:            "openai_responses", Model: "m",
+			}
+			c, _ := gin.CreateTestContext(httptest.NewRecorder())
+			c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", nil)
+			c.Set(pluginruntime.ContextKeyPinnedEndpoint, pluginruntime.PinnedEndpoint{Plugin: plugin, Protocol: "openai_responses", Model: "m"})
+			c.Set(pluginruntime.ContextKeyProtocolRequest, protocolContext)
+			info := &relaycommon.RelayInfo{ChannelMeta: &relaycommon.ChannelMeta{ChannelBaseUrl: "https://provider.example"}, TaskRelayInfo: &relaycommon.TaskRelayInfo{}, OriginModelName: "m"}
+			adaptor := New(plugin)
+			adaptor.Init(info)
+
+			taskErr := adaptor.ValidateRequestAndSetAction(c, info)
+			if tc.status != 0 {
+				require.NotNil(t, taskErr)
+				assert.Equal(t, tc.status, taskErr.StatusCode)
+				assert.Equal(t, "plugin_usage_invalid", taskErr.Code)
+				return
+			}
+			require.Nil(t, taskErr)
+			body, err := adaptor.BuildRequestBody(c, info)
+			require.NoError(t, err)
+			raw, err := io.ReadAll(body)
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, string(raw))
+		})
+	}
+}
+
 func TestTaskAdaptorRejectsRendererFromFinalProtocolDecoder(t *testing.T) {
 	source := `
 export const meta = {apiVersion:1,key:"renderer-reject",name:"Renderer Reject",version:"1.0.0",author:{name:"Test"},models:["claimed-model"],fetchMode:"per_task",protocols:[{name:"openai_responses",supports:["sync","background"]}]};

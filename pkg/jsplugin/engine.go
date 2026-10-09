@@ -2,13 +2,18 @@ package jsplugin
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
+	"math/big"
+	"reflect"
 	"regexp"
 	"slices"
 	"strings"
 	"time"
 
+	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/logger"
 	"github.com/grafana/sobek"
 	"github.com/grafana/sobek/parser"
@@ -44,6 +49,21 @@ func (e *HookError) Unwrap() error {
 		return nil
 	}
 	return e.wrapped
+}
+
+// ResultError reports a hook result that CallInto could not store: one the
+// host codec cannot encode (a NaN, an infinity, a cycle) or one the target's
+// type rejects. Its message is the codec's.
+type ResultError struct {
+	err error
+}
+
+func (e *ResultError) Error() string {
+	return e.err.Error()
+}
+
+func (e *ResultError) Unwrap() error {
+	return e.err
 }
 
 func newHookError(hook, rawMessage string, wrapped error) *HookError {
@@ -294,21 +314,49 @@ func (e *Engine) HasCallablePath(ctx context.Context, exportName string, members
 	return callable, nil
 }
 
+// RawJSON is a hook argument given as JSON text: the hook receives JSON.parse
+// of it, members in order, whether it is an argument or inside one, with no Go
+// values built in between; text nested too deep for JSON.parse is decoded with
+// the host codec instead. Strings of the call's result may share the bytes, so
+// the caller must never change them once passed.
+type RawJSON []byte
+
 // Call invokes one named module export and returns its JSON-compatible value.
 func (e *Engine) Call(ctx context.Context, exportName string, args ...any) (result any, err error) {
-	return e.call(ctx, 0, exportName, nil, args...)
+	result, _, err = e.call(ctx, callOptions{}, exportName, nil, args...)
+	return result, err
+}
+
+// CallInto invokes one named module export and stores its result in target as
+// the host codec decodes the encoding of the value Call returns, without that
+// round trip for plain results. A result the codec cannot encode or target's
+// type rejects is a *ResultError, and target may then hold part of it.
+func (e *Engine) CallInto(ctx context.Context, target any, exportName string, args ...any) error {
+	_, _, err := e.call(ctx, callOptions{target: target}, exportName, nil, args...)
+	return err
+}
+
+// CallJSONInto is CallInto with the semantics of JSON.stringify's text of the
+// result instead of the host codec's encoding: objects keep their member
+// order, which a json.RawMessage in target receives as text, members whose
+// value is undefined are left out and toJSON runs.
+func (e *Engine) CallJSONInto(ctx context.Context, target any, exportName string, args ...any) error {
+	_, _, err := e.call(ctx, callOptions{target: target, stringify: true}, exportName, nil, args...)
+	return err
 }
 
 // CallMember invokes a function stored on an exported object, such as a
 // renderer in the renderers export.
 func (e *Engine) CallMember(ctx context.Context, exportName, memberName string, args ...any) (result any, err error) {
-	return e.call(ctx, 0, exportName, []string{memberName}, args...)
+	result, _, err = e.call(ctx, callOptions{}, exportName, []string{memberName}, args...)
+	return result, err
 }
 
 // CallPath invokes a function nested below an exported object. It is used for
 // protocol hooks such as protocols.openai_responses.renderEvents.
 func (e *Engine) CallPath(ctx context.Context, exportName string, members []string, args ...any) (result any, err error) {
-	return e.call(ctx, 0, exportName, members, args...)
+	result, _, err = e.call(ctx, callOptions{}, exportName, members, args...)
+	return result, err
 }
 
 // CallPathWithAdmissionTimeout gives long-lived observers a separate bound for
@@ -322,24 +370,47 @@ func (e *Engine) CallPathWithAdmissionTimeout(
 	members []string,
 	args ...any,
 ) (result any, err error) {
-	return e.call(ctx, admissionTimeout, exportName, members, args...)
+	result, _, err = e.call(ctx, callOptions{admissionTimeout: admissionTimeout}, exportName, members, args...)
+	return result, err
+}
+
+// CallPathWithMemberJSON is CallPathWithAdmissionTimeout that also returns the
+// result's member as the text JSON.stringify writes for it, which keeps the
+// member order of its objects. The text is nil when member is empty or the
+// result has no such member.
+func (e *Engine) CallPathWithMemberJSON(
+	ctx context.Context,
+	admissionTimeout time.Duration,
+	member string,
+	exportName string,
+	members []string,
+	args ...any,
+) (result any, text json.RawMessage, err error) {
+	return e.call(ctx, callOptions{admissionTimeout: admissionTimeout, jsonMember: member}, exportName, members, args...)
+}
+
+type callOptions struct {
+	admissionTimeout time.Duration
+	target           any
+	stringify        bool
+	jsonMember       string
 }
 
 func (e *Engine) call(
 	ctx context.Context,
-	admissionTimeout time.Duration,
+	opts callOptions,
 	exportName string,
 	members []string,
 	args ...any,
-) (result any, err error) {
-	if err = e.acquireCallSlot(ctx, admissionTimeout); err != nil {
-		return nil, err
+) (result any, text json.RawMessage, err error) {
+	if err = e.acquireCallSlot(ctx, opts.admissionTimeout); err != nil {
+		return nil, nil, err
 	}
 	defer func() { <-e.semaphore }()
 
 	instance, err := e.getRuntime(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	reusable := true
 	defer func() {
@@ -373,21 +444,25 @@ func (e *Engine) call(
 	hookName = resolvedHookName
 	if !found {
 		if len(members) == 0 {
-			return nil, fmt.Errorf("plugin export %q not found", exportName)
+			return nil, nil, fmt.Errorf("plugin export %q not found", exportName)
 		}
-		return nil, fmt.Errorf("plugin hook %q not found", hookName)
+		return nil, nil, fmt.Errorf("plugin hook %q not found", hookName)
 	}
 	if value == nil || sobek.IsUndefined(value) {
-		return nil, fmt.Errorf("plugin export %q not found", exportName)
+		return nil, nil, fmt.Errorf("plugin export %q not found", exportName)
 	}
 	callable, ok := sobek.AssertFunction(value)
 	if !ok {
-		return nil, fmt.Errorf("plugin hook %q is not a function", hookName)
+		return nil, nil, fmt.Errorf("plugin hook %q is not a function", hookName)
 	}
 
 	callArgs := make([]sobek.Value, len(args))
-	for i, arg := range args {
-		callArgs[i] = instance.runtime.ToValue(arg)
+	for index, arg := range args {
+		converted, convErr := argumentValue(instance.runtime, arg)
+		if convErr != nil {
+			return nil, nil, fmt.Errorf("plugin %s@%s hook %s argument %d: %w", e.key, e.version, hookName, index+1, convErr)
+		}
+		callArgs[index] = converted
 	}
 
 	value, err = callable(sobek.Undefined(), callArgs...)
@@ -395,16 +470,160 @@ func (e *Engine) call(
 		var interrupted *sobek.InterruptedError
 		if errors.As(err, &interrupted) {
 			reusable = false
-			return nil, fmt.Errorf("plugin %s@%s hook %s failed: %w", e.key, e.version, hookName, err)
+			return nil, nil, fmt.Errorf("plugin %s@%s hook %s failed: %w", e.key, e.version, hookName, err)
 		}
 		wrapped := fmt.Errorf("plugin %s@%s hook %s failed: %w", e.key, e.version, hookName, err)
 		var exc *sobek.Exception
 		if errors.As(err, &exc) {
-			return nil, hookErrorFromException(hookName, exc, wrapped)
+			return nil, nil, hookErrorFromException(hookName, exc, wrapped)
 		}
-		return nil, wrapped
+		return nil, nil, wrapped
 	}
-	return value.Export(), nil
+
+	var memberText json.RawMessage
+	switch {
+	case opts.target != nil && opts.stringify:
+		encoded, stringifyErr := stringifyJSON(instance.runtime, value)
+		if stringifyErr != nil {
+			return nil, nil, &ResultError{err: stringifyErr}
+		}
+		if err = common.Unmarshal(encoded, opts.target); err != nil {
+			return nil, nil, &ResultError{err: err}
+		}
+	case opts.target != nil:
+		exported := value.Export()
+		encoded, marshalErr := common.Marshal(exported)
+		if marshalErr != nil {
+			return nil, nil, &ResultError{err: marshalErr}
+		}
+		if err = common.Unmarshal(encoded, opts.target); err != nil {
+			return nil, nil, &ResultError{err: err}
+		}
+		result = exported
+	default:
+		result = value.Export()
+	}
+	if opts.jsonMember != "" && !sobek.IsUndefined(value) && !sobek.IsNull(value) {
+		member := value.ToObject(instance.runtime).Get(opts.jsonMember)
+		if member != nil && !sobek.IsUndefined(member) {
+			memberText, err = stringifyJSON(instance.runtime, member)
+			if err != nil {
+				return nil, nil, &ResultError{err: err}
+			}
+		}
+	}
+	return result, memberText, nil
+}
+
+func argumentValue(rt *sobek.Runtime, arg any) (sobek.Value, error) {
+	if raw, ok := arg.(RawJSON); ok {
+		return parseJSONValue(rt, raw)
+	}
+	converted, _ := pluginValue(rt, arg, 0)
+	return rt.ToValue(converted), nil
+}
+
+func parseJSONValue(rt *sobek.Runtime, raw RawJSON) (sobek.Value, error) {
+	parsed, err := jsonParse(rt, raw)
+	if err == nil {
+		return parsed, nil
+	}
+	var decoded any
+	if unmarshalErr := common.Unmarshal(raw, &decoded); unmarshalErr != nil {
+		return sobek.Undefined(), err
+	}
+	return rt.ToValue(decoded), nil
+}
+
+func jsonParse(rt *sobek.Runtime, raw RawJSON) (sobek.Value, error) {
+	parse, err := jsonFunction(rt, "parse")
+	if err != nil {
+		return sobek.Undefined(), err
+	}
+	return parse(sobek.Undefined(), rt.ToValue(string(raw)))
+}
+
+func stringifyJSON(rt *sobek.Runtime, value sobek.Value) ([]byte, error) {
+	stringify, err := jsonFunction(rt, "stringify")
+	if err != nil {
+		return nil, err
+	}
+	text, err := stringify(sobek.Undefined(), value)
+	if err != nil {
+		return nil, err
+	}
+	if text == nil || sobek.IsUndefined(text) || sobek.IsNull(text) {
+		return nil, nil
+	}
+	return []byte(text.String()), nil
+}
+
+func jsonFunction(rt *sobek.Runtime, name string) (sobek.Callable, error) {
+	jsonValue := rt.Get("JSON")
+	if jsonValue == nil || sobek.IsUndefined(jsonValue) || sobek.IsNull(jsonValue) {
+		return nil, fmt.Errorf("JSON is not available")
+	}
+	fn, ok := sobek.AssertFunction(jsonValue.ToObject(rt).Get(name))
+	if !ok {
+		return nil, fmt.Errorf("JSON.%s is not a function", name)
+	}
+	return fn, nil
+}
+
+const maxPluginValueDepth = 512
+
+func pluginValue(rt *sobek.Runtime, v any, depth int) (converted any, changed bool) {
+	if depth > maxPluginValueDepth {
+		return v, false
+	}
+	switch typed := v.(type) {
+	case nil, bool, string, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64,
+		float32, float64, json.Number, *big.Int, []byte, []string, map[string]string, map[string][]string,
+		sobek.Value:
+		return v, false
+	case RawJSON:
+		if parsed, err := jsonParse(rt, typed); err == nil {
+			return parsed, true
+		}
+		var decoded any
+		if err := common.Unmarshal(typed, &decoded); err != nil {
+			return v, false
+		}
+		return decoded, true
+	case map[string]any:
+		var copied map[string]any
+		for key, item := range typed {
+			if item, changed = pluginValue(rt, item, depth+1); changed {
+				if copied == nil {
+					copied = maps.Clone(typed)
+				}
+				copied[key] = item
+			}
+		}
+		if copied != nil {
+			return copied, true
+		}
+		return typed, false
+	case []any:
+		var copied []any
+		for index, item := range typed {
+			if item, changed = pluginValue(rt, item, depth+1); changed {
+				if copied == nil {
+					copied = slices.Clone(typed)
+				}
+				copied[index] = item
+			}
+		}
+		if copied != nil {
+			return copied, true
+		}
+		return typed, false
+	default:
+		if reflect.TypeOf(v) == nil {
+			return v, false
+		}
+		return v, false
+	}
 }
 
 func (e *Engine) acquireCallSlot(ctx context.Context, admissionTimeout time.Duration) error {

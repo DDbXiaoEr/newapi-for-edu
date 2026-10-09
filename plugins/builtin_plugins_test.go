@@ -10,7 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var expectedKeys = []string{"alibaba", "doubao", "google", "hailuo", "jimeng", "kling", "sora", "sunoapi", "vertex-ai", "vidu"}
+var expectedKeys = []string{"alibaba", "doubao", "google", "hailuo", "jimeng", "kling", "sora", "sunoapi", "typesafe", "vertex-ai", "vidu"}
+var responsesPluginKeys = []string{"alibaba", "doubao", "google", "hailuo", "jimeng", "kling", "sora", "sunoapi", "vertex-ai", "vidu"}
 
 func TestBuiltInVendorPluginsDeclareNativeRoutesAndLegacyChannelTypes(t *testing.T) {
 	generation := jsplugin.DefaultRegistry.Generation()
@@ -34,6 +35,7 @@ func TestBuiltInVendorPluginsDeclareNativeRoutesAndLegacyChannelTypes(t *testing
 		{"GET", "/suno/fetch/:task_id", "sunoapi", jsplugin.RouteTypeQuery, "", "renderTask"},
 		{"POST", "/doubao/api/v3/contents/generations/tasks", "doubao", jsplugin.RouteTypeSubmit, "", "taskCreated"},
 		{"GET", "/doubao/api/v3/contents/generations/tasks/:task_id", "doubao", jsplugin.RouteTypeQuery, "", "taskStatus"},
+		{"POST", "/typesafe/v1/systemone", "typesafe", jsplugin.RouteTypeSubmit, "", "renderSystemOne"},
 	}
 	for _, expected := range routes {
 		t.Run(expected.method+" "+expected.path, func(t *testing.T) {
@@ -79,7 +81,7 @@ func TestBuiltInTaskPluginResponsesAndUsageContracts(t *testing.T) {
 	}
 	assert.Equal(t, expectedKeys, actualKeys)
 
-	for _, key := range expectedKeys {
+	for _, key := range responsesPluginKeys {
 		t.Run(key, func(t *testing.T) {
 			_, found := generation.Get(key)
 			require.True(t, found, "factory plugin was excluded from the active generation")
@@ -124,9 +126,27 @@ func TestBuiltInTaskPluginResponsesAndUsageContracts(t *testing.T) {
 	}
 }
 
+func TestBuiltInTypeSafePluginRegistersJevModels(t *testing.T) {
+	generation := jsplugin.DefaultRegistry.Generation()
+	require.NotNil(t, generation)
+	plugin, found := generation.Get("typesafe")
+	require.True(t, found)
+	assert.Equal(t, []string{"jev-1.13.0", "jev-latest", "jev-preview"}, plugin.Meta.Models)
+	assert.True(t, plugin.Meta.PreservesJSONOrder())
+	assert.True(t, plugin.Meta.SupportsUpstream(jsplugin.UpstreamKindNewAPI))
+	binding, found := generation.LookupDeclaredRoute("POST", "/typesafe/v1/systemone")
+	require.True(t, found)
+	assert.Equal(t, "typesafe", binding.Plugin.Meta.Key)
+	assert.Equal(t, jsplugin.RouteTypeSubmit, binding.Route.Type)
+	assert.Equal(t, "decodeSystemOne", binding.Route.Decode)
+	assert.Equal(t, "renderSystemOne", binding.Route.Render)
+	require.NotNil(t, binding.Route.RetainResult)
+	assert.False(t, *binding.Route.RetainResult)
+}
+
 func TestBuiltInResponsesDecodersEchoChannelMappedAlias(t *testing.T) {
 	bodyOverrides := map[string]map[string]any{}
-	for _, key := range expectedKeys {
+	for _, key := range responsesPluginKeys {
 		t.Run(key, func(t *testing.T) {
 			source, sourceErr := Source(key)
 			require.NoError(t, sourceErr)

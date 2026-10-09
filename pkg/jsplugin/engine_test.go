@@ -3,6 +3,7 @@ package jsplugin
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"math"
@@ -105,6 +106,83 @@ export function invalid(kind) {
 			require.Error(t, err)
 		})
 	}
+}
+
+func TestEngineRawJSONArgumentsMatchDecodedArguments(t *testing.T) {
+	engine, err := Compile(`
+export function describe(...values) {
+  const seen = [];
+  const stack = values.reverse().map((v) => ({v}));
+  while (stack.length > 0) {
+    const {v, key, close} = stack.pop();
+    if (close) {
+      seen.push(close);
+      continue;
+    }
+    if (key !== undefined) seen.push(key);
+    if (v === null || typeof v !== "object") {
+      seen.push(typeof v + ":" + (Object.is(v, -0) ? "-0" : JSON.stringify(v)));
+      continue;
+    }
+    const array = Array.isArray(v);
+    seen.push(array ? "[" : Object.getPrototypeOf(v) === Object.prototype ? "{" : "{?");
+    stack.push({close: array ? "]" : "}"});
+    const keys = Object.keys(v);
+    for (let i = keys.length - 1; i >= 0; i--) {
+      stack.push({v: v[keys[i]], key: array ? undefined : JSON.stringify(keys[i])});
+    }
+  }
+  return seen.join(" ");
+}`, Options{})
+	require.NoError(t, err)
+	values := map[string]any{
+		"object": map[string]any{
+			"__proto__": map[string]any{"polluted": true},
+			"10":        "ten", "2": "two", "a": []any{}, "b": map[string]any{},
+			"nested": map[string]any{"z": nil, "y": []any{true, false}},
+		},
+		"array":  []any{map[string]any{"id": "x", "b": 1, "a": 2}, nil, "s"},
+		"string": "plain",
+		"number": 42.5,
+		"null":   nil,
+	}
+	for name, value := range values {
+		t.Run(name, func(t *testing.T) {
+			text, err := common.Marshal(value)
+			require.NoError(t, err)
+			var decoded any
+			require.NoError(t, common.Unmarshal(text, &decoded))
+			want, err := engine.Call(t.Context(), "describe", decoded)
+			require.NoError(t, err)
+			got, err := engine.Call(t.Context(), "describe", RawJSON(text))
+			require.NoError(t, err)
+			assert.Equal(t, want, got)
+			nested, err := engine.Call(t.Context(), "describe", map[string]any{"value": RawJSON(text)})
+			require.NoError(t, err)
+			wantNested, err := engine.Call(t.Context(), "describe", map[string]any{"value": decoded})
+			require.NoError(t, err)
+			assert.Equal(t, wantNested, nested)
+		})
+	}
+
+	_, err = engine.Call(t.Context(), "describe", "first", RawJSON(`{"a":`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "argument 2")
+}
+
+func TestEngineCallJSONIntoKeepsMemberOrder(t *testing.T) {
+	engine, err := Compile(`
+export function build() {
+  return {zeta: 1, alpha: 2, mid: "&<>"};
+}`, Options{})
+	require.NoError(t, err)
+	var raw map[string]json.RawMessage
+	require.NoError(t, engine.CallJSONInto(t.Context(), &raw, "build"))
+	assert.Equal(t, json.RawMessage("1"), raw["zeta"])
+	result, text, err := engine.CallPathWithMemberJSON(t.Context(), 0, "zeta", "build", nil)
+	require.NoError(t, err)
+	assert.Equal(t, json.RawMessage("1"), text)
+	assert.Equal(t, int64(1), result.(map[string]any)["zeta"])
 }
 
 func TestJSONStateChangesAndEncodedLimits(t *testing.T) {

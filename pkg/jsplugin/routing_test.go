@@ -348,6 +348,56 @@ func TestRouteModelsDecodeAndValidation(t *testing.T) {
 	}
 }
 
+func TestRouteRetainResultDecodeAndValidation(t *testing.T) {
+	routeExports := `export const native = {
+		decodeJob: function(ctx) { return {kind: "submit", model: "gpt-5.5", requestBody: ctx.body.value}; },
+		jobCreated: function(ctx, task) { return task; },
+		jobStatus: function(ctx, task) { return task; }
+	};`
+	falseValue := false
+	tests := []struct {
+		name        string
+		metaFields  string
+		want        *bool
+		errContains string
+	}{
+		{
+			name:       "undeclared route retains",
+			metaFields: `routes: [{method: "POST", path: "/v1/batch", type: "submit", decode: "decodeJob", render: "jobCreated"}],`,
+		},
+		{
+			name:       "submit route declines retention",
+			metaFields: `routes: [{method: "POST", path: "/v1/batch", type: "submit", decode: "decodeJob", render: "jobCreated", retainResult: false}],`,
+			want:       &falseValue,
+		},
+		{
+			name:        "query route rejects retainResult",
+			metaFields:  `routes: [{method: "GET", path: "/v1/batch/:task_id", type: "query", render: "jobStatus", retainResult: true}],`,
+			errContains: "must not declare retainResult",
+		},
+		{
+			name:        "non-boolean value",
+			metaFields:  `routes: [{method: "POST", path: "/v1/batch", type: "submit", decode: "decodeJob", render: "jobCreated", retainResult: "no"}],`,
+			errContains: "retainResult must be a boolean",
+		},
+	}
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			plugin, err := CompilePlugin(
+				routingTestPluginSource("route-retain", 0, `["gpt-5.5"]`, testCase.metaFields, routeExports),
+				Options{},
+			)
+			if testCase.errContains != "" {
+				require.ErrorContains(t, err, testCase.errContains)
+				return
+			}
+			require.NoError(t, err)
+			require.Len(t, plugin.Meta.Routes, 1)
+			assert.Equal(t, testCase.want, plugin.Meta.Routes[0].RetainResult)
+		})
+	}
+}
+
 func TestRouteRequestContextClonesFormAndMultipartValuesPerDecoder(t *testing.T) {
 	tests := []struct {
 		name   string

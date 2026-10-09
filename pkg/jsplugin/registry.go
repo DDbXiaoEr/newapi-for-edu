@@ -100,12 +100,46 @@ type Meta struct {
 	Models               []string                    `json:"models"`
 	FetchMode            string                      `json:"fetchMode"`
 	AllowedHosts         []string                    `json:"allowedHosts"`
+	Upstreams            []string                    `json:"upstreams,omitempty"`
 	Routes               []Route                     `json:"routes"`
 	Protocols            []ProtocolClaim             `json:"protocols"`
 	UsageSchema          map[string]UsageFieldSchema `json:"usageSchema,omitempty"`
 	UsageExamples        []UsageExample              `json:"usageExamples,omitempty"`
 	UsageProfiles        []UsageProfile              `json:"usageProfiles,omitempty"`
 	Auth                 AuthMeta                    `json:"auth"`
+}
+
+// Upstream kinds a plugin driver can address. Every driver speaks to its
+// vendor; a driver that also builds its own native-route URLs when the channel
+// points at another New API gateway declares UpstreamKindNewAPI in
+// meta.upstreams.
+const (
+	UpstreamKindVendor = "vendor"
+	UpstreamKindNewAPI = "new_api"
+)
+
+// SupportsUpstream reports whether the driver handles channels of the given
+// upstream kind. The vendor kind is implied for every plugin.
+func (m Meta) SupportsUpstream(kind string) bool {
+	return kind == UpstreamKindVendor || slices.Contains(m.Upstreams, kind)
+}
+
+// PreservesJSONOrder reports whether the plugin declared json-order@1: its
+// hooks receive JSON request bodies with members in the order the client sent
+// them, and its JSON request bodies go upstream as JSON.stringify writes them.
+// Other plugins keep the cheaper Go-map path, whose members enumerate sorted.
+func (m Meta) PreservesJSONOrder() bool {
+	return slices.Contains(m.RequiredCapabilities, CapabilityJSONOrder)
+}
+
+// JSONTextMember names the member of a hook result (a decoded requestBody, a
+// request descriptor's body) that the host also takes as JSON text, for a
+// plugin that preserves JSON order; it is empty for other plugins.
+func (m Meta) JSONTextMember(member string) string {
+	if !m.PreservesJSONOrder() {
+		return ""
+	}
+	return member
 }
 
 // UsageProfile replaces the plugin's default usage metadata for its models.
@@ -834,6 +868,7 @@ func cloneMeta(meta Meta) Meta {
 	meta.ChannelTypes = append([]int(nil), meta.ChannelTypes...)
 	meta.Models = append([]string(nil), meta.Models...)
 	meta.AllowedHosts = append([]string(nil), meta.AllowedHosts...)
+	meta.Upstreams = append([]string(nil), meta.Upstreams...)
 	meta.Routes = append([]Route(nil), meta.Routes...)
 	for index := range meta.Routes {
 		meta.Routes[index].Models = append([]string(nil), meta.Routes[index].Models...)
@@ -975,7 +1010,7 @@ func decodeMeta(value any) (Meta, error) {
 	}
 	for field := range object {
 		switch field {
-		case "requiredCapabilities", "submitResponseTypes", "sortPriority", "website", "apiVersion", "key", "name", "icon", "description", "version", "author", "baseUrl", "channelTypes", "channelType", "compatibleChannelTypes", "models", "fetchMode", "allowedHosts", "routes", "protocols", "usageSchema", "usageExamples", "usageProfiles", "auth", "endpoints", "submitPaths", "actions":
+		case "requiredCapabilities", "submitResponseTypes", "sortPriority", "website", "apiVersion", "key", "name", "icon", "description", "version", "author", "baseUrl", "channelTypes", "channelType", "compatibleChannelTypes", "models", "fetchMode", "allowedHosts", "upstreams", "routes", "protocols", "usageSchema", "usageExamples", "usageProfiles", "auth", "endpoints", "submitPaths", "actions":
 		default:
 			return Meta{}, &UnknownMetaFieldError{Field: field}
 		}
@@ -1071,6 +1106,10 @@ func decodeMeta(value any) (Meta, error) {
 	if err != nil {
 		return Meta{}, err
 	}
+	meta.Upstreams, err = strictStringSlice(object, "upstreams")
+	if err != nil {
+		return Meta{}, err
+	}
 	meta.Routes, err = decodeRoutes(object["routes"])
 	if err != nil {
 		return Meta{}, err
@@ -1158,6 +1197,13 @@ func normalizeV1Meta(meta *Meta) error {
 			return fmt.Errorf("%s requires submitResponseTypes to include sse", name)
 		}
 		seenCapabilities[name] = true
+	}
+	seenUpstreams := make(map[string]bool, len(meta.Upstreams))
+	for _, kind := range meta.Upstreams {
+		if (kind != UpstreamKindVendor && kind != UpstreamKindNewAPI) || seenUpstreams[kind] {
+			return fmt.Errorf("unsupported or duplicate upstream kind %q", kind)
+		}
+		seenUpstreams[kind] = true
 	}
 	if meta.SortPriority < math.MinInt32 || meta.SortPriority > math.MaxInt32 {
 		return fmt.Errorf("plugin meta sortPriority must be a signed 32-bit integer")
@@ -1724,7 +1770,7 @@ func decodeRoutes(value any) ([]Route, error) {
 		}
 		for key := range object {
 			switch key {
-			case "method", "path", "type", "action", "decode", "render", "taskIdParam", "models":
+			case "method", "path", "type", "action", "decode", "render", "taskIdParam", "models", "retainResult":
 			default:
 				return nil, fmt.Errorf("plugin meta route %d has unknown field %q", index, key)
 			}
@@ -1761,6 +1807,13 @@ func decodeRoutes(value any) ([]Route, error) {
 			if len(route.Models) == 0 {
 				return nil, fmt.Errorf("plugin meta route %d models must contain at least one model", index)
 			}
+		}
+		if value, exists := object["retainResult"]; exists {
+			retain, ok := value.(bool)
+			if !ok {
+				return nil, fmt.Errorf("plugin meta route %d retainResult must be a boolean", index)
+			}
+			route.RetainResult = &retain
 		}
 		routes = append(routes, route)
 	}
