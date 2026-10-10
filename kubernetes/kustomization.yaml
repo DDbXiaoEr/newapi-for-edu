@@ -9,6 +9,7 @@ resources:
   - external-clickhouse.yaml
   - external-redis.yaml
   - external-ldap.yaml
+  - pvc.yaml
   - deployment.yaml
   - service.yaml
   - hpa.yaml

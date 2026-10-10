@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: newapi-edu-data
+  namespace: newapi
+  labels:
+    app.kubernetes.io/name: newapi-edu
+    app.kubernetes.io/component: backend
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: nfs-storage
+  resources:
+    requests:
+      storage: 2Gi

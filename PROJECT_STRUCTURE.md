@@ -336,6 +336,7 @@ newapi_2_-edu/
 │   ├── external-redis.yaml
 │   ├── kustomization.yaml
 │   ├── namespace.yaml
+│   ├── pvc.yaml
 │   ├── secret.yaml
 │   └── service.yaml
 ├── logger/
