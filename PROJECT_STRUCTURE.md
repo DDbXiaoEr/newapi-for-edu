@@ -365,6 +365,8 @@ newapi_2_-edu/
 │   ├── logger.go
 │   ├── model-rate-limit.go
 │   ├── model_rate_limit_test.go
+│   ├── openai_image_path.go
+│   ├── openai_image_path_test.go
 │   ├── performance.go
 │   ├── rate-limit.go
 │   ├── rate_limit_test.go
@@ -2738,7 +2740,8 @@ newapi_2_-edu/
         │   │   │   ├── components/
         │   │   │   │   ├── __tests__/
         │   │   │   │   │   ├── permissions.test.tsx
-        │   │   │   │   │   └── quota-display.test.tsx
+        │   │   │   │   │   ├── quota-display.test.tsx
+        │   │   │   │   │   └── quota-edit.test.tsx
         │   │   │   │   ├── data-table-bulk-actions.tsx
         │   │   │   │   ├── data-table-row-actions.tsx
         │   │   │   │   ├── dialogs/
@@ -2758,6 +2761,8 @@ newapi_2_-edu/
         │   │   │   ├── constants.ts
         │   │   │   ├── index.tsx
         │   │   │   ├── lib/
+        │   │   │   │   ├── __tests__/
+        │   │   │   │   │   └── user-form.test.ts
         │   │   │   │   ├── index.ts
         │   │   │   │   ├── user-actions.ts
         │   │   │   │   └── user-form.ts

@@ -68,6 +68,8 @@ func SetRelayRouter(router *gin.Engine) {
 	{
 		playgroundRouter.POST("/chat/completions", controller.Playground)
 	}
+	registerOpenAIImageCompatRouter(router)
+
 	relayV1Router := router.Group("/v1")
 	relayV1Router.Use(middleware.RouteTag("relay"))
 	relayV1Router.Use(middleware.SystemPerformanceCheck())
@@ -78,6 +80,18 @@ func SetRelayRouter(router *gin.Engine) {
 		relayV1Router.GET("/responses", controller.ResponsesWebSocket)
 	}
 	relayV1Router.Use(middleware.ModelRequestRateLimit())
+	{
+		relayV1Router.POST("/images/generations",
+			middleware.PinTaskPluginEndpoint(),
+			middleware.PrepareTaskPluginEndpoint(),
+			middleware.Distribute(),
+			func(c *gin.Context) {
+				controller.RelayTaskPluginEndpoint(c, func(c *gin.Context) {
+					controller.Relay(c, types.RelayFormatOpenAIImage)
+				})
+			},
+		)
+	}
 	{
 		// WebSocket 路由（统一到 Relay）
 		wsRouter := relayV1Router.Group("")
@@ -118,9 +132,6 @@ func SetRelayRouter(router *gin.Engine) {
 
 		// image related routes
 		httpRouter.POST("/edits", func(c *gin.Context) {
-			controller.Relay(c, types.RelayFormatOpenAIImage)
-		})
-		httpRouter.POST("/images/generations", func(c *gin.Context) {
 			controller.Relay(c, types.RelayFormatOpenAIImage)
 		})
 		httpRouter.POST("/images/edits", func(c *gin.Context) {
@@ -206,6 +217,30 @@ func SetRelayRouter(router *gin.Engine) {
 		// Gemini API 路径格式: /v1beta/models/{model_name}:{action}
 		relayGeminiRouter.POST("/models/*path", func(c *gin.Context) {
 			controller.Relay(c, types.RelayFormatGemini)
+		})
+	}
+}
+
+func registerOpenAIImageCompatRouter(router *gin.Engine) {
+	imageRouter := router.Group("/images")
+	imageRouter.Use(middleware.NormalizeOpenAIImagePath())
+	imageRouter.Use(middleware.RouteTag("relay"))
+	imageRouter.Use(middleware.SystemPerformanceCheck())
+	imageRouter.Use(middleware.TokenAuth())
+	imageRouter.Use(middleware.ModelRequestRateLimit())
+	{
+		imageRouter.POST("/generations",
+			middleware.PinTaskPluginEndpoint(),
+			middleware.PrepareTaskPluginEndpoint(),
+			middleware.Distribute(),
+			func(c *gin.Context) {
+				controller.RelayTaskPluginEndpoint(c, func(c *gin.Context) {
+					controller.Relay(c, types.RelayFormatOpenAIImage)
+				})
+			},
+		)
+		imageRouter.POST("/edits", middleware.Distribute(), func(c *gin.Context) {
+			controller.Relay(c, types.RelayFormatOpenAIImage)
 		})
 	}
 }

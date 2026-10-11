@@ -1235,12 +1235,22 @@ func CreateUser(c *gin.Context) {
 		common.ApiErrorI18n(c, i18n.MsgUserCannotCreateHigherLevel)
 		return
 	}
+	if user.Quota < 0 {
+		common.ApiErrorI18n(c, i18n.MsgQuotaNegative)
+		return
+	}
+	if err := common.ValidateWalletQuota(user.Quota); err != nil {
+		common.ApiErrorI18n(c, i18n.MsgQuotaExceedMax)
+		return
+	}
 	// Even for admin users, we cannot fully trust them!
 	cleanUser := model.User{
-		Username:    user.Username,
-		Password:    user.Password,
-		DisplayName: user.DisplayName,
-		Role:        user.Role, // 保持管理员设置的角色
+		Username:      user.Username,
+		Password:      user.Password,
+		DisplayName:   user.DisplayName,
+		Role:          user.Role, // 保持管理员设置的角色
+		Quota:         user.Quota,
+		PreserveQuota: true,
 	}
 	authzTouched := false
 	if err := model.DB.Transaction(func(tx *gorm.DB) error {

@@ -34,7 +34,7 @@ func setupLoginControllerTestDB(t *testing.T) *gorm.DB {
 	if err := i18n.Init(); err != nil {
 		t.Fatalf("failed to init i18n: %v", err)
 	}
-	return testdb.OpenBound(t, &model.DB, &model.LOG_DB, model.InitColumnNames, testdb.Options{Models: []any{&model.User{}, &model.Log{}, &model.TwoFA{}, &model.TwoFABackupCode{}, &model.UserSession{}, &model.AuthFlow{}, &model.PasskeyCredential{}}})
+	return testdb.OpenBound(t, &model.DB, &model.LOG_DB, model.InitColumnNames, testdb.Options{Models: []any{&model.User{}, &model.Log{}, &model.TwoFA{}, &model.TwoFABackupCode{}, &model.UserSession{}, &model.AuthFlow{}, &model.PasskeyCredential{}, &model.CasbinRule{}}})
 }
 
 func seedLoginUser(t *testing.T, db *gorm.DB, username string, password string, status int) *model.User {

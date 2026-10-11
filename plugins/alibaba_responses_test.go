@@ -709,6 +709,9 @@ func TestAlibabaImageSubmission(t *testing.T) {
 			require.True(t, found)
 			_, found = registry.Generation().LookupEndpoint(http.MethodPost, "/v1/videos", name)
 			assert.False(t, found)
+			binding, found := registry.Generation().LookupEndpoint(http.MethodPost, "/v1/images/generations", name)
+			require.True(t, found)
+			assert.Equal(t, "openai_image", binding.Protocol)
 		}
 		value, err := plugin.Engine.CallPath(t.Context(), "protocols", []string{"openai_responses", "decodeRequest"}, map[string]any{
 			"model": "my-image-alias", "upstreamModel": "wan2.7-image", "body": map[string]any{"kind": "json", "value": map[string]any{
@@ -722,6 +725,42 @@ func TestAlibabaImageSubmission(t *testing.T) {
 		assert.Equal(t, "wan2.7-image", body["model"])
 		assert.Equal(t, map[string]any{"image_count": float64(2)}, facts)
 		assert.Equal(t, "https://dashscope.aliyuncs.com"+base+"image-generation/generation", url)
+	})
+
+	t.Run("OpenAI image generations decode prompt and count", func(t *testing.T) {
+		value, err := plugin.Engine.CallPath(t.Context(), "protocols", []string{"openai_image", "decodeRequest"}, map[string]any{
+			"model": "wan2.7-image", "upstreamModel": "wan2.7-image", "body": map[string]any{"kind": "json", "value": map[string]any{
+				"model": "wan2.7-image", "prompt": "a cat", "n": 2, "size": "1024x1024",
+			}},
+		})
+		require.NoError(t, err)
+		resolved := alibabaObject(t, value)
+		assert.Equal(t, "text_to_image", resolved["action"])
+		request := resolved["requestBody"].(map[string]any)
+		assert.Equal(t, "a cat", request["prompt"])
+		assert.Equal(t, float64(2), request["n"])
+		body, facts, url := submitAlibabaRequest(t, plugin, "wan2.7-image", request)
+		assert.Equal(t, map[string]any{"image_count": float64(2)}, facts)
+		assert.Equal(t, "https://dashscope.aliyuncs.com"+base+"image-generation/generation", url)
+		assert.Equal(t, "wan2.7-image", body["model"])
+	})
+
+	t.Run("OpenAI wan2.6-image text-to-image rewrites to wan2.6-t2i", func(t *testing.T) {
+		value, err := plugin.Engine.CallPath(t.Context(), "protocols", []string{"openai_image", "decodeRequest"}, map[string]any{
+			"model": "wan2.6-image", "upstreamModel": "wan2.6-image", "body": map[string]any{"kind": "json", "value": map[string]any{
+				"model": "wan2.6-image", "prompt": "a cat",
+			}},
+		})
+		require.NoError(t, err)
+		resolved := alibabaObject(t, value)
+		assert.Equal(t, "text_to_image", resolved["action"])
+		body, facts, url := submitAlibabaRequest(t, plugin, "wan2.6-image", resolved["requestBody"].(map[string]any))
+		assert.Equal(t, "wan2.6-t2i", body["model"])
+		assert.Equal(t, map[string]any{"image_count": float64(4)}, facts)
+		assert.Equal(t, "https://dashscope.aliyuncs.com"+base+"image-generation/generation", url)
+		submit, err := plugin.Engine.Call(t.Context(), "buildSubmitRequest", map[string]any{"upstreamModel": "wan2.6-image", "requestBody": resolved["requestBody"], "baseUrl": "https://dashscope.aliyuncs.com", "apiKey": "k"})
+		require.NoError(t, err)
+		assert.Equal(t, "wan2.6-t2i", alibabaObject(t, submit)["rewriteModel"])
 	})
 }
 
@@ -745,7 +784,7 @@ func TestAlibabaImageValidation(t *testing.T) {
 		{"string mode flag", "wan2.7-image", map[string]any{"enable_sequential": "true"}, "must be a boolean"},
 		{"upstream SSE", "wan2.6-image", map[string]any{"metadata": map[string]any{"parameters": map[string]any{"stream": true}}}, "upstream streaming requires"},
 		{"legacy synchronous", "wan2.2-t2i-flash", map[string]any{"metadata": map[string]any{"upstream_mode": "sync"}}, "only supports asynchronous"},
-		{"edit without reference", "wan2.6-image", nil, "requires a reference image"},
+		{"edit without sequential flags still requires a reference when metadata input is present", "wan2.6-image", map[string]any{"metadata": map[string]any{"input": map[string]any{"messages": []any{map[string]any{"role": "user", "content": []any{map[string]any{"text": "a cat"}}}}}}}, "requires a reference image"},
 		{"t2i with reference", "wan2.6-t2i", map[string]any{"image": "https://cdn.example/input.png"}, "too many input images"},
 		{"invalid 4K", "wan2.7-image", map[string]any{"size": "4K"}, "4K is only supported"},
 		{"oversized pixel dimensions", "wan2.7-image", map[string]any{"size": "999999999999*999999999999"}, "pixel and aspect-ratio limits"},
@@ -826,6 +865,18 @@ func TestAlibabaImageResults(t *testing.T) {
 			if tc.model == "wan2.6-image" {
 				assert.Contains(t, message, "Step 1\n\n![Image 1]")
 			}
+			value, err = plugin.Engine.CallPath(t.Context(), "protocols", []string{"openai_image", "render"}, map[string]any{
+				"artifacts": map[string]any{"image-1": map[string]any{"url": "/v1/tasks/task_public/artifacts/image-1/content"}, "image-2": map[string]any{"url": "/v1/tasks/task_public/artifacts/image-2/content"}},
+			}, map[string]any{"created_at": 1700000000, "data": body})
+			require.NoError(t, err)
+			rendered := alibabaObject(t, value)
+			assert.Equal(t, float64(1700000000), rendered["created"])
+			urls := rendered["data"].([]any)
+			require.Len(t, urls, 2)
+			assert.Equal(t, "/v1/tasks/task_public/artifacts/image-1/content", urls[0].(map[string]any)["url"])
+			encodedRender, err := common.Marshal(rendered)
+			require.NoError(t, err)
+			assert.NotContains(t, string(encodedRender), "cdn.example")
 		})
 	}
 

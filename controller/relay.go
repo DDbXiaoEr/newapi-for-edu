@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -396,11 +397,16 @@ func RelayTaskPluginEndpoint(c *gin.Context, fallback gin.HandlerFunc) {
 		})
 		return
 	}
-	if pinned.Protocol != "openai_responses" {
+	switch pinned.Protocol {
+	case "openai_responses":
+		serveTaskPluginProtocol(c, pinned, defaultPluginProtocolBridgeDeps())
+	case "openai_image":
+		serveOpenAIImageTask(c, pinned)
+	case "openai_video":
+		RelayTask(c)
+	default:
 		fallback(c)
-		return
 	}
-	serveTaskPluginProtocol(c, pinned, defaultPluginProtocolBridgeDeps())
 }
 
 func RelayTaskFetch(c *gin.Context) {
@@ -722,10 +728,12 @@ func presentTaskSubmission(c *gin.Context, outcome *taskSubmissionOutcome) {
 		}
 	}
 	if pinnedValue, exists := c.Get(pluginruntime.ContextKeyPinnedEndpoint); exists {
-		if pinned, ok := pinnedValue.(pluginruntime.PinnedEndpoint); ok && pinned.Protocol == "openai_video" && pinned.Operation.Name == "create" {
-			diagnostics.present(outcome.Task, "openai_video_create")
-			c.JSON(http.StatusOK, outcome.Task.ToOpenAIVideo())
-			return
+		if pinned, ok := pinnedValue.(pluginruntime.PinnedEndpoint); ok && pinned.Operation.Name == "create" {
+			if pinned.Protocol == "openai_video" {
+				diagnostics.present(outcome.Task, "openai_video_create")
+				c.JSON(http.StatusOK, outcome.Task.ToOpenAIVideo())
+				return
+			}
 		}
 	}
 	createdAt := outcome.Task.CreatedAt
@@ -740,6 +748,101 @@ func presentTaskSubmission(c *gin.Context, outcome *taskSubmissionOutcome) {
 		"model":      outcome.RelayInfo.OriginModelName,
 		"created_at": createdAt,
 	})
+}
+
+func serveOpenAIImageTask(c *gin.Context, pinned pluginruntime.PinnedEndpoint) {
+	deps := defaultPluginProtocolBridgeDeps()
+	relayInfo, err := relaycommon.GenRelayInfo(c, types.RelayFormatTask, nil, nil)
+	if err != nil {
+		respondTaskSubmissionError(c, &taskdto.TaskError{
+			Code:       "gen_relay_info_failed",
+			Message:    err.Error(),
+			StatusCode: http.StatusInternalServerError,
+		})
+		return
+	}
+	if action := c.GetString("task_action"); action != "" {
+		relayInfo.Action = action
+	}
+	if taskErr := relay.ResolveOriginTask(c, relayInfo); taskErr != nil {
+		respondTaskSubmissionError(c, taskErr)
+		return
+	}
+	if taskErr := relay.ApplyOriginTaskAffinity(c, relayInfo); taskErr != nil {
+		respondTaskSubmissionError(c, taskErr)
+		return
+	}
+	outcome, taskErr := executeTaskSubmission(c, relayInfo)
+	if taskErr != nil {
+		respondTaskSubmissionError(c, taskErr)
+		return
+	}
+	task := outcome.Task
+	if task.Status != model.TaskStatusSuccess && task.Status != model.TaskStatusFailure {
+		observationContext, cancelObservation := context.WithTimeout(c.Request.Context(), deps.observationTimeout)
+		defer cancelObservation()
+		tick := time.NewTicker(deps.tickInterval)
+		defer tick.Stop()
+		for task.Status != model.TaskStatusSuccess && task.Status != model.TaskStatusFailure {
+			select {
+			case <-c.Request.Context().Done():
+				return
+			case <-observationContext.Done():
+				respondPluginProtocolError(c, http.StatusGatewayTimeout, "task_protocol_timeout", "Image generation timed out")
+				return
+			case <-tick.C:
+				loaded, exists, loadErr := deps.loadTask(observationContext, relayInfo.UserId, constant.TaskPlatform(pinned.Plugin.Meta.Key), task.TaskID)
+				if loadErr != nil || !exists || loaded == nil {
+					respondPluginProtocolError(c, http.StatusInternalServerError, "task_protocol_error", "Task protocol request failed")
+					return
+				}
+				task = loaded
+			}
+		}
+	}
+	if task.Status != model.TaskStatusSuccess {
+		message := strings.TrimSpace(task.FailReason)
+		if message == "" {
+			message = "Image generation failed"
+		}
+		respondPluginProtocolError(c, http.StatusBadGateway, "task_failed", message)
+		return
+	}
+	body, renderErr := renderOpenAIImageTask(c, pinned, task)
+	if renderErr != nil {
+		logger.LogError(c, "task plugin openai image presenter failed: "+renderErr.Error())
+		respondPluginProtocolError(c, http.StatusInternalServerError, "task_protocol_error", "Task protocol request failed")
+		return
+	}
+	c.JSON(http.StatusOK, body)
+}
+
+func renderOpenAIImageTask(c *gin.Context, pinned pluginruntime.PinnedEndpoint, task *model.Task) (any, error) {
+	if pinned.Plugin == nil || task == nil {
+		return nil, fmt.Errorf("openai image presenter is unavailable")
+	}
+	view, err := service.BuildTaskPluginView(task)
+	if err != nil {
+		return nil, err
+	}
+	viewValue, err := taskPluginProtocolJSONValue(view)
+	if err != nil {
+		return nil, err
+	}
+	requestValue, exists := c.Get(pluginruntime.ContextKeyProtocolRequest)
+	protocolRequest, ok := requestValue.(pluginruntime.ProtocolRequestContext)
+	if !exists || !ok {
+		protocolRequest = pluginruntime.ProtocolRequestContext{
+			Protocol:  pinned.Protocol,
+			Operation: pinned.Operation.Name,
+			Model:     pinned.Model,
+		}
+	}
+	rendererContext, err := taskPluginProtocolRendererContext(protocolRequest, pinned, task, service.BuildTaskArtifactContentURL)
+	if err != nil {
+		return nil, err
+	}
+	return pinned.Plugin.Engine.CallPath(c.Request.Context(), "protocols", []string{"openai_image", "render"}, rendererContext, viewValue)
 }
 
 func respondTaskSubmissionError(c *gin.Context, taskErr *taskdto.TaskError) {

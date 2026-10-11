@@ -194,7 +194,7 @@ func main() {
 	// 纯后端模式，不设置前端路由
 	server.NoRoute(pluginDispatcher, func(c *gin.Context) {
 		c.Set(middleware.RouteTagKey, "web")
-		if strings.HasPrefix(c.Request.RequestURI, "/v1") || strings.HasPrefix(c.Request.RequestURI, "/api") {
+		if strings.HasPrefix(c.Request.RequestURI, "/v1") || strings.HasPrefix(c.Request.RequestURI, "/api") || strings.HasPrefix(c.Request.RequestURI, "/images/") {
 			controller.RelayNotFound(c)
 			return
 		}

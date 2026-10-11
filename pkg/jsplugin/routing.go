@@ -93,6 +93,9 @@ var hostProtocols = []HostProtocolDefinition{
 		{Name: "retrieve", Methods: []string{http.MethodGet}, Path: "/v1/videos/:task_id", BodyKinds: []BodyKind{BodyNone}, RequiredProtocolMembers: []string{"render"}},
 		{Name: "content", Methods: []string{http.MethodGet, http.MethodHead}, Path: "/v1/videos/:task_id/content", BodyKinds: []BodyKind{BodyNone}, RequiredDriverHooks: []string{"listArtifacts", "buildContentRequest"}},
 	}},
+	{Name: "openai_image", Operations: []HostProtocolOperation{
+		{Name: "create", Methods: []string{http.MethodPost}, Path: "/v1/images/generations", BodyKinds: []BodyKind{BodyJSON}, ModelField: "model", RequiredProtocolMembers: []string{"decodeRequest", "render"}},
+	}},
 }
 
 func HostProtocol(name string) (HostProtocolDefinition, bool) {
@@ -175,6 +178,7 @@ func orderProtocolSupports(protocol string, supports []string) []string {
 
 func LookupHostProtocolOperation(method, path string) (string, HostProtocolOperation, bool) {
 	method = strings.ToUpper(strings.TrimSpace(method))
+	path = CanonicalHostProtocolPath(path)
 	for _, definition := range hostProtocols {
 		for _, operation := range definition.Operations {
 			if operation.Path != path || operation.ModelField == "" {
@@ -186,6 +190,19 @@ func LookupHostProtocolOperation(method, path string) (string, HostProtocolOpera
 		}
 	}
 	return "", HostProtocolOperation{}, false
+}
+
+// CanonicalHostProtocolPath maps client-facing aliases onto the host protocol
+// path that plugins declare. Clients cannot be told which URL to use.
+func CanonicalHostProtocolPath(path string) string {
+	switch path {
+	case "/images/generations", "/images/generations/":
+		return "/v1/images/generations"
+	case "/v1/video/generations", "/video/generations":
+		return "/v1/videos"
+	default:
+		return path
+	}
 }
 
 type RouteBinding struct {
@@ -503,7 +520,7 @@ func (g *RoutingGeneration) LookupEndpoint(method, path, model string) (Protocol
 	if err != nil {
 		return ProtocolBinding{}, false
 	}
-	bindings := g.protocolIndex[endpointIndexKey(normalizedMethod, path, model)]
+	bindings := g.protocolIndex[endpointIndexKey(normalizedMethod, CanonicalHostProtocolPath(path), model)]
 	if len(bindings) == 0 {
 		return ProtocolBinding{}, false
 	}
@@ -520,7 +537,7 @@ func (g *RoutingGeneration) LookupEndpointCandidates(method, path, model string)
 	if err != nil {
 		return nil
 	}
-	bindings := g.protocolIndex[endpointIndexKey(normalizedMethod, path, model)]
+	bindings := g.protocolIndex[endpointIndexKey(normalizedMethod, CanonicalHostProtocolPath(path), model)]
 	return append([]ProtocolBinding(nil), bindings...)
 }
 

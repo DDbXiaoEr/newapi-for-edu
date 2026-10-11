@@ -45,3 +45,25 @@ func TestRelayTaskPluginEndpointNeverEntersOrdinaryRelayWhenClaimed(t *testing.T
 	assert.Zero(t, fallbackCalls)
 	assert.NotEqual(t, http.StatusNoContent, recorder.Code)
 }
+
+func TestRelayTaskPluginEndpointRoutesClaimedImagesToTaskRelay(t *testing.T) {
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/images/generations", nil)
+	c.Set(jsplugin.ContextKeyPinnedEndpoint, jsplugin.PinnedEndpoint{
+		Generation: &jsplugin.RoutingGeneration{},
+		Plugin:     &jsplugin.LoadedPlugin{},
+		Protocol:   "openai_image",
+		Operation:  jsplugin.HostProtocolOperation{Name: "create"},
+	})
+	fallbackCalls := 0
+
+	RelayTaskPluginEndpoint(c, func(c *gin.Context) {
+		fallbackCalls++
+		c.Status(http.StatusNoContent)
+		c.Writer.WriteHeaderNow()
+	})
+
+	assert.Zero(t, fallbackCalls)
+	assert.NotEqual(t, http.StatusNoContent, recorder.Code)
+}

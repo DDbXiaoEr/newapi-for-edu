@@ -81,6 +81,7 @@ func TestRegistryIndexesSharedEndpointCandidatesForDistinctLegacyProviders(t *te
 func TestSupportsRegisteredHostProtocols(t *testing.T) {
 	assert.True(t, SupportsHostProtocol("openai_responses"))
 	assert.True(t, SupportsHostProtocol("openai_video"))
+	assert.True(t, SupportsHostProtocol("openai_image"))
 	assert.False(t, SupportsHostProtocol("plugin_owned_wire"))
 }
 
@@ -89,6 +90,14 @@ func TestLookupHostProtocolOperationExcludesRetrieveWithoutModelField(t *testing
 	assert.False(t, ok)
 	_, _, ok = LookupHostProtocolOperation(http.MethodPost, "/v1/responses")
 	assert.True(t, ok)
+	name, operation, ok := LookupHostProtocolOperation(http.MethodPost, "/v1/video/generations")
+	assert.True(t, ok)
+	assert.Equal(t, "openai_video", name)
+	assert.Equal(t, "/v1/videos", operation.Path)
+	name, operation, ok = LookupHostProtocolOperation(http.MethodPost, "/images/generations")
+	assert.True(t, ok)
+	assert.Equal(t, "openai_image", name)
+	assert.Equal(t, "/v1/images/generations", operation.Path)
 }
 
 func TestPerProtocolModelsNarrowEndpointBindings(t *testing.T) {

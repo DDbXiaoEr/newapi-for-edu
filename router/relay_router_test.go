@@ -87,6 +87,20 @@ func TestListModelsSupportsOpenAIAndGeminiAuthentication(t *testing.T) {
 	}
 }
 
+func TestOpenAIImageCompatRoutesAreRegistered(t *testing.T) {
+	engine := gin.New()
+	SetRelayRouter(engine)
+
+	actual := make(map[string]bool, len(engine.Routes()))
+	for _, route := range engine.Routes() {
+		actual[route.Method+" "+route.Path] = true
+	}
+	assert.True(t, actual["POST /images/generations"])
+	assert.True(t, actual["POST /images/edits"])
+	assert.True(t, actual["POST /v1/images/generations"])
+	assert.True(t, actual["POST /v1/images/edits"])
+}
+
 func setupRelayRouterTestDB(t *testing.T) {
 	t.Helper()
 

@@ -1181,7 +1181,8 @@ func taskPluginProtocolRendererContext(
 	for _, artifact := range artifacts {
 		contentURL, buildErr := artifactContentURL(task.TaskID, artifact.Key)
 		if buildErr != nil {
-			return nil, fmt.Errorf("build task artifact content URL: %w", buildErr)
+			logger.LogWarn(context.Background(), "task artifact content URL unavailable for %s/%s: %s", task.TaskID, artifact.Key, buildErr.Error())
+			continue
 		}
 		item := map[string]any{
 			"key":  artifact.Key,
@@ -1193,7 +1194,9 @@ func taskPluginProtocolRendererContext(
 		}
 		rendererArtifacts[artifact.Key] = item
 	}
-	rendererContext["artifacts"] = rendererArtifacts
+	if len(rendererArtifacts) > 0 {
+		rendererContext["artifacts"] = rendererArtifacts
+	}
 	return rendererContext, nil
 }
 

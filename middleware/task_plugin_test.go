@@ -933,26 +933,27 @@ func TestPrepareTaskPluginEndpointAcceptsRegisteredVideoMultipartBody(t *testing
 	assert.Equal(t, http.StatusNoContent, recorder.Code)
 }
 
-func TestVideoGenerationsIsNotClaimedByOpenAIVideoProtocol(t *testing.T) {
+func TestVideoGenerationsIsClaimedByOpenAIVideoProtocol(t *testing.T) {
 	const key = "endpoint-video-gen-test"
 	_, err := jsplugin.DefaultRegistry.Register(taskProtocolPluginSource(
 		key,
 		"1.0.0",
 		`["generation-model"]`,
-		"/v1/video/generations",
+		"/v1/videos",
 		`return {model: ctx.requestBody.model, action: "generate"};`,
 	), jsplugin.Options{})
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, jsplugin.DefaultRegistry.Unregister(key)) })
 
 	router := gin.New()
-	reachedDistribution := false
+	var pinned jsplugin.PinnedEndpoint
 	router.POST(
 		"/v1/video/generations",
 		PinTaskPluginEndpoint(),
 		PrepareTaskPluginEndpoint(),
 		func(c *gin.Context) {
-			reachedDistribution = true
+			value, _ := c.Get(jsplugin.ContextKeyPinnedEndpoint)
+			pinned, _ = value.(jsplugin.PinnedEndpoint)
 			c.Status(http.StatusNoContent)
 		},
 	)
@@ -966,8 +967,10 @@ func TestVideoGenerationsIsNotClaimedByOpenAIVideoProtocol(t *testing.T) {
 
 	router.ServeHTTP(recorder, request)
 
-	assert.True(t, reachedDistribution)
 	assert.Equal(t, http.StatusNoContent, recorder.Code)
+	require.NotNil(t, pinned.Plugin)
+	assert.Equal(t, "openai_video", pinned.Protocol)
+	assert.Equal(t, "generation-model", pinned.Model)
 }
 
 func TestPrepareTaskPluginRouteKeepsRawBinaryOpaque(t *testing.T) {

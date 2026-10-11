@@ -137,6 +137,7 @@ export const meta = {
   protocols: [
     { name: "openai_responses", supports: ["stream", "sync", "background"] },
     { name: "openai_video", models: Object.keys(WAN_MODELS).concat(["wan2.7-t2v-2026-04-25", "wan2.7-t2v-2026-06-12", "wan2.7-i2v-2026-04-25"]) },
+    { name: "openai_image", models: Object.keys(WAN_IMAGE_MODELS) },
   ],
 };
 
@@ -190,7 +191,11 @@ function imageModel(ctx) {
 
 function convertImage(ctx) {
   const req = ctx.requestBody || {};
-  const model = ctx.upstreamModel || req.model;
+  let model = ctx.upstreamModel || req.model;
+  if (modelKey(model) === "wan2.6-image" && !firstImage(req) && !(req.images || []).length && !objectValue(req.metadata, "metadata").input) {
+    model = "wan2.6-t2i";
+    ctx = Object.assign({}, ctx, { upstreamModel: model, model: model, requestBody: Object.assign({}, req, { model: model }) });
+  }
   const profile = imageModel(ctx);
   if (!profile) throw new Error("unsupported Wan image model: " + model);
   const metadata = objectValue(req.metadata, "metadata");
@@ -587,7 +592,7 @@ export function buildSubmitRequest(ctx) {
     if (!converted.synchronous) headers["X-DashScope-Async"] = "enable";
     const streaming = converted.synchronous && converted.body.parameters.enable_interleave === true;
     if (streaming) headers["X-DashScope-Sse"] = "enable";
-    return { url: ctx.baseUrl + "/api/v1/services/aigc/" + converted.service, method: "POST", headers: headers, body: converted.body, action: converted.action, responseType: streaming ? "sse" : "json" };
+    return { url: ctx.baseUrl + "/api/v1/services/aigc/" + converted.service, method: "POST", headers: headers, body: converted.body, action: converted.action, responseType: streaming ? "sse" : "json", rewriteModel: converted.body.model };
   }
   const body = convert(ctx);
   const kind = modelProfile(body.model).kind;
@@ -919,6 +924,44 @@ export const protocols = {
         ],
         metadata: { vendor: "ali" },
       };
+    },
+  },
+  openai_image: {
+    decodeRequest: function (ctx) {
+      if (!ctx.body || ctx.body.kind !== "json") throw new Error("JSON body required");
+      const req = ctx.body.value;
+      if (!req || typeof req !== "object" || Array.isArray(req)) throw new Error("request body must be an object");
+      const model = trimmed(ctx.model || req.model);
+      if (!model) throw new Error("model is required");
+      const prompt = trimmed(req.prompt);
+      if (!prompt) throw new Error("prompt is required");
+      const requestBody = { model: model, prompt: prompt };
+      if (trimmed(req.image)) requestBody.image = trimmed(req.image);
+      if (req.images !== undefined && !Array.isArray(req.images)) throw new Error("images must be an array");
+      const images = [];
+      for (const image of req.images || []) if (trimmed(image) && !images.includes(trimmed(image))) images.push(trimmed(image));
+      if (images.length) requestBody.images = images;
+      for (const key of ["n", "size", "negative_prompt", "prompt_extend", "watermark", "seed", "enable_interleave", "max_images", "enable_sequential", "thinking_mode", "bbox_list", "color_palette"]) {
+        if (Object.prototype.hasOwnProperty.call(req, key)) requestBody[key] = req[key];
+      }
+      if (Object.prototype.hasOwnProperty.call(req, "metadata")) requestBody.metadata = req.metadata;
+      return { kind: "submit", model: model, action: firstImage(requestBody) ? "image_to_image" : "text_to_image", requestBody: requestBody };
+    },
+    render: function (ctx, task) {
+      const created = Number(task.created_at || task.submit_time || 0);
+      const data = [];
+      const artifacts = ctx.artifacts || {};
+      const keys = Object.keys(artifacts).sort();
+      for (const key of keys) {
+        const artifact = artifacts[key];
+        if (artifact && trimmed(artifact.url)) data.push({ url: artifact.url });
+      }
+      if (!data.length) {
+        for (const part of imageContent(artifactData(task))) {
+          if (part.image) data.push({ url: part.image });
+        }
+      }
+      return { created: created, data: data };
     },
   },
   openai_video: {

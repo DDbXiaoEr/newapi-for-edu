@@ -114,6 +114,7 @@ type User struct {
 	LastLoginAt           int64                      `json:"last_login_at" gorm:"default:0;column:last_login_at"`
 	AuthVersion           int64                      `json:"-" gorm:"type:bigint;not null;default:1;column:auth_version"`
 	AdminPermissions      map[string]map[string]bool `json:"admin_permissions,omitempty" gorm:"-:all"`
+	PreserveQuota         bool                       `json:"-" gorm:"-:all"`
 }
 
 func (user *User) ToBaseUser() *UserBase {
@@ -734,13 +735,20 @@ func ensureEmailAvailableWithTx(tx *gorm.DB, email string, excludeUserID int) er
 	return nil
 }
 
+func (user *User) applyInsertQuota() {
+	if user.PreserveQuota {
+		return
+	}
+	user.Quota = common.QuotaForNewUser
+}
+
 func (user *User) Insert(inviterId int) error {
 	if err := DB.Transaction(func(tx *gorm.DB) error {
 		return withNormalizedEmailLock(tx, user.Email, func(tx *gorm.DB) error {
 			if err := user.prepareForInsert(tx); err != nil {
 				return err
 			}
-			user.Quota = common.QuotaForNewUser
+			user.applyInsertQuota()
 			user.AffCode = common.GetRandomString(4)
 
 			// 初始化用户设置，包括默认的边栏配置
@@ -804,7 +812,7 @@ func (user *User) InsertWithTx(tx *gorm.DB, inviterId int) error {
 		if err := user.prepareForInsert(tx); err != nil {
 			return err
 		}
-		user.Quota = common.QuotaForNewUser
+		user.applyInsertQuota()
 		user.AffCode = common.GetRandomString(4)
 
 		// 初始化用户设置

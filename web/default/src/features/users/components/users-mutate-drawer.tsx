@@ -71,7 +71,11 @@ import {
   normalizeAdminPermissions,
 } from '@/lib/admin-permissions'
 import { getCurrencyDisplay, getCurrencyLabel } from '@/lib/currency'
-import { formatQuota, parseQuotaFromDollars } from '@/lib/format'
+import {
+  formatQuota,
+  getEditableQuotaStep,
+  parseQuotaFromDollars,
+} from '@/lib/format'
 import { handleServerError } from '@/lib/handle-server-error'
 import { accountPasswordSchema } from '@/lib/password-policy'
 import { ROLE } from '@/lib/roles'
@@ -79,6 +83,7 @@ import { requireServerSuccess } from '@/lib/server-error-message'
 import { useAuthStore } from '@/stores/auth-store'
 
 import {
+  adjustUserQuota,
   createUser,
   updateUser,
   getUser,
@@ -158,6 +163,7 @@ export function UsersMutateDrawer({
   const { meta: currencyMeta } = getCurrencyDisplay()
   const currencyLabel = getCurrencyLabel()
   const tokensOnly = currencyMeta.kind === 'tokens'
+  const quotaStep = getEditableQuotaStep()
 
   const currentQuotaRaw = form.watch('quota_dollars') || 0
   const selectedRole = form.watch('role')
@@ -182,21 +188,34 @@ export function UsersMutateDrawer({
         currentRow?.id,
         permissionCatalog
       )
+      const nextQuota = parseQuotaFromDollars(data.quota_dollars || 0)
       const result = isUpdate
         ? await updateUser(payload as typeof payload & { id: number })
         : await createUser(payload)
 
-      if (result.success) {
-        toast.success(
-          isUpdate
-            ? t(SUCCESS_MESSAGES.USER_UPDATED)
-            : t(SUCCESS_MESSAGES.USER_CREATED)
-        )
-        onOpenChange(false)
-        triggerRefresh()
-      } else {
+      if (!result.success) {
         handleServerError(result, t(ERROR_MESSAGES.CREATE_FAILED))
+        return
       }
+      if (isUpdate && currentRow && nextQuota !== currentRow.quota) {
+        const quotaResult = await adjustUserQuota({
+          id: currentRow.id,
+          action: 'add_quota',
+          mode: 'override',
+          value: nextQuota,
+        })
+        if (!quotaResult.success) {
+          handleServerError(quotaResult, t('Failed to adjust quota'))
+          return
+        }
+      }
+      toast.success(
+        isUpdate
+          ? t(SUCCESS_MESSAGES.USER_UPDATED)
+          : t(SUCCESS_MESSAGES.USER_CREATED)
+      )
+      onOpenChange(false)
+      triggerRefresh()
     } catch (error) {
       handleServerError(error, t(ERROR_MESSAGES.UNEXPECTED))
     } finally {
@@ -355,11 +374,10 @@ export function UsersMutateDrawer({
                 />
               </SideDrawerSection>
 
-              {/* Group & Quota Settings (Update only) */}
-              {isUpdate && (
-                <SideDrawerSection>
-                  <h3 className='text-sm font-medium'>{t('Group & Quota')}</h3>
+              <SideDrawerSection>
+                <h3 className='text-sm font-medium'>{t('Group & Quota')}</h3>
 
+                {isUpdate && (
                   <FormField
                     control={form.control}
                     name='group'
@@ -382,46 +400,61 @@ export function UsersMutateDrawer({
                       </FormItem>
                     )}
                   />
+                )}
 
-                  <FormField
-                    control={form.control}
-                    name='quota_dollars'
-                    render={({ field }) => (
+                <FormField
+                  control={form.control}
+                  name='quota_dollars'
+                  render={({ field }) => {
+                    const quotaLabel = t('Remaining Quota ({{currency}})', {
+                      currency: currencyLabel,
+                    })
+                    const quotaDisplayValue = tokensOnly
+                      ? String(field.value || 0)
+                      : field.value || 0
+                    return (
                       <FormItem>
-                        <FormLabel>
-                          {t('Remaining Quota ({{currency}})', {
-                            currency: currencyLabel,
-                          })}
-                        </FormLabel>
+                        <FormLabel>{quotaLabel}</FormLabel>
                         <div className='flex gap-2'>
                           <FormControl>
                             <Input
-                              value={
-                                tokensOnly
-                                  ? String(field.value || 0)
-                                  : (field.value || 0).toFixed(6)
-                              }
-                              readOnly
+                              name={field.name}
+                              ref={field.ref}
+                              onBlur={field.onBlur}
                               className='flex-1'
+                              type='number'
+                              step={quotaStep}
+                              min={0}
+                              aria-label={quotaLabel}
+                              value={quotaDisplayValue}
+                              onChange={(e) =>
+                                field.onChange(
+                                  Number.parseFloat(e.target.value) || 0
+                                )
+                              }
                             />
                           </FormControl>
-                          <Button
-                            type='button'
-                            variant='outline'
-                            onClick={() => setQuotaDialogOpen(true)}
-                          >
-                            <Pencil className='mr-1 h-4 w-4' />
-                            {t('Adjust Quota')}
-                          </Button>
+                          {isUpdate && (
+                            <Button
+                              type='button'
+                              variant='outline'
+                              onClick={() => setQuotaDialogOpen(true)}
+                            >
+                              <Pencil className='mr-1 h-4 w-4' />
+                              {t('Adjust Quota')}
+                            </Button>
+                          )}
                         </div>
                         <FormDescription>
                           {formatQuota(parseQuotaFromDollars(field.value || 0))}
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
-                    )}
-                  />
+                    )
+                  }}
+                />
 
+                {isUpdate && (
                   <FormField
                     control={form.control}
                     name='remark'
@@ -441,8 +474,8 @@ export function UsersMutateDrawer({
                       </FormItem>
                     )}
                   />
-                </SideDrawerSection>
-              )}
+                )}
+              </SideDrawerSection>
 
               {canEditAdminPermissions &&
                 targetIsAdmin &&

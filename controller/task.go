@@ -25,7 +25,7 @@ type taskArtifactResponse struct {
 	Key        string `json:"key"`
 	Type       string `json:"type"`
 	MimeType   string `json:"mime_type,omitempty"`
-	ContentURL string `json:"content_url"`
+	ContentURL string `json:"content_url,omitempty"`
 }
 
 var (
@@ -98,26 +98,21 @@ func writeTaskArtifacts(c *gin.Context, task *model.Task, dashboard bool) {
 	}
 	items := make([]taskArtifactResponse, 0, len(artifacts))
 	for _, artifact := range artifacts {
-		contentURL, buildErr := service.BuildTaskArtifactContentURL(task.TaskID, artifact.Key)
-		if buildErr != nil {
-			writeTaskArtifactError(c, http.StatusInternalServerError, "artifact_url_error", "Failed to build artifact content URL")
-			return
+		item := taskArtifactResponse{
+			Key:      artifact.Key,
+			Type:     artifact.Type,
+			MimeType: artifact.MimeType,
 		}
-		items = append(items, taskArtifactResponse{
-			Key:        artifact.Key,
-			Type:       artifact.Type,
-			MimeType:   artifact.MimeType,
-			ContentURL: contentURL,
-		})
+		if contentURL, buildErr := service.BuildTaskArtifactContentURL(task.TaskID, artifact.Key); buildErr == nil {
+			item.ContentURL = contentURL
+		}
+		items = append(items, item)
 	}
 	response := gin.H{"task_id": task.TaskID, "artifacts": items}
 	if legacyVideoAvailable(task) {
-		legacyContentURL, buildErr := service.BuildTaskArtifactContentURL(task.TaskID, "video")
-		if buildErr != nil {
-			writeTaskArtifactError(c, http.StatusInternalServerError, "artifact_url_error", "Failed to build artifact content URL")
-			return
+		if legacyContentURL, buildErr := service.BuildTaskArtifactContentURL(task.TaskID, "video"); buildErr == nil {
+			response["legacy_content_url"] = legacyContentURL
 		}
-		response["legacy_content_url"] = legacyContentURL
 	}
 	if dashboard {
 		common.ApiSuccess(c, response)

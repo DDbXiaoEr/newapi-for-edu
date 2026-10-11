@@ -78,6 +78,45 @@ func setupManageUserTestDB(t *testing.T) *gorm.DB {
 	return db
 }
 
+func performCreateUserRequest(t *testing.T, body string) *httptest.ResponseRecorder {
+	t.Helper()
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/user/", strings.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Set("id", 9999)
+	c.Set("role", common.RoleRootUser)
+	c.Set("username", "root-operator")
+	c.Set(common.RequestIdKey, "create-user-quota-test")
+	CreateUser(c)
+	return recorder
+}
+
+func TestCreateUserPreservesAdminSpecifiedQuota(t *testing.T) {
+	setupLoginControllerTestDB(t)
+	previousQuota := common.QuotaForNewUser
+	common.QuotaForNewUser = 50
+	t.Cleanup(func() { common.QuotaForNewUser = previousQuota })
+
+	recorder := performCreateUserRequest(t, `{"username":"quota-created","password":"password1","quota":1500}`)
+	require.Equal(t, http.StatusOK, recorder.Code)
+
+	var stored model.User
+	require.NoError(t, model.DB.Where("username = ?", "quota-created").First(&stored).Error)
+	assert.Equal(t, 1500, stored.Quota)
+}
+
+func TestCreateUserRejectsOversizedQuota(t *testing.T) {
+	setupLoginControllerTestDB(t)
+	recorder := performCreateUserRequest(t, fmt.Sprintf(`{"username":"quota-too-large","password":"password1","quota":%d}`, common.MaxWalletQuota+1))
+	require.Equal(t, http.StatusOK, recorder.Code)
+	assert.Contains(t, recorder.Body.String(), `"success":false`)
+	var count int64
+	require.NoError(t, model.DB.Model(&model.User{}).Where("username = ?", "quota-too-large").Count(&count).Error)
+	assert.Zero(t, count)
+}
+
 func performManageUserRequest(t *testing.T, body string) *httptest.ResponseRecorder {
 	t.Helper()
 	gin.SetMode(gin.TestMode)

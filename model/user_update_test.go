@@ -272,6 +272,47 @@ func TestInsertRejectsDuplicateEmailWithoutUniqueIndex(t *testing.T) {
 	assert.Zero(t, count)
 }
 
+func TestInsertPreservesQuotaWhenRequested(t *testing.T) {
+	setupUserUpdateTestState(t)
+	previousQuota := common.QuotaForNewUser
+	common.QuotaForNewUser = 50
+	t.Cleanup(func() { common.QuotaForNewUser = previousQuota })
+
+	user := &User{
+		Username:      "admin-created-user",
+		Password:      "password-placeholder",
+		Role:          common.RoleCommonUser,
+		Status:        common.UserStatusEnabled,
+		Quota:         1500,
+		PreserveQuota: true,
+	}
+	require.NoError(t, user.Insert(0))
+
+	var stored User
+	require.NoError(t, DB.Where("username = ?", user.Username).First(&stored).Error)
+	assert.Equal(t, 1500, stored.Quota)
+}
+
+func TestInsertUsesQuotaForNewUserByDefault(t *testing.T) {
+	setupUserUpdateTestState(t)
+	previousQuota := common.QuotaForNewUser
+	common.QuotaForNewUser = 50
+	t.Cleanup(func() { common.QuotaForNewUser = previousQuota })
+
+	user := &User{
+		Username: "gift-user",
+		Password: "password-placeholder",
+		Role:     common.RoleCommonUser,
+		Status:   common.UserStatusEnabled,
+		Quota:    1500,
+	}
+	require.NoError(t, user.Insert(0))
+
+	var stored User
+	require.NoError(t, DB.Where("username = ?", user.Username).First(&stored).Error)
+	assert.Equal(t, 50, stored.Quota)
+}
+
 func TestInsertKeepsBlankPasswordForPasswordlessUser(t *testing.T) {
 	setupUserUpdateTestState(t)
 
