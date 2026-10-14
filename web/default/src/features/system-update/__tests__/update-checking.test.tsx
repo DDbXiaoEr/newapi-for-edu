@@ -112,13 +112,7 @@ describe('administrator update entry', () => {
       useAuthStore
         .getState()
         .auth.setUser(role === null ? null : { id: 2, username: 'user', role })
-      render(
-        <>
-          <SystemUpdateAction />
-          <SystemUpdateAction presentation='version' />
-        </>,
-        { wrapper: Wrapper }
-      )
+      render(<SystemUpdateAction />, { wrapper: Wrapper })
       expect(screen.queryByRole('button')).not.toBeInTheDocument()
       expect(fetchMock).not.toHaveBeenCalled()
     }
@@ -149,30 +143,21 @@ describe('administrator update entry', () => {
   test('shares results with maintenance, opens release details by keyboard and returns focus on Escape', async () => {
     const user = userEvent.setup()
     render(
-      <>
-        <SystemUpdateAction presentation='version' />
-        <UpdateCheckerSection
-          currentVersion='v1.0.0-rc.35'
-          startTime={1_700_000_000}
-        />
-      </>,
+      <UpdateCheckerSection
+        currentVersion='v1.0.0-rc.35'
+        startTime={1_700_000_000}
+      />,
       { wrapper: Wrapper }
     )
-    const buttons = await screen.findAllByRole('button', {
+    const button = await screen.findByRole('button', {
       name: /New version available: v1\.0\.0-rc\.36/,
     })
-    expect(buttons).toHaveLength(2)
     expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(within(buttons[0]).getByText('v1.0.0-rc.35')).toHaveClass('truncate')
-    expect(within(buttons[0]).getByText('Update available')).toHaveClass(
-      'hidden',
-      '@min-[22rem]/system-brand:inline-flex'
-    )
-    expect(within(buttons[1]).getByText('Update available')).not.toHaveClass(
+    expect(within(button).getByText('Update available')).not.toHaveClass(
       'hidden'
     )
 
-    buttons[0].focus()
+    button.focus()
     await user.keyboard('{Enter}')
     const dialog = await screen.findByRole('dialog', { name: 'System updates' })
     expect(await within(dialog).findByText(release.body)).toBeInTheDocument()
@@ -196,7 +181,7 @@ describe('administrator update entry', () => {
     await waitFor(() =>
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     )
-    expect(buttons[0]).toHaveFocus()
+    expect(button).toHaveFocus()
   })
 
   test('does not suggest a downgrade and updates every entry after a manual recheck', async () => {
@@ -247,11 +232,11 @@ describe('administrator update entry', () => {
     async (version) => {
       const user = userEvent.setup()
       client.setQueryData(STATUS_QUERY_KEY, { version })
-      render(<SystemUpdateAction presentation='version' />, {
+      render(<SystemUpdateAction compact={false} />, {
         wrapper: Wrapper,
       })
-      const trigger = screen.getByRole('button', {
-        name: 'System updates, current version: Unknown version',
+      const trigger = await screen.findByRole('button', {
+        name: 'Check for updates',
       })
       await user.click(trigger)
       const dialog = screen.getByRole('dialog')
@@ -282,7 +267,7 @@ describe('administrator update entry', () => {
     const user = userEvent.setup()
     render(
       <>
-        <SystemUpdateAction presentation='version' />
+        <SystemUpdateAction />
         <SystemUpdateAction compact={false} />
       </>,
       { wrapper: Wrapper }
@@ -366,84 +351,6 @@ describe('administrator update entry', () => {
       screen.getByText('GitHub rate limit reached. Try again later.')
     ).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledTimes(2)
-  })
-})
-
-describe('version label presentation', () => {
-  test('keeps the current version visible while checking and after finding no newer version', async () => {
-    let finishRequest: ((response: Response) => void) | undefined
-    fetchMock.mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          finishRequest = resolve
-        })
-    )
-    client.setQueryData(STATUS_QUERY_KEY, { version: release.tag_name })
-    render(<SystemUpdateAction presentation='version' />, { wrapper: Wrapper })
-    const trigger = screen.getByRole('button', {
-      name: 'System updates, current version: v1.0.0-rc.36',
-    })
-    expect(trigger).toHaveAttribute('aria-busy', 'true')
-    expect(within(trigger).getByText(release.tag_name)).toBeInTheDocument()
-    expect(
-      within(trigger).queryByText('Check for updates')
-    ).not.toBeInTheDocument()
-    await act(async () => {
-      finishRequest?.(new Response(JSON.stringify([release])))
-    })
-    await waitFor(() => expect(trigger).toHaveAttribute('aria-busy', 'false'))
-    expect(within(trigger).getByText(release.tag_name)).toBeInTheDocument()
-    expect(
-      within(trigger).queryByText('Update available')
-    ).not.toBeInTheDocument()
-  })
-
-  test('shows an unknown-version label when the server has not supplied a version', async () => {
-    client.setQueryData(STATUS_QUERY_KEY, { version: '' })
-    render(<SystemUpdateAction presentation='version' />, { wrapper: Wrapper })
-    const trigger = screen.getByRole('button', {
-      name: 'System updates, current version: Unknown version',
-    })
-    expect(within(trigger).getByText('Unknown version')).toBeInTheDocument()
-    await waitFor(() => expect(trigger).toHaveAttribute('aria-busy', 'false'))
-    expect(
-      within(trigger).queryByText('Update available')
-    ).not.toBeInTheDocument()
-  })
-
-  test('retains the version after a failed check and exposes the error in its tooltip and details', async () => {
-    const user = userEvent.setup()
-    fetchMock.mockResolvedValue(new Response('', { status: 429 }))
-    render(<SystemUpdateAction presentation='version' />, { wrapper: Wrapper })
-    const trigger = await screen.findByRole('button', {
-      name: /System updates, current version: v1\.0\.0-rc\.35.*Failed to check for updates/s,
-    })
-    expect(within(trigger).getByText('v1.0.0-rc.35')).toBeInTheDocument()
-    expect(trigger).toHaveAttribute(
-      'title',
-      expect.stringContaining('Failed to check for updates')
-    )
-    await user.click(trigger)
-    expect(
-      screen.getByText('GitHub rate limit reached. Try again later.')
-    ).toBeInTheDocument()
-  })
-
-  test('keeps a long version accessible in the tooltip while constraining its visible label', async () => {
-    const version = 'v1.0.0+long-build-metadata-for-a-custom-deployment'
-    client.setQueryData(STATUS_QUERY_KEY, { version })
-    render(<SystemUpdateAction presentation='version' />, { wrapper: Wrapper })
-    const trigger = screen.getByRole('button', {
-      name: `System updates, current version: ${version}`,
-    })
-    expect(trigger).toHaveAttribute('title', expect.stringContaining(version))
-    expect(within(trigger).getByText(version)).toHaveClass(
-      'truncate',
-      'max-w-32',
-      'hidden',
-      '@min-[22rem]/system-brand:inline'
-    )
-    await waitFor(() => expect(trigger).toHaveAttribute('aria-busy', 'false'))
   })
 })
 

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"sort"
 	"strings"
 	"time"
 
@@ -40,9 +41,10 @@ var (
 			conn.Close()
 		}
 	}
-	ldapBindSearch = bindLDAPConnection
-	ldapFindUser   = findLDAPEntry
-	ldapBindUser   = func(conn *ldap.Conn, dn string, password string) error {
+	ldapBindSearch  = bindLDAPConnection
+	ldapFindUser    = findLDAPEntry
+	ldapFindUserAll = findLDAPEntryAll
+	ldapBindUser    = func(conn *ldap.Conn, dn string, password string) error {
 		return conn.Bind(dn, password)
 	}
 )
@@ -78,14 +80,64 @@ func authenticateLDAP(ctx context.Context, identifier string, password string) (
 		return nil, err
 	}
 
-	if err := ldapBindUser(conn, entry.DN, password); err != nil {
-		if ldap.IsErrorWithCode(err, ldap.LDAPResultInvalidCredentials) {
-			return nil, ErrLDAPInvalidCredentials
-		}
-		return nil, fmt.Errorf("%w: %v", ErrLDAPConfig, err)
+	if err := bindLDAPUser(conn, entry.DN, password); err != nil {
+		return nil, err
 	}
 
 	return entryToLDAPUser(entry, settings, identifier), nil
+}
+
+type LDAPLoginTestResult struct {
+	AttributeNames []string `json:"attribute_names"`
+}
+
+func TestLDAPLogin(ctx context.Context, identifier string, password string) (*LDAPLoginTestResult, error) {
+	_ = ctx
+
+	src := system_setting.GetLDAPSettings()
+	if src == nil {
+		return nil, ErrLDAPConfig
+	}
+	settings := *src
+
+	identifier = strings.TrimSpace(identifier)
+	if identifier == "" || password == "" {
+		return nil, ErrLDAPInvalidCredentials
+	}
+	if strings.TrimSpace(settings.ServerURL) == "" || strings.TrimSpace(settings.BaseDN) == "" {
+		return nil, ErrLDAPConfig
+	}
+
+	conn, err := ldapDial(&settings)
+	if err != nil {
+		return nil, err
+	}
+	defer ldapCloseConn(conn)
+
+	if err := ldapBindSearch(conn, &settings); err != nil {
+		return nil, err
+	}
+
+	entry, err := ldapFindUserAll(conn, &settings, identifier)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := bindLDAPUser(conn, entry.DN, password); err != nil {
+		return nil, err
+	}
+
+	return &LDAPLoginTestResult{AttributeNames: ldapEntryAttributeNames(entry)}, nil
+}
+
+func bindLDAPUser(conn *ldap.Conn, dn string, password string) error {
+	if err := ldapBindUser(conn, dn, password); err != nil {
+		if ldap.IsErrorWithCode(err, ldap.LDAPResultInvalidCredentials) {
+			return ErrLDAPInvalidCredentials
+		}
+		return fmt.Errorf("%w: %v", ErrLDAPConfig, err)
+	}
+	return nil
 }
 
 func dialLDAP(settings *system_setting.LDAPSettings) (*ldap.Conn, error) {
@@ -143,12 +195,6 @@ func bindLDAPConnection(conn *ldap.Conn, settings *system_setting.LDAPSettings) 
 }
 
 func findLDAPEntry(conn *ldap.Conn, settings *system_setting.LDAPSettings, identifier string) (*ldap.Entry, error) {
-	filter := strings.TrimSpace(settings.UserFilter)
-	if filter == "" {
-		filter = "(|(uid={username})(sAMAccountName={username})(mail={username}))"
-	}
-	filter = strings.ReplaceAll(filter, "{username}", ldap.EscapeFilter(identifier))
-
 	attributes := uniqueStrings([]string{
 		strings.TrimSpace(settings.UsernameAttribute),
 		strings.TrimSpace(settings.DisplayNameAttribute),
@@ -161,6 +207,19 @@ func findLDAPEntry(conn *ldap.Conn, settings *system_setting.LDAPSettings, ident
 	for _, rule := range settings.GroupAssignmentRules {
 		attributes = uniqueStrings(append(attributes, rule.Attribute))
 	}
+	return searchLDAPEntry(conn, settings, identifier, attributes)
+}
+
+func findLDAPEntryAll(conn *ldap.Conn, settings *system_setting.LDAPSettings, identifier string) (*ldap.Entry, error) {
+	return searchLDAPEntry(conn, settings, identifier, []string{"*"})
+}
+
+func searchLDAPEntry(conn *ldap.Conn, settings *system_setting.LDAPSettings, identifier string, attributes []string) (*ldap.Entry, error) {
+	filter := strings.TrimSpace(settings.UserFilter)
+	if filter == "" {
+		filter = "(|(uid={username})(sAMAccountName={username})(mail={username}))"
+	}
+	filter = strings.ReplaceAll(filter, "{username}", ldap.EscapeFilter(identifier))
 
 	timeout := time.Duration(settings.TimeoutSeconds) * time.Second
 	if timeout <= 0 {
@@ -218,6 +277,37 @@ func entryToLDAPUser(entry *ldap.Entry, settings *system_setting.LDAPSettings, f
 		Email:       strings.TrimSpace(email),
 		Attributes:  ldapEntryAttributes(entry),
 	}
+}
+
+func ldapEntryAttributeNames(entry *ldap.Entry) []string {
+	if entry == nil {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(entry.Attributes)+1)
+	names := make([]string, 0, len(entry.Attributes)+1)
+	add := func(name string) {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			return
+		}
+		key := strings.ToLower(name)
+		if _, ok := seen[key]; ok {
+			return
+		}
+		seen[key] = struct{}{}
+		names = append(names, name)
+	}
+	add("dn")
+	for _, attr := range entry.Attributes {
+		if attr == nil {
+			continue
+		}
+		add(attr.Name)
+	}
+	sort.Slice(names, func(i, j int) bool {
+		return strings.ToLower(names[i]) < strings.ToLower(names[j])
+	})
+	return names
 }
 
 func ldapEntryAttributes(entry *ldap.Entry) map[string][]string {

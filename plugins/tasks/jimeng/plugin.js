@@ -154,7 +154,11 @@ function decodeNativeRequest(ctx) {
 }
 
 function endpoint(baseUrl, apiKey, action) {
-  return baseUrl + (isRelay(apiKey) ? "/jimeng/" : "/") + "?Action=" + action + "&Version=2022-08-31";
+  if (!isRelay(apiKey)) return baseUrl + "/?Action=" + action + "&Version=2022-08-31";
+  // A relay base may already include the plugin prefix (…/jimeng); the path
+  // below carries it, so drop it instead of doubling.
+  const base = trimmed(baseUrl).replace(/\/+$/, "").replace(/\/jimeng$/i, "");
+  return base + "/jimeng/?Action=" + action + "&Version=2022-08-31";
 }
 
 function requestHeaders(ctx, method, url, bodyText) {

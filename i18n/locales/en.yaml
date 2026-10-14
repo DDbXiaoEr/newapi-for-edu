@@ -157,6 +157,8 @@ channel.query_failed: "Failed to query channel"
 channel.no_valid_upstream: "No valid upstream channel"
 channel.upstream_saturated: "Current group upstream load is saturated, please try again later"
 channel.get_available_failed: "Failed to get available channels for model {{.Model}} under group {{.Group}}"
+channel.unsupported_models: "These models are not in the upstream model list for this channel: {{.Models}}"
+channel.fetch_upstream_models_failed: "Failed to fetch the upstream model list for this channel: {{.Error}}"
 
 # Model messages
 model.name_empty: "Model name cannot be empty"

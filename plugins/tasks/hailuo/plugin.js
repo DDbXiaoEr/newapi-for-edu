@@ -141,6 +141,20 @@ function trimmed(value) {
   return String(value || "").trim();
 }
 
+// A channel may carry the MiniMax OpenAI-compatible base its chat models use
+// (…/v1). The native video API is rooted at the service host, so drop that
+// suffix instead of doubling it.
+function serviceBaseUrl(baseUrl) {
+  let base = trimmed(baseUrl).replace(/\/+$/, "");
+  for (const suffix of ["/v1", "/v2"]) {
+    if (base.toLowerCase().endsWith(suffix)) {
+      base = base.slice(0, -suffix.length);
+      break;
+    }
+  }
+  return base.replace(/\/+$/, "");
+}
+
 function isModernHailuo(model) {
   return model === "MiniMax-Hailuo-2.3" || model === "MiniMax-Hailuo-2.3-Fast" || model === "MiniMax-Hailuo-02";
 }
@@ -454,7 +468,7 @@ export function buildSubmitRequest(ctx) {
       if (metadata[key] !== undefined && metadata[key] !== null) h3Body[key] = metadata[key];
     });
     return {
-      url: ctx.baseUrl + "/v2/video_generation",
+      url: serviceBaseUrl(ctx.baseUrl) + "/v2/video_generation",
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json", Authorization: "Bearer " + ctx.apiKey },
       body: h3Body,
@@ -473,7 +487,7 @@ export function buildSubmitRequest(ctx) {
     }
   );
   return {
-    url: ctx.baseUrl + "/v1/video_generation",
+    url: serviceBaseUrl(ctx.baseUrl) + "/v1/video_generation",
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json", Authorization: "Bearer " + ctx.apiKey },
     body: body,
@@ -528,7 +542,7 @@ export function buildQueryRequest(ctx) {
     ? "/v2/query/video_generation/" + encodeURIComponent(ctx.taskId)
     : "/v1/query/video_generation?task_id=" + encodeURIComponent(ctx.taskId);
   return {
-    url: ctx.baseUrl + path,
+    url: serviceBaseUrl(ctx.baseUrl) + path,
     method: "GET",
     headers: { Accept: "application/json", Authorization: "Bearer " + ctx.apiKey },
   };
@@ -601,7 +615,7 @@ export function buildContentRequest(ctx) {
     return { url: url, method: ctx.clientRequest.method, credentialless: true };
   }
   return {
-    url: ctx.baseUrl + "/v1/files/download?file_id=" + encodeURIComponent(fileID),
+    url: serviceBaseUrl(ctx.baseUrl) + "/v1/files/download?file_id=" + encodeURIComponent(fileID),
     method: ctx.clientRequest.method,
     headers: { Accept: "video/*", Authorization: "Bearer " + ctx.apiKey },
   };

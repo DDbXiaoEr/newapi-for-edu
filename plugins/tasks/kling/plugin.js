@@ -110,8 +110,14 @@ function pathFor(action) {
   return action === "image_to_video" ? "/v1/videos/image2video" : "/v1/videos/text2video";
 }
 
+// A relay base may already include the plugin prefix (…/kling) or a version
+// suffix; the native path carries both, so drop them instead of doubling.
+function serviceBaseUrl(baseUrl) {
+  return trimmed(baseUrl).replace(/\/+$/, "").replace(/\/(kling|v1)$/i, "");
+}
+
 function urlFor(baseUrl, apiKey, action) {
-  return baseUrl + (isRelay(apiKey) ? "/kling" : "") + pathFor(action);
+  return serviceBaseUrl(baseUrl) + (isRelay(apiKey) ? "/kling" : "") + pathFor(action);
 }
 
 function aspectRatio(size) {

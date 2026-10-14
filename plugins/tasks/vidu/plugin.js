@@ -55,6 +55,12 @@ function trimmed(value) {
   return String(value || "").trim();
 }
 
+// The native Vidu API path is rooted at /ent/v2; a channel may be configured
+// with that prefix already, so drop it instead of doubling.
+function serviceBaseUrl(baseUrl) {
+  return trimmed(baseUrl).replace(/\/+$/, "").replace(/\/ent\/v2$/i, "");
+}
+
 function isQ2Model(model) {
   return String(model || "").indexOf("viduq2") === 0;
 }
@@ -242,7 +248,7 @@ export function buildSubmitRequest(ctx) {
   if (!body.bgm) delete body.bgm;
   if (Array.isArray(body.images)) body.images = body.images.map(filePlaceholder);
   return {
-    url: ctx.baseUrl + "/ent/v2" + pathFor(action),
+    url: serviceBaseUrl(ctx.baseUrl) + "/ent/v2" + pathFor(action),
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json", Authorization: "Token " + ctx.apiKey },
     body: body,
@@ -265,7 +271,7 @@ export function extractUsage(ctx) {
 
 export function buildQueryRequest(ctx) {
   return {
-    url: ctx.baseUrl + "/ent/v2/tasks/" + ctx.taskId + "/creations",
+    url: serviceBaseUrl(ctx.baseUrl) + "/ent/v2/tasks/" + ctx.taskId + "/creations",
     method: "GET",
     headers: { Accept: "application/json", Authorization: "Token " + ctx.apiKey },
   };

@@ -67,6 +67,13 @@ function trimmed(value) {
   return String(value || "").trim();
 }
 
+// A channel may carry the Ark OpenAI-compatible base its chat models use
+// (…/api/v3). The native generation API is rooted at the service host, so drop
+// that suffix instead of doubling it.
+function serviceBaseUrl(baseUrl) {
+  return trimmed(baseUrl).replace(/\/+$/, "").replace(/\/api\/v3$/i, "");
+}
+
 function draftTaskIds(content) {
   const ids = [];
   if (!Array.isArray(content)) return ids;
@@ -262,7 +269,7 @@ export function buildSubmitRequest(ctx) {
   if (seconds > 0) body.duration = seconds;
   body.model = ctx.upstreamModel || body.model;
   return {
-    url: ctx.baseUrl + "/api/v3/contents/generations/tasks",
+    url: serviceBaseUrl(ctx.baseUrl) + "/api/v3/contents/generations/tasks",
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json", Authorization: "Bearer " + ctx.apiKey },
     body: body,
@@ -303,7 +310,7 @@ export function extractUsage(ctx) {
 
 export function buildQueryRequest(ctx) {
   return {
-    url: ctx.baseUrl + "/api/v3/contents/generations/tasks/" + ctx.taskId,
+    url: serviceBaseUrl(ctx.baseUrl) + "/api/v3/contents/generations/tasks/" + ctx.taskId,
     method: "GET",
     headers: { Accept: "application/json", "Content-Type": "application/json", Authorization: "Bearer " + ctx.apiKey },
   };

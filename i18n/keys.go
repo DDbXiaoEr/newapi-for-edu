@@ -174,17 +174,19 @@ const (
 
 // Channel related messages
 const (
-	MsgChannelNotExists          = "channel.not_exists"
-	MsgChannelIdFormatError      = "channel.id_format_error"
-	MsgChannelNoAvailableKey     = "channel.no_available_key"
-	MsgChannelGetListFailed      = "channel.get_list_failed"
-	MsgChannelGetTagsFailed      = "channel.get_tags_failed"
-	MsgChannelGetKeyFailed       = "channel.get_key_failed"
-	MsgChannelGetOllamaFailed    = "channel.get_ollama_failed"
-	MsgChannelQueryFailed        = "channel.query_failed"
-	MsgChannelNoValidUpstream    = "channel.no_valid_upstream"
-	MsgChannelUpstreamSaturated  = "channel.upstream_saturated"
-	MsgChannelGetAvailableFailed = "channel.get_available_failed"
+	MsgChannelNotExists                 = "channel.not_exists"
+	MsgChannelIdFormatError             = "channel.id_format_error"
+	MsgChannelNoAvailableKey            = "channel.no_available_key"
+	MsgChannelGetListFailed             = "channel.get_list_failed"
+	MsgChannelGetTagsFailed             = "channel.get_tags_failed"
+	MsgChannelGetKeyFailed              = "channel.get_key_failed"
+	MsgChannelGetOllamaFailed           = "channel.get_ollama_failed"
+	MsgChannelQueryFailed               = "channel.query_failed"
+	MsgChannelNoValidUpstream           = "channel.no_valid_upstream"
+	MsgChannelUpstreamSaturated         = "channel.upstream_saturated"
+	MsgChannelGetAvailableFailed        = "channel.get_available_failed"
+	MsgChannelUnsupportedModels         = "channel.unsupported_models"
+	MsgChannelFetchUpstreamModelsFailed = "channel.fetch_upstream_models_failed"
 )
 
 // Model related messages

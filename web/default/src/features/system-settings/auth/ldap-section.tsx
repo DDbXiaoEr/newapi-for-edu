@@ -16,12 +16,16 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import * as z from 'zod'
 import { useTranslation } from 'react-i18next'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Form,
   FormControl,
@@ -32,7 +36,9 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
+import { getServerErrorMessage } from '@/lib/server-error-message'
 import { FormNavigationGuard } from '../components/form-navigation-guard'
 import { GroupAssignmentRulesEditor } from './group-assignment-rules-editor'
 import {
@@ -46,6 +52,7 @@ import {
 } from '../components/settings-form-layout'
 import { SettingsPageFormActions } from '../components/settings-page-context'
 import { SettingsSection } from '../components/settings-section'
+import { testLdapLogin } from '../api'
 import { useUpdateOption } from '../hooks/use-update-option'
 
 const ldapSchema = z.object({
@@ -135,9 +142,20 @@ type LdapSectionProps = {
   defaultValues: FlatLdapDefaults
 }
 
+type LdapLoginTestState =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'success'; attributeNames: string[] }
+  | { status: 'error'; message: string }
+
 export function LdapSection(props: LdapSectionProps) {
   const { t } = useTranslation()
   const updateOption = useUpdateOption()
+  const [testUsername, setTestUsername] = useState('')
+  const [testPassword, setTestPassword] = useState('')
+  const [testState, setTestState] = useState<LdapLoginTestState>({
+    status: 'idle',
+  })
 
   const formDefaults = useMemo(
     () => buildFormDefaults(props.defaultValues),
@@ -196,6 +214,41 @@ export function LdapSection(props: LdapSectionProps) {
   const handleReset = () => {
     form.reset(buildFormDefaults(baselineRef.current))
     toast.success(t('Form reset to saved values'))
+  }
+
+  const handleTestLogin = async () => {
+    const username = testUsername.trim()
+    if (!username || !testPassword) {
+      setTestState({
+        status: 'error',
+        message: t('LDAP username and password are required'),
+      })
+      return
+    }
+
+    setTestState({ status: 'loading' })
+    try {
+      const result = await testLdapLogin({
+        username,
+        password: testPassword,
+      })
+      if (!result.success) {
+        setTestState({
+          status: 'error',
+          message: getServerErrorMessage(result, t('LDAP login test failed')),
+        })
+        return
+      }
+      setTestState({
+        status: 'success',
+        attributeNames: result.data?.attribute_names ?? [],
+      })
+    } catch (error) {
+      setTestState({
+        status: 'error',
+        message: getServerErrorMessage(error, t('LDAP login test failed')),
+      })
+    }
   }
 
   return (
@@ -511,6 +564,79 @@ export function LdapSection(props: LdapSectionProps) {
                 </SettingsSwitchItem>
               )}
             />
+
+            <div
+              data-settings-form-span='full'
+              className='bg-muted/20 space-y-4 rounded-xl border px-3 py-3'
+            >
+              <div className='space-y-1'>
+                <p className='text-sm font-medium'>{t('Test LDAP login')}</p>
+                <p className='text-muted-foreground text-xs'>
+                  {t(
+                    'Uses the currently saved LDAP settings to verify a user can log in. Attribute values are not shown.'
+                  )}
+                </p>
+              </div>
+              <div className='grid gap-4 lg:grid-cols-2'>
+                <div className='space-y-2'>
+                  <Label htmlFor='ldap-test-username'>{t('Test username')}</Label>
+                  <Input
+                    id='ldap-test-username'
+                    autoComplete='off'
+                    value={testUsername}
+                    onChange={(event) => setTestUsername(event.target.value)}
+                  />
+                </div>
+                <div className='space-y-2'>
+                  <Label htmlFor='ldap-test-password'>{t('Test password')}</Label>
+                  <Input
+                    id='ldap-test-password'
+                    type='password'
+                    autoComplete='new-password'
+                    value={testPassword}
+                    onChange={(event) => setTestPassword(event.target.value)}
+                  />
+                </div>
+              </div>
+              <Button
+                type='button'
+                variant='secondary'
+                onClick={handleTestLogin}
+                disabled={testState.status === 'loading'}
+              >
+                {testState.status === 'loading' ? (
+                  <Loader2 className='me-2 size-4 animate-spin' />
+                ) : null}
+                {t('Test login')}
+              </Button>
+              {testState.status === 'success' ? (
+                <Alert>
+                  <AlertTitle>{t('LDAP login succeeded')}</AlertTitle>
+                  <AlertDescription>
+                    {testState.attributeNames.length === 0 ? (
+                      t('No LDAP attributes were returned')
+                    ) : (
+                      <div className='space-y-2'>
+                        <p>{t('Returned LDAP attributes')}</p>
+                        <div className='flex flex-wrap gap-1.5'>
+                          {testState.attributeNames.map((name) => (
+                            <Badge key={name} variant='outline'>
+                              {name}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+              {testState.status === 'error' ? (
+                <Alert variant='destructive'>
+                  <AlertTitle>{t('LDAP login test failed')}</AlertTitle>
+                  <AlertDescription>{testState.message}</AlertDescription>
+                </Alert>
+              ) : null}
+            </div>
           </SettingsForm>
         </Form>
       </SettingsSection>

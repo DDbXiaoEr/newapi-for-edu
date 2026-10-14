@@ -26,6 +26,8 @@ import type {
   SystemTaskListResponse,
   SystemTaskFilters,
   SystemTaskResponse,
+  TestLdapLoginRequest,
+  TestLdapLoginResponse,
   UpdateOptionRequest,
   UpdateOptionResponse,
   UpdatePasskeyDomainsRequest,
@@ -41,6 +43,14 @@ export async function getSystemOptions() {
 
 export async function updateSystemOption(request: UpdateOptionRequest) {
   const res = await api.put<UpdateOptionResponse>('/api/option/', request)
+  return res.data
+}
+
+export async function testLdapLogin(request: TestLdapLoginRequest) {
+  const res = await api.post<TestLdapLoginResponse>(
+    '/api/option/ldap/test',
+    request
+  )
   return res.data
 }
 

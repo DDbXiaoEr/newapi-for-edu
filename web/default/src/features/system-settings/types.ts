@@ -39,6 +39,19 @@ export type UpdateOptionResponse = {
   message: string
 }
 
+export type TestLdapLoginRequest = {
+  username: string
+  password: string
+}
+
+export type TestLdapLoginResponse = {
+  success: boolean
+  message: string
+  data?: {
+    attribute_names: string[]
+  }
+}
+
 export interface PasskeyDomainChange {
   rp_id: string
   legacy_rp_ids: string

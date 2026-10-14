@@ -38,6 +38,13 @@ function trimmed(value) {
   return String(value || "").trim();
 }
 
+// An OpenAI-type channel is often configured with the versioned base its chat
+// models use (…/v1). The video API path already carries /v1, so drop that
+// suffix instead of doubling it.
+function serviceBaseUrl(baseUrl) {
+  return trimmed(baseUrl).replace(/\/+$/, "").replace(/\/v1$/i, "");
+}
+
 function responsesInput(req) {
   const texts = [],
     images = [];
@@ -97,7 +104,7 @@ export function buildSubmitRequest(ctx) {
   const headers = { Authorization: "Bearer " + ctx.apiKey };
   if (action === "remix") {
     headers["Content-Type"] = "application/json";
-    return { url: ctx.baseUrl + "/v1/videos/" + ctx.originTaskId + "/remix", method: "POST", headers, body: requestValues(req, ctx.upstreamModel), action };
+    return { url: serviceBaseUrl(ctx.baseUrl) + "/v1/videos/" + ctx.originTaskId + "/remix", method: "POST", headers, body: requestValues(req, ctx.upstreamModel), action };
   }
   if ((ctx.files || []).length) {
     const parts = [];
@@ -109,10 +116,10 @@ export function buildSubmitRequest(ctx) {
       parts.push({ name: "metadata", value: JSON.stringify(values.metadata) });
     }
     for (const file of ctx.files) parts.push({ name: file.field, fileRef: file.ref, filename: file.filename });
-    return { url: ctx.baseUrl + "/v1/videos", method: "POST", headers, bodyType: "multipart", parts };
+    return { url: serviceBaseUrl(ctx.baseUrl) + "/v1/videos", method: "POST", headers, bodyType: "multipart", parts };
   }
   headers["Content-Type"] = "application/json";
-  return { url: ctx.baseUrl + "/v1/videos", method: "POST", headers, body: requestValues(req, ctx.upstreamModel) };
+  return { url: serviceBaseUrl(ctx.baseUrl) + "/v1/videos", method: "POST", headers, body: requestValues(req, ctx.upstreamModel) };
 }
 
 export function parseSubmitResponse(ctx, resp) {
@@ -140,7 +147,7 @@ export function extractUsageOnComplete(task, taskResult, body) {
 }
 
 export function buildQueryRequest(ctx) {
-  return { url: ctx.baseUrl + "/v1/videos/" + ctx.taskId, method: "GET", headers: { Authorization: "Bearer " + ctx.apiKey } };
+  return { url: serviceBaseUrl(ctx.baseUrl) + "/v1/videos/" + ctx.taskId, method: "GET", headers: { Authorization: "Bearer " + ctx.apiKey } };
 }
 
 export function parseTaskResult(ctx, body) {
@@ -168,7 +175,7 @@ export function listArtifacts(task) {
 export function buildContentRequest(ctx) {
   if (ctx.artifactKey !== "video") throw new Error("artifact_not_found");
   return {
-    url: ctx.baseUrl + "/v1/videos/" + encodeURIComponent(ctx.upstreamTaskId) + "/content",
+    url: serviceBaseUrl(ctx.baseUrl) + "/v1/videos/" + encodeURIComponent(ctx.upstreamTaskId) + "/content",
     method: ctx.clientRequest.method,
     headers: { Authorization: "Bearer " + ctx.apiKey },
   };

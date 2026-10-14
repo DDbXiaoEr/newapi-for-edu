@@ -764,6 +764,35 @@ func TestAlibabaImageSubmission(t *testing.T) {
 	})
 }
 
+func TestAlibabaNativeRequestsUseServiceRootBaseURL(t *testing.T) {
+	plugin := newAlibabaPlugin(t)
+	for _, tc := range []struct {
+		name string
+		base string
+		root string
+	}{
+		{"service root", "https://dashscope.aliyuncs.com", "https://dashscope.aliyuncs.com"},
+		{"openai compatible base", "https://llm-example.cn-beijing.maas.aliyuncs.com/compatible-mode/v1", "https://llm-example.cn-beijing.maas.aliyuncs.com"},
+		{"openai compatible base with trailing slash", "https://llm-example.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/", "https://llm-example.cn-beijing.maas.aliyuncs.com"},
+		{"sdk api base", "https://dashscope.aliyuncs.com/api/v1/", "https://dashscope.aliyuncs.com"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			submit, err := plugin.Engine.Call(t.Context(), "buildSubmitRequest", map[string]any{
+				"upstreamModel": "wan2.6-t2i",
+				"requestBody":   map[string]any{"model": "wan2.6-t2i", "prompt": "a cat"},
+				"baseUrl":       tc.base,
+				"apiKey":        "k",
+			})
+			require.NoError(t, err)
+			assert.Equal(t, tc.root+"/api/v1/services/aigc/image-generation/generation", alibabaObject(t, submit)["url"])
+
+			query, err := plugin.Engine.Call(t.Context(), "buildQueryRequest", map[string]any{"baseUrl": tc.base, "taskId": "task_1", "apiKey": "k"})
+			require.NoError(t, err)
+			assert.Equal(t, tc.root+"/api/v1/tasks/task_1", alibabaObject(t, query)["url"])
+		})
+	}
+}
+
 func TestAlibabaImageValidation(t *testing.T) {
 	plugin := newAlibabaPlugin(t)
 	for _, tc := range []struct {

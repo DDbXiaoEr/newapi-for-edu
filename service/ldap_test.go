@@ -17,6 +17,7 @@ func withMockLDAPHooks(t *testing.T) {
 	originalCloseConn := ldapCloseConn
 	originalBindSearch := ldapBindSearch
 	originalFindUser := ldapFindUser
+	originalFindUserAll := ldapFindUserAll
 	originalBindUser := ldapBindUser
 	originalSettings := *system_setting.GetLDAPSettings()
 
@@ -25,6 +26,7 @@ func withMockLDAPHooks(t *testing.T) {
 		ldapCloseConn = originalCloseConn
 		ldapBindSearch = originalBindSearch
 		ldapFindUser = originalFindUser
+		ldapFindUserAll = originalFindUserAll
 		ldapBindUser = originalBindUser
 		*system_setting.GetLDAPSettings() = originalSettings
 	})
@@ -203,6 +205,80 @@ func TestAuthenticateLDAPMapsBindInvalidCredentials(t *testing.T) {
 	}
 
 	_, err := authenticateLDAP(context.Background(), "alice", "password")
+	if !errors.Is(err, ErrLDAPInvalidCredentials) {
+		t.Fatalf("expected ErrLDAPInvalidCredentials, got %v", err)
+	}
+}
+
+func TestLDAPLoginReturnsAttributeNamesWithoutValues(t *testing.T) {
+	withMockLDAPHooks(t)
+
+	settings := system_setting.GetLDAPSettings()
+	settings.Enabled = false
+	settings.ServerURL = "ldap://example.com:389"
+	settings.BaseDN = "dc=example,dc=com"
+
+	ldapDial = func(settings *system_setting.LDAPSettings) (*ldap.Conn, error) {
+		return nil, nil
+	}
+	ldapCloseConn = func(conn *ldap.Conn) {}
+	ldapBindSearch = func(conn *ldap.Conn, settings *system_setting.LDAPSettings) error {
+		return nil
+	}
+	ldapFindUserAll = func(conn *ldap.Conn, settings *system_setting.LDAPSettings, identifier string) (*ldap.Entry, error) {
+		return &ldap.Entry{
+			DN: "uid=alice,dc=example,dc=com",
+			Attributes: []*ldap.EntryAttribute{
+				{Name: "mail", Values: []string{"alice@example.com"}},
+				{Name: "uid", Values: []string{"alice"}},
+				{Name: "memberOf", Values: []string{"cn=students,dc=example,dc=com"}},
+			},
+		}, nil
+	}
+	ldapBindUser = func(conn *ldap.Conn, dn string, password string) error {
+		if dn != "uid=alice,dc=example,dc=com" || password != "secret" {
+			t.Fatalf("unexpected bind dn=%q password=%q", dn, password)
+		}
+		return nil
+	}
+
+	result, err := TestLDAPLogin(context.Background(), "alice", "secret")
+	if err != nil {
+		t.Fatalf("expected LDAP login test success, got %v", err)
+	}
+	want := []string{"dn", "mail", "memberOf", "uid"}
+	if len(result.AttributeNames) != len(want) {
+		t.Fatalf("unexpected attribute names: %+v", result.AttributeNames)
+	}
+	for i, name := range want {
+		if result.AttributeNames[i] != name {
+			t.Fatalf("unexpected attribute names: %+v", result.AttributeNames)
+		}
+	}
+}
+
+func TestLDAPLoginMapsInvalidCredentials(t *testing.T) {
+	withMockLDAPHooks(t)
+
+	settings := system_setting.GetLDAPSettings()
+	settings.ServerURL = "ldap://example.com:389"
+	settings.BaseDN = "dc=example,dc=com"
+
+	ldapDial = func(settings *system_setting.LDAPSettings) (*ldap.Conn, error) {
+		return nil, nil
+	}
+	ldapCloseConn = func(conn *ldap.Conn) {}
+	ldapBindSearch = func(conn *ldap.Conn, settings *system_setting.LDAPSettings) error {
+		return nil
+	}
+	ldapFindUserAll = func(conn *ldap.Conn, settings *system_setting.LDAPSettings, identifier string) (*ldap.Entry, error) {
+		return &ldap.Entry{DN: "uid=alice,dc=example,dc=com"}, nil
+	}
+	ldapBindUser = func(conn *ldap.Conn, dn string, password string) error {
+		return &ldap.Error{ResultCode: ldap.LDAPResultInvalidCredentials, Err: errors.New("invalid credentials")}
+	}
+
+	_, err := TestLDAPLogin(context.Background(), "alice", "wrong")
 	if !errors.Is(err, ErrLDAPInvalidCredentials) {
 		t.Fatalf("expected ErrLDAPInvalidCredentials, got %v", err)
 	}

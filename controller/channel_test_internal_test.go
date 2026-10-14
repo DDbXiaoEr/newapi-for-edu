@@ -11,6 +11,7 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
+	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/pkg/billingexpr"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
@@ -112,6 +113,43 @@ func TestValidateChannelRequiresNewAPIBaseURL(t *testing.T) {
 			require.NoError(t, err)
 		})
 	}
+}
+
+func TestUnsupportedChannelModelsSkipsMappedAliases(t *testing.T) {
+	unsupported := unsupportedChannelModels(
+		[]string{"alias", "gpt-4", "missing"},
+		[]string{"gpt-4", "gpt-4.1"},
+		map[string]string{"alias": "gpt-4"},
+	)
+	require.Equal(t, []string{"missing"}, unsupported)
+}
+
+func TestValidateChannelModelsAgainstUpstream(t *testing.T) {
+	require.NoError(t, i18n.Init())
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/v1/models", r.URL.Path)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":[{"id":"gpt-4"},{"id":"gpt-4.1"}]}`))
+	}))
+	t.Cleanup(server.Close)
+
+	baseURL := server.URL
+	mapping := `{"alias":"gpt-4"}`
+	channel := &model.Channel{
+		Type:         constant.ChannelTypeOpenAI,
+		Key:          "sk-test",
+		BaseURL:      &baseURL,
+		Models:       "gpt-4,alias,missing",
+		ModelMapping: &mapping,
+	}
+
+	err := validateChannelModelsAgainstUpstream(nil, channel)
+	require.ErrorContains(t, err, "missing")
+	require.NotContains(t, err.Error(), "alias")
+	require.NotContains(t, err.Error(), "gpt-4")
+
+	channel.Models = "gpt-4,alias"
+	require.NoError(t, validateChannelModelsAgainstUpstream(nil, channel))
 }
 
 func TestNewAPIChannelRegistration(t *testing.T) {

@@ -586,12 +586,11 @@ func validateChannel(channel *model.Channel, isAdd bool) error {
 		if channel.Key == "" {
 			return fmt.Errorf("channel cannot be empty")
 		}
+	}
 
-		// 检查模型名称长度是否超过 255
-		for _, m := range channel.GetModels() {
-			if len(m) > 255 {
-				return fmt.Errorf("模型名称过长: %s", m)
-			}
+	for _, m := range channel.GetModels() {
+		if len(m) > 255 {
+			return fmt.Errorf("模型名称过长: %s", m)
 		}
 	}
 
@@ -632,6 +631,59 @@ func validateChannel(channel *model.Channel, isAdd bool) error {
 	}
 
 	return nil
+}
+
+func rejectChannelIfModelsMissingFromUpstream(c *gin.Context, channel *model.Channel) bool {
+	if err := validateChannelModelsAgainstUpstream(c, channel); err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return true
+	}
+	return false
+}
+
+func validateChannelModelsAgainstUpstream(c *gin.Context, channel *model.Channel) error {
+	if channel == nil {
+		return nil
+	}
+	configured := normalizeModelNames(channel.GetModels())
+	if len(configured) == 0 {
+		return nil
+	}
+	upstream, err := fetchChannelUpstreamModelIDs(channel)
+	if err != nil {
+		return fmt.Errorf("%s", i18n.T(c, i18n.MsgChannelFetchUpstreamModelsFailed, map[string]any{"Error": err.Error()}))
+	}
+	if len(upstream) == 0 {
+		return nil
+	}
+	unsupported := unsupportedChannelModels(configured, upstream, normalizeChannelModelMapping(channel))
+	if len(unsupported) == 0 {
+		return nil
+	}
+	return fmt.Errorf("%s", i18n.T(c, i18n.MsgChannelUnsupportedModels, map[string]any{
+		"Models": strings.Join(unsupported, ", "),
+	}))
+}
+
+func unsupportedChannelModels(configured []string, upstream []string, mapping map[string]string) []string {
+	upstreamSet := make(map[string]struct{}, len(upstream))
+	for _, name := range normalizeModelNames(upstream) {
+		upstreamSet[name] = struct{}{}
+	}
+	var unsupported []string
+	for _, name := range normalizeModelNames(configured) {
+		if _, ok := mapping[name]; ok {
+			continue
+		}
+		if _, ok := upstreamSet[name]; ok {
+			continue
+		}
+		unsupported = append(unsupported, name)
+	}
+	return unsupported
 }
 
 func RefreshCodexChannelCredential(c *gin.Context) {
@@ -785,6 +837,10 @@ func AddChannel(c *gin.Context) {
 			"success": false,
 			"message": "不支持的添加模式",
 		})
+		return
+	}
+
+	if rejectChannelIfModelsMissingFromUpstream(c, addChannelRequest.Channel) {
 		return
 	}
 
@@ -1222,6 +1278,12 @@ func UpdateChannel(c *gin.Context) {
 		case "replace":
 			// 覆盖模式：直接使用新密钥（默认行为，不需要特殊处理）
 		}
+	}
+	if strings.TrimSpace(channel.Key) == "" {
+		channel.Key = originChannel.Key
+	}
+	if rejectChannelIfModelsMissingFromUpstream(c, &channel.Channel) {
+		return
 	}
 	err = channel.Update()
 	if err != nil {

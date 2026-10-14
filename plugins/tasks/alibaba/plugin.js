@@ -145,6 +145,21 @@ function trimmed(value) {
   return String(value || "").trim();
 }
 
+// DashScope native APIs are rooted at the service host, but a task-plugin
+// channel is often configured with the OpenAI-compatible base its chat models
+// use (…/compatible-mode/v1) or the SDK base (…/api/v1). Strip those suffixes
+// so native image/video calls cannot double up the path.
+function serviceBaseUrl(baseUrl) {
+  let base = trimmed(baseUrl).replace(/\/+$/, "");
+  for (const suffix of ["/compatible-mode/v1", "/compatible-mode", "/api/v1"]) {
+    if (base.toLowerCase().endsWith(suffix)) {
+      base = base.slice(0, -suffix.length);
+      break;
+    }
+  }
+  return base.replace(/\/+$/, "");
+}
+
 function firstImage(req) {
   if (trimmed(req.image)) return trimmed(req.image);
   for (const image of req.images || []) if (trimmed(image)) return trimmed(image);
@@ -192,13 +207,17 @@ function imageModel(ctx) {
 function convertImage(ctx) {
   const req = ctx.requestBody || {};
   let model = ctx.upstreamModel || req.model;
-  if (modelKey(model) === "wan2.6-image" && !firstImage(req) && !(req.images || []).length && !objectValue(req.metadata, "metadata").input) {
+  const metadata = objectValue(req.metadata, "metadata");
+  const requestedParameters = objectValue(metadata.parameters, "metadata.parameters");
+  const interleave = req.enable_interleave === true || requestedParameters.enable_interleave === true;
+  // A bare wan2.6-image text prompt means text-to-image, which the dedicated
+  // wan2.6-t2i model serves. Explicit interleaved output stays on wan2.6-image.
+  if (modelKey(model) === "wan2.6-image" && !interleave && !firstImage(req) && !(req.images || []).length && !metadata.input) {
     model = "wan2.6-t2i";
     ctx = Object.assign({}, ctx, { upstreamModel: model, model: model, requestBody: Object.assign({}, req, { model: model }) });
   }
   const profile = imageModel(ctx);
   if (!profile) throw new Error("unsupported Wan image model: " + model);
-  const metadata = objectValue(req.metadata, "metadata");
   if (metadata.model !== undefined && metadata.model !== model) throw new Error("can't change model with metadata");
   const mode = metadata.upstream_mode ?? "async";
   if (mode !== "sync" && mode !== "async") throw new Error("upstream_mode must be sync or async");
@@ -586,19 +605,20 @@ function responsesOutputText(ctx, task) {
 }
 
 export function buildSubmitRequest(ctx) {
+  const baseUrl = serviceBaseUrl(ctx.baseUrl);
   if (imageModel(ctx)) {
     const converted = convertImage(ctx);
     const headers = { Authorization: "Bearer " + ctx.apiKey, "Content-Type": "application/json" };
     if (!converted.synchronous) headers["X-DashScope-Async"] = "enable";
     const streaming = converted.synchronous && converted.body.parameters.enable_interleave === true;
     if (streaming) headers["X-DashScope-Sse"] = "enable";
-    return { url: ctx.baseUrl + "/api/v1/services/aigc/" + converted.service, method: "POST", headers: headers, body: converted.body, action: converted.action, responseType: streaming ? "sse" : "json", rewriteModel: converted.body.model };
+    return { url: baseUrl + "/api/v1/services/aigc/" + converted.service, method: "POST", headers: headers, body: converted.body, action: converted.action, responseType: streaming ? "sse" : "json", rewriteModel: converted.body.model };
   }
   const body = convert(ctx);
   const kind = modelProfile(body.model).kind;
   const service = kind === "frames" || kind === "speech" ? "image2video" : "video-generation";
   return {
-    url: ctx.baseUrl + "/api/v1/services/aigc/" + service + "/video-synthesis",
+    url: baseUrl + "/api/v1/services/aigc/" + service + "/video-synthesis",
     method: "POST",
     headers: { Authorization: "Bearer " + ctx.apiKey, "Content-Type": "application/json", "X-DashScope-Async": "enable" },
     body: body,
@@ -733,7 +753,7 @@ export function extractUsageOnComplete(task, taskResult, body) {
 }
 
 export function buildQueryRequest(ctx) {
-  return { url: ctx.baseUrl + "/api/v1/tasks/" + ctx.taskId, method: "GET", headers: { Authorization: "Bearer " + ctx.apiKey } };
+  return { url: serviceBaseUrl(ctx.baseUrl) + "/api/v1/tasks/" + ctx.taskId, method: "GET", headers: { Authorization: "Bearer " + ctx.apiKey } };
 }
 
 export function parseTaskResult(ctx, body) {

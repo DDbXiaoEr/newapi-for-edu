@@ -26,3 +26,17 @@ func TestWanEndpointsDistinguishImagesFromVideos(t *testing.T) {
 		})
 	}
 }
+
+func TestSeedreamIsImageGenerationModel(t *testing.T) {
+	for _, name := range []string{
+		"doubao-seedream-4-0-250828",
+		"seedream-4-0-250828",
+		"doubao-seedream-5-0-pro-260628",
+	} {
+		t.Run(name, func(t *testing.T) {
+			assert.True(t, common.IsImageGenerationModel(name))
+			assert.Equal(t, constant.EndpointTypeImageGeneration, common.GetEndpointTypesByChannelType(constant.ChannelTypeVolcEngine, name)[0])
+		})
+	}
+	assert.False(t, common.IsImageGenerationModel("doubao-seedance-2-5-260628"))
+}

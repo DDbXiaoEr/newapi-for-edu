@@ -176,6 +176,8 @@ newapi_2_-edu/
 │   ├── option.go
 │   ├── option_claude_test.go
 │   ├── option_gemini_test.go
+│   ├── option_ldap.go
+│   ├── option_ldap_test.go
 │   ├── passkey.go
 │   ├── passkey_test.go
 │   ├── payment_compliance.go
@@ -2392,8 +2394,9 @@ newapi_2_-edu/
         │   │   │   │   └── task-public-address.test.ts
         │   │   │   ├── api.ts
         │   │   │   ├── auth/
-        │   │   │   │   ├── __tests__/
-        │   │   │   │   │   └── passkey-settings.test.tsx
+         │   │   │   │   ├── __tests__/
+         │   │   │   │   │   ├── ldap-login-test.test.tsx
+         │   │   │   │   │   └── passkey-settings.test.tsx
         │   │   │   │   ├── basic-auth-section.tsx
         │   │   │   │   ├── bot-protection-section.tsx
         │   │   │   │   ├── cas-section.tsx

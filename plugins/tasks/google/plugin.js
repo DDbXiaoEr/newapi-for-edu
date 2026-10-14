@@ -39,6 +39,20 @@ function trimmed(value) {
   return String(value || "").trim();
 }
 
+// A channel may carry the Gemini OpenAI-compatible base its chat models use
+// (…/v1beta/openai) or a versioned base. The native predict/operations API is
+// rooted at the service host, so drop those suffixes before appending the path.
+function serviceBaseUrl(baseUrl) {
+  let base = trimmed(baseUrl).replace(/\/+$/, "");
+  for (const suffix of ["/v1beta/openai", "/v1beta", "/v1"]) {
+    if (base.toLowerCase().endsWith(suffix)) {
+      base = base.slice(0, -suffix.length);
+      break;
+    }
+  }
+  return base.replace(/\/+$/, "");
+}
+
 function responsesInput(req) {
   const texts = [],
     images = [];
@@ -163,7 +177,7 @@ function version(ctx) {
 export function buildSubmitRequest(ctx) {
   const result = converted(ctx);
   return {
-    url: ctx.baseUrl + "/" + version(ctx) + "/models/" + ctx.upstreamModel + ":predictLongRunning",
+    url: serviceBaseUrl(ctx.baseUrl) + "/" + version(ctx) + "/models/" + ctx.upstreamModel + ":predictLongRunning",
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "application/json", "x-goog-api-key": ctx.apiKey },
     body: result.body,
@@ -198,7 +212,7 @@ export function extractUsageOnComplete() {
 
 export function buildQueryRequest(ctx) {
   return {
-    url: ctx.baseUrl + "/v1beta/" + utils.base64URLDecode(ctx.taskId),
+    url: serviceBaseUrl(ctx.baseUrl) + "/v1beta/" + utils.base64URLDecode(ctx.taskId),
     method: "GET",
     headers: { Accept: "application/json", "x-goog-api-key": ctx.apiKey },
   };
