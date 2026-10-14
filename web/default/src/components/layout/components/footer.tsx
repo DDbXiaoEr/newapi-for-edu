@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { Link } from '@tanstack/react-router'
 import { Fragment, useMemo } from 'react'
-import { useTranslation } from 'react-i18next'
+import { Trans, useTranslation } from 'react-i18next'
 
 import { useStatus } from '@/hooks/use-status'
 import { useSystemConfig } from '@/hooks/use-system-config'
@@ -136,7 +136,20 @@ function ProjectAttribution(props: { currentYear: number; inline?: boolean }) {
       >
         {t('New API')}
       </a>
-      . {t(NEW_API_FOOTER_ATTRIBUTION_KEY)}
+      . {t(NEW_API_FOOTER_ATTRIBUTION_KEY)}{' '}
+      <Trans
+        i18nKey='由 <author>V0ker</author> 二次开发。'
+        components={{
+          author: (
+            <a
+              href='https://blog.quanxiaoer.me/AboutMe/'
+              target='_blank'
+              rel='noopener noreferrer'
+              className='text-foreground/70 hover:text-foreground font-medium transition-colors'
+            />
+          ),
+        }}
+      />
     </span>
   )
   if (props.inline) {
