@@ -91,6 +91,7 @@ type LogSettingsFormValues = z.infer<typeof logSettingsSchema>
 
 type LogSettingsSectionProps = {
   defaultEnabled: boolean
+  syslogEnabled?: boolean
 }
 
 type ServerLogInfo = {
@@ -146,6 +147,7 @@ function isActiveLogCleanupTask(task: LogCleanupTask | null) {
 
 export function LogSettingsSection({
   defaultEnabled,
+  syslogEnabled = false,
 }: LogSettingsSectionProps) {
   const { t } = useTranslation()
   const updateOption = useUpdateOption()
@@ -270,7 +272,11 @@ export function LogSettingsSection({
     })
   }
 
+  const historyLogCleanupDisabled =
+    syslogEnabled || isStartingLogCleanup || logCleanupActive
+
   const handleRequestCleanLogs = () => {
+    if (syslogEnabled) return
     if (!purgeTimestamp) {
       toast.error(t('Select a timestamp before clearing logs.'))
       return
@@ -280,6 +286,7 @@ export function LogSettingsSection({
   }
 
   const handleCleanLogs = async () => {
+    if (syslogEnabled) return
     if (!purgeTimestamp) {
       toast.error(t('Select a timestamp before clearing logs.'))
       return
@@ -373,16 +380,25 @@ export function LogSettingsSection({
             )}
           />
 
-          <SettingsControlGroup className='space-y-3'>
+          <SettingsControlGroup
+            className='space-y-3'
+            aria-disabled={syslogEnabled || undefined}
+          >
             <div>
               <h4 className='text-sm font-medium'>{t('Clean history logs')}</h4>
               <p className='text-muted-foreground text-sm'>
-                {t(
-                  'Remove all log entries created before the selected timestamp.'
-                )}
+                {syslogEnabled
+                  ? t('Unavailable while Syslog is enabled.')
+                  : t(
+                      'Remove all log entries created before the selected timestamp.'
+                    )}
               </p>
             </div>
-            <DateTimePicker value={purgeDate} onChange={setPurgeDate} />
+            <DateTimePicker
+              value={purgeDate}
+              onChange={setPurgeDate}
+              disabled={syslogEnabled}
+            />
             <div className='flex flex-wrap gap-3'>
               {quickSelectOptions.map((option) => (
                 <Button
@@ -390,6 +406,7 @@ export function LogSettingsSection({
                   type='button'
                   variant='outline'
                   onClick={() => setPurgeDate(option.getValue())}
+                  disabled={syslogEnabled}
                 >
                   {t(option.label)}
                 </Button>
@@ -398,7 +415,7 @@ export function LogSettingsSection({
                 type='button'
                 variant='destructive'
                 onClick={handleRequestCleanLogs}
-                disabled={isStartingLogCleanup || logCleanupActive}
+                disabled={historyLogCleanupDisabled}
               >
                 {isStartingLogCleanup || logCleanupActive
                   ? t('Cleaning...')

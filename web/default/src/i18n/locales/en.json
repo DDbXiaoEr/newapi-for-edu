@@ -6180,6 +6180,7 @@
     "Unauthorized": "Unauthorized",
     "Unauthorized Access": "Unauthorized Access",
     "Unavailable": "Unavailable",
+    "Unavailable while Syslog is enabled.": "Unavailable while Syslog is enabled.",
     "Unbind": "Unbind",
     "Unbind failed": "Unbind failed",
     "Unbound {{provider}}": "Unbound {{provider}}",

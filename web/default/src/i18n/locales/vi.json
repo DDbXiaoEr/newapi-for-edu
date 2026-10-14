@@ -6180,6 +6180,7 @@
     "Unauthorized": "Chưa xác thực",
     "Unauthorized Access": "Truy cập trái phép",
     "Unavailable": "Không thể hiển thị",
+    "Unavailable while Syslog is enabled.": "Không khả dụng khi Syslog đang bật.",
     "Unbind": "Hủy liên kết",
     "Unbind failed": "Hủy liên kết thất bại",
     "Unbound {{provider}}": "Đã hủy liên kết {{provider}}",

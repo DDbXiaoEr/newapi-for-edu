@@ -6180,6 +6180,7 @@
     "Unauthorized": "未認証",
     "Unauthorized Access": "不正アクセス",
     "Unavailable": "表示不可",
+    "Unavailable while Syslog is enabled.": "Syslog 有効時は使用できません。",
     "Unbind": "連携解除",
     "Unbind failed": "連携解除に失敗しました",
     "Unbound {{provider}}": "{{provider}}の連携を解除しました",

@@ -6180,6 +6180,7 @@
     "Unauthorized": "未經授權",
     "Unauthorized Access": "未經授權的存取",
     "Unavailable": "無法顯示",
+    "Unavailable while Syslog is enabled.": "啟用 Syslog 後不可用。",
     "Unbind": "解綁",
     "Unbind failed": "解綁失敗",
     "Unbound {{provider}}": "已解綁 {{provider}}",

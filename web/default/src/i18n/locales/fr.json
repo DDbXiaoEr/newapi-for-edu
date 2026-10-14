@@ -6180,6 +6180,7 @@
     "Unauthorized": "Non autorisé",
     "Unauthorized Access": "Accès non autorisé",
     "Unavailable": "Indisponible",
+    "Unavailable while Syslog is enabled.": "Indisponible lorsque Syslog est activé.",
     "Unbind": "Dissocier",
     "Unbind failed": "Échec de la dissociation",
     "Unbound {{provider}}": "{{provider}} dissocié",

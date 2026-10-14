@@ -6180,6 +6180,7 @@
     "Unauthorized": "Не авторизован",
     "Unauthorized Access": "Несанкционированный доступ",
     "Unavailable": "Недоступно",
+    "Unavailable while Syslog is enabled.": "Недоступно при включённом Syslog.",
     "Unbind": "Отвязать",
     "Unbind failed": "Не удалось отвязать",
     "Unbound {{provider}}": "{{provider}} отвязан",

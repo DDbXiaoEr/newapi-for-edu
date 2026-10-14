@@ -46,6 +46,7 @@ interface DateTimePickerProps {
   onChange?: (date: Date | undefined) => void
   placeholder?: string
   className?: string
+  disabled?: boolean
 }
 
 export function DateTimePicker({
@@ -53,6 +54,7 @@ export function DateTimePicker({
   onChange,
   placeholder,
   className,
+  disabled,
 }: DateTimePickerProps) {
   const { t, i18n } = useTranslation()
   const placeholderText = placeholder ?? t('Select date')
@@ -112,11 +114,19 @@ export function DateTimePicker({
 
   return (
     <div className={cn('flex gap-2', className)}>
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover
+        open={disabled ? false : open}
+        onOpenChange={(nextOpen) => {
+          if (disabled) return
+          setOpen(nextOpen)
+        }}
+      >
         <PopoverTrigger
+          disabled={disabled}
           render={
             <Button
               variant='outline'
+              disabled={disabled}
               className={cn(
                 'flex-1 justify-between font-normal',
                 !date && 'text-muted-foreground'
@@ -146,7 +156,7 @@ export function DateTimePicker({
         value={time}
         onChange={handleTimeChange}
         className='w-32 appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none'
-        disabled={!date}
+        disabled={disabled || !date}
       />
       {date && (
         <Button
@@ -156,6 +166,7 @@ export function DateTimePicker({
           onClick={handleClear}
           className='shrink-0'
           aria-label='Clear'
+          disabled={disabled}
         >
           <span aria-hidden='true'>✕</span>
         </Button>
