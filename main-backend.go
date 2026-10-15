@@ -190,21 +190,7 @@ func main() {
 	router.SetVideoRouter(server)
 	router.SetTaskRouter(server)
 	pluginDispatcher := router.SetPluginRouter(server)
-
-	// 纯后端模式，不设置前端路由
-	server.NoRoute(pluginDispatcher, func(c *gin.Context) {
-		c.Set(middleware.RouteTagKey, "web")
-		if strings.HasPrefix(c.Request.RequestURI, "/v1") || strings.HasPrefix(c.Request.RequestURI, "/api") || strings.HasPrefix(c.Request.RequestURI, "/images/") {
-			controller.RelayNotFound(c)
-			return
-		}
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": gin.H{
-				"message": "Frontend not available in pure backend mode",
-				"type":    "frontend_not_available",
-			},
-		})
-	})
+	router.SetPureBackendRouter(server, pluginDispatcher)
 
 	var port = os.Getenv("PORT")
 	if port == "" {
@@ -213,7 +199,7 @@ func main() {
 
 	srv := &http.Server{
 		Addr:    ":" + port,
-		Handler: server,
+		Handler: middleware.WrapOpenAICompatHandler(server),
 	}
 
 	go func() {

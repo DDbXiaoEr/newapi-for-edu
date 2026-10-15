@@ -369,6 +369,8 @@ newapi_2_-edu/
 │   ├── logger.go
 │   ├── model-rate-limit.go
 │   ├── model_rate_limit_test.go
+│   ├── openai_compat_path.go
+│   ├── openai_compat_path_test.go
 │   ├── openai_image_path.go
 │   ├── openai_image_path_test.go
 │   ├── performance.go
@@ -1092,6 +1094,8 @@ newapi_2_-edu/
 ├── router/
 │   ├── api-router.go
 │   ├── authz-router.go
+│   ├── backend.go
+│   ├── backend_test.go
 │   ├── channel-router.go
 │   ├── channel_router_test.go
 │   ├── dashboard.go
