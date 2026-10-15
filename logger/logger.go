@@ -81,10 +81,10 @@ func SetupLogger() {
 }
 
 func SyncSyslogFromConfig() {
-	refreshSyslog()
 	common.LogWriterMu.Lock()
 	defer common.LogWriterMu.Unlock()
 
+	refreshSyslog()
 	sw := getSyslogWriter()
 	stdoutWriters := []io.Writer{os.Stdout}
 	stderrWriters := []io.Writer{os.Stderr}

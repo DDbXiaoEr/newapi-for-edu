@@ -225,6 +225,7 @@ func loadOptionsFromDatabase() {
 		}
 	}
 	applyPasskeyDomainOptions(passkeyOptions)
+	logger.SyncSyslogFromConfig()
 }
 
 func SyncOptions(frequency int) {
@@ -286,7 +287,13 @@ func UpdateOption(key string, value string) error {
 	// otherwise it will execute Update (with all fields).
 	DB.Save(&option)
 	// Update OptionMap
-	return updateOptionMap(key, value)
+	if err := updateOptionMap(key, value); err != nil {
+		return err
+	}
+	if isSyslogOption(key) {
+		logger.SyncSyslogFromConfig()
+	}
+	return nil
 }
 
 // UpdateOptionsBulk persists multiple key/value pairs in a single database
@@ -345,13 +352,20 @@ func UpdateOptionsBulk(values map[string]string) error {
 	if err != nil {
 		return err
 	}
+	syslogChanged := false
 	for k, v := range values {
 		if err := updateOptionMap(k, v); err != nil {
 			return err
 		}
+		if isSyslogOption(k) {
+			syslogChanged = true
+		}
 	}
 	if policySnapshot != nil {
 		requestPolicySnapshot.Store(policySnapshot)
+	}
+	if syslogChanged {
+		logger.SyncSyslogFromConfig()
 	}
 	return nil
 }
@@ -695,18 +709,23 @@ func updateOptionMap(key string, value string) (err error) {
 		// No additional in-memory variable to update.
 	case "SyslogEnabled":
 		common.SyslogEnabled = value == "true"
-		logger.SyncSyslogFromConfig()
 	case "SyslogNetwork":
 		common.SyslogNetwork = value
-		logger.SyncSyslogFromConfig()
 	case "SyslogAddr":
 		common.SyslogAddr = value
-		logger.SyncSyslogFromConfig()
 	case "SyslogTag":
 		common.SyslogTag = value
-		logger.SyncSyslogFromConfig()
 	}
 	return err
+}
+
+func isSyslogOption(key string) bool {
+	switch key {
+	case "SyslogEnabled", "SyslogNetwork", "SyslogAddr", "SyslogTag":
+		return true
+	default:
+		return false
+	}
 }
 
 // handleConfigUpdate 处理分层配置更新，返回是否已处理

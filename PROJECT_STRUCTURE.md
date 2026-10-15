@@ -343,6 +343,8 @@ newapi_2_-edu/
 │   └── service.yaml
 ├── logger/
 │   ├── logger.go
+│   ├── syslog.go
+│   ├── syslog_test.go
 │   ├── syslog_unix.go
 │   └── syslog_windows.go
 ├── main-backend.go

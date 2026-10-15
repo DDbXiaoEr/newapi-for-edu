@@ -5,6 +5,7 @@ package logger
 import (
 	"fmt"
 	"io"
+	"log"
 	"log/syslog"
 	"time"
 
@@ -12,49 +13,75 @@ import (
 )
 
 var syslogUnsafeWriter *syslog.Writer
+var syslogConnectedKey string
 
-// syslogDialTimeout 限制 syslog 连接耗时，避免目标地址不可达时阻塞启动/配置同步
 const syslogDialTimeout = 3 * time.Second
 
 func refreshSyslog() {
-	if syslogUnsafeWriter != nil {
-		syslogUnsafeWriter.Close()
-		syslogUnsafeWriter = nil
-	}
 	if !common.SyslogEnabled {
+		closeSyslog()
+		syslogConnectedKey = syslogConfigKey()
 		return
 	}
-	var err error
-	tag := common.SyslogTag
-	if tag == "" {
-		tag = "newapi"
-	}
-	if common.SyslogNetwork != "" {
-		syslogUnsafeWriter, err = dialSyslogWithTimeout(common.SyslogNetwork, common.SyslogAddr, tag)
-	} else {
-		syslogUnsafeWriter, err = syslog.New(syslog.LOG_INFO, tag)
-	}
-	if err != nil {
-		syslogUnsafeWriter = nil
-	}
-}
 
-// dialSyslogWithTimeout 带超时的 syslog.Dial：超过 syslogDialTimeout 未连接成功即放弃
-func dialSyslogWithTimeout(network, addr, tag string) (*syslog.Writer, error) {
+	network, addr, tag := resolveSyslogTarget(common.SyslogNetwork, common.SyslogAddr, common.SyslogTag)
+	key := syslogConfigKey()
+	if syslogUnsafeWriter != nil && syslogConnectedKey == key {
+		return
+	}
+
+	closeSyslog()
+
 	var (
 		w   *syslog.Writer
 		err error
 	)
-	done := make(chan struct{})
+	if network != "" {
+		if addr == "" {
+			err = fmt.Errorf("syslog address is empty")
+		} else {
+			w, err = dialSyslogWithTimeout(network, addr, tag)
+		}
+	} else {
+		w, err = syslog.New(syslog.LOG_INFO, tag)
+	}
+	if err != nil {
+		log.Printf("[SYS] syslog connect failed (network=%s addr=%s tag=%s): %v", network, addr, tag, err)
+		syslogUnsafeWriter = nil
+		syslogConnectedKey = ""
+		return
+	}
+	syslogUnsafeWriter = w
+	syslogConnectedKey = key
+	log.Printf("[SYS] syslog connected (network=%s addr=%s tag=%s)", network, addr, tag)
+}
+
+func syslogConfigKey() string {
+	network, addr, tag := resolveSyslogTarget(common.SyslogNetwork, common.SyslogAddr, common.SyslogTag)
+	return fmt.Sprintf("%t|%s|%s|%s", common.SyslogEnabled, network, addr, tag)
+}
+
+func dialSyslogWithTimeout(network, addr, tag string) (*syslog.Writer, error) {
+	type dialResult struct {
+		w   *syslog.Writer
+		err error
+	}
+	done := make(chan dialResult, 1)
 	go func() {
-		defer close(done)
-		w, err = syslog.Dial(network, addr, syslog.LOG_INFO, tag)
+		w, err := syslog.Dial(network, addr, syslog.LOG_INFO, tag)
+		done <- dialResult{w: w, err: err}
 	}()
 	select {
-	case <-done:
-		return w, err
+	case res := <-done:
+		return res.w, res.err
 	case <-time.After(syslogDialTimeout):
-		return nil, fmt.Errorf("syslog dial to %s timed out after %s", addr, syslogDialTimeout)
+		go func() {
+			res := <-done
+			if res.w != nil {
+				_ = res.w.Close()
+			}
+		}()
+		return nil, fmt.Errorf("syslog dial to %s://%s timed out after %s", network, addr, syslogDialTimeout)
 	}
 }
 
@@ -67,7 +94,8 @@ func getSyslogWriter() io.Writer {
 
 func closeSyslog() {
 	if syslogUnsafeWriter != nil {
-		syslogUnsafeWriter.Close()
+		_ = syslogUnsafeWriter.Close()
 		syslogUnsafeWriter = nil
 	}
+	syslogConnectedKey = ""
 }
