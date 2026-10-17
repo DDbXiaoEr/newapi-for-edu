@@ -73,4 +73,23 @@ describe('auth layout', () => {
       'https://github.com/DDbXiaoEr/newapi-for-edu'
     )
   })
+
+  it('retains the required upstream attribution and link', () => {
+    render(
+      <AuthLayout>
+        <h2>Sign in</h2>
+      </AuthLayout>
+    )
+
+    const upstream = screen.getByRole('link', {
+      name: 'New API contributors',
+    })
+    expect(upstream).toHaveAttribute(
+      'href',
+      'https://github.com/QuantumNous/new-api'
+    )
+    expect(upstream.parentElement).toHaveTextContent(
+      'Frontend design and development by New API contributors.'
+    )
+  })
 })

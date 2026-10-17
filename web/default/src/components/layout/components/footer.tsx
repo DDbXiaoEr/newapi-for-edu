@@ -25,6 +25,8 @@ import { useSystemConfig } from '@/hooks/use-system-config'
 import { PROJECT_SOURCE_URL } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 
+import { NewApiAttribution } from './new-api-attribution'
+
 interface FooterLink {
   text: string
   href: string
@@ -151,6 +153,7 @@ function ProjectAttribution(props: { currentYear: number; inline?: boolean }) {
           ),
         }}
       />{' '}
+      <NewApiAttribution />{' '}
       <a
         href={PROJECT_SOURCE_URL}
         target='_blank'

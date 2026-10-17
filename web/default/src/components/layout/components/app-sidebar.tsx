@@ -31,6 +31,7 @@ import { PROJECT_SOURCE_URL } from '@/lib/constants'
 import { MOTION_TRANSITION, MOTION_VARIANTS } from '@/lib/motion'
 
 import { NavGroup } from './nav-group'
+import { NewApiAttribution } from './new-api-attribution'
 import { SidebarViewHeader } from './sidebar-view-header'
 
 /**
@@ -80,6 +81,7 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className='text-muted-foreground/50 px-3 py-2 text-[10px]'>
+        <NewApiAttribution className='mb-1 block' />
         <a
           href={PROJECT_SOURCE_URL}
           target='_blank'

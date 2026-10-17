@@ -310,6 +310,8 @@ LDAP / CAS はコンソールの「システム設定 → 認証」で設定し�
 - GitHub: [https://github.com/DDbXiaoEr/newapi-for-edu](https://github.com/DDbXiaoEr/newapi-for-edu)
 - Gitee ミラー: [https://gitee.com/ddbxiaoer/newapi_2_-edu](https://gitee.com/ddbxiaoer/newapi_2_-edu)
 
+Frontend design and development by [New API contributors](https://github.com/QuantumNous/new-api).
+
 お客様の組織のポリシーがAGPLv3ライセンスのソフトウェアの使用を許可していない場合、またはAGPLv3のオープンソース義務を回避したい場合は、こちらまでお問い合わせください：[support@quantumnous.com](mailto:support@quantumnous.com)
 
 ---

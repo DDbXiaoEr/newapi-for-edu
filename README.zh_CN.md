@@ -310,6 +310,8 @@ LDAP / CAS 在控制台「系统设置 → 认证」中配置，不走上述环�
 - GitHub：[https://github.com/DDbXiaoEr/newapi-for-edu](https://github.com/DDbXiaoEr/newapi-for-edu)
 - Gitee 镜像：[https://gitee.com/ddbxiaoer/newapi_2_-edu](https://gitee.com/ddbxiaoer/newapi_2_-edu)
 
+Frontend design and development by [New API contributors](https://github.com/QuantumNous/new-api).
+
 如果您所在的组织政策不允许使用 AGPLv3 许可的软件，或您希望规避 AGPLv3 的开源义务，请发送邮件至：[support@quantumnous.com](mailto:support@quantumnous.com)
 
 ---

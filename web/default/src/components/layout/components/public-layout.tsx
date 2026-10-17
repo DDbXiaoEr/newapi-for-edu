@@ -21,6 +21,7 @@ import { useTranslation } from 'react-i18next'
 import { PROJECT_SOURCE_URL } from '@/lib/constants'
 
 import type { TopNavLink } from '../types'
+import { NewApiAttribution } from './new-api-attribution'
 import { PublicHeader, type PublicHeaderProps } from './public-header'
 
 type PublicLayoutProps = {
@@ -61,6 +62,8 @@ export function PublicLayout(props: PublicLayoutProps) {
 
       <footer className='border-border/40 border-t'>
         <div className='text-muted-foreground/50 mx-auto flex w-full max-w-6xl flex-wrap items-center justify-center gap-x-2 gap-y-1 px-4 py-3 text-xs'>
+          <NewApiAttribution />
+          <span aria-hidden='true'>·</span>
           <span>AGPLv3</span>
           <span aria-hidden='true'>·</span>
           <a

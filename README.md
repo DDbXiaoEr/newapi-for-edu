@@ -310,6 +310,8 @@ This repository is a modified version of the upstream project. Modifications are
 - GitHub: [https://github.com/DDbXiaoEr/newapi-for-edu](https://github.com/DDbXiaoEr/newapi-for-edu)
 - Gitee mirror: [https://gitee.com/ddbxiaoer/newapi_2_-edu](https://gitee.com/ddbxiaoer/newapi_2_-edu)
 
+Frontend design and development by [New API contributors](https://github.com/QuantumNous/new-api).
+
 If your organization's policies do not permit the use of AGPLv3-licensed software, or if you wish to avoid the open-source obligations of AGPLv3, please contact us at: [support@quantumnous.com](mailto:support@quantumnous.com)
 
 ---

@@ -48,4 +48,23 @@ describe('public layout', () => {
       'https://github.com/DDbXiaoEr/newapi-for-edu'
     )
   })
+
+  it('retains the required upstream attribution and link', () => {
+    render(
+      <PublicLayout showMainContainer={false}>
+        <p>Custom home</p>
+      </PublicLayout>
+    )
+
+    const upstream = screen.getByRole('link', {
+      name: 'New API contributors',
+    })
+    expect(upstream).toHaveAttribute(
+      'href',
+      'https://github.com/QuantumNous/new-api'
+    )
+    expect(upstream.parentElement).toHaveTextContent(
+      'Frontend design and development by New API contributors.'
+    )
+  })
 })

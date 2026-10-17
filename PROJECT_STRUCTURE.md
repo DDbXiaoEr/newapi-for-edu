@@ -1541,6 +1541,7 @@ newapi_2_-edu/
         │   │   │   │   ├── nav-group.tsx
         │   │   │   │   ├── nav-link-item.tsx
         │   │   │   │   ├── navbar.tsx
+        │   │   │   │   ├── new-api-attribution.tsx
         │   │   │   │   ├── page-footer.tsx
         │   │   │   │   ├── public-header.tsx
         │   │   │   │   ├── public-layout.tsx

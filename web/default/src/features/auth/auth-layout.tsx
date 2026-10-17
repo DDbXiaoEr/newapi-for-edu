@@ -19,6 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 
+import { NewApiAttribution } from '@/components/layout/components/new-api-attribution'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PROTOCOL_ROUTES } from '@/features/home/lib/protocol-routes'
 import { useSystemConfig } from '@/hooks/use-system-config'
@@ -87,6 +88,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
           </div>
         </div>
         <p className='text-muted-foreground/50 px-4 pb-4 text-center text-xs'>
+          <NewApiAttribution className='mb-1 block' />
           <span>AGPLv3</span>
           <span aria-hidden='true'> · </span>
           <a
