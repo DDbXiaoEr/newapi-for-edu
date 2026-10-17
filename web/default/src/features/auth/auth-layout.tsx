@@ -22,6 +22,7 @@ import { useTranslation } from 'react-i18next'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PROTOCOL_ROUTES } from '@/features/home/lib/protocol-routes'
 import { useSystemConfig } from '@/hooks/use-system-config'
+import { PROJECT_SOURCE_URL } from '@/lib/constants'
 
 type AuthLayoutProps = {
   children: React.ReactNode
@@ -66,8 +67,12 @@ export function AuthLayout({ children }: AuthLayoutProps) {
           <ul className='mt-8 space-y-2.5 font-mono text-sm'>
             {PROTOCOL_ROUTES.map((route) => (
               <li key={route.id} className='flex items-baseline gap-3'>
-                <span className='text-primary w-10 shrink-0'>{route.method}</span>
-                <span className='text-foreground/80 truncate'>{route.path}</span>
+                <span className='text-primary w-10 shrink-0'>
+                  {route.method}
+                </span>
+                <span className='text-foreground/80 truncate'>
+                  {route.path}
+                </span>
               </li>
             ))}
           </ul>
@@ -81,6 +86,18 @@ export function AuthLayout({ children }: AuthLayoutProps) {
             {children}
           </div>
         </div>
+        <p className='text-muted-foreground/50 px-4 pb-4 text-center text-xs'>
+          <span>AGPLv3</span>
+          <span aria-hidden='true'> · </span>
+          <a
+            href={PROJECT_SOURCE_URL}
+            target='_blank'
+            rel='noopener noreferrer'
+            className='hover:text-foreground transition-colors'
+          >
+            {t('源代码')}
+          </a>
+        </p>
       </div>
     </div>
   )

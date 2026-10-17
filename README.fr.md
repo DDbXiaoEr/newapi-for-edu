@@ -305,6 +305,11 @@ Ce projet est sous licence [GNU Affero General Public License v3.0 (AGPLv3)](./L
 
 Ce projet est un projet open-source développé sur la base de **NEWAPI** ([https://github.com/Calcium-Ion/new-api](https://github.com/Calcium-Ion/new-api)) (sous licence MIT).
 
+Ce dépôt est une version modifiée du projet amont. Les modifications sont documentées dans l'historique des commits et dans la section « University Custom Features » ci-dessus. Le code source correspondant de cette version modifiée est disponible ici :
+
+- GitHub : [https://github.com/DDbXiaoEr/newapi-for-edu](https://github.com/DDbXiaoEr/newapi-for-edu)
+- Miroir Gitee : [https://gitee.com/ddbxiaoer/newapi_2_-edu](https://gitee.com/ddbxiaoer/newapi_2_-edu)
+
 Si les politiques de votre organisation ne permettent pas l'utilisation de logiciels sous licence AGPLv3, ou si vous souhaitez éviter les obligations open-source de l'AGPLv3, veuillez nous contacter à : [support@quantumnous.com](mailto:support@quantumnous.com)
 
 ---

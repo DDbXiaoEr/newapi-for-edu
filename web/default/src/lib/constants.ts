@@ -24,6 +24,9 @@ For commercial licensing, please contact support@quantumnous.com
 export const DEFAULT_SYSTEM_NAME = 'New API'
 export const DEFAULT_LOGO = '/logo.png'
 
+// AGPLv3 Corresponding Source for this modified distribution.
+export const PROJECT_SOURCE_URL = 'https://github.com/DDbXiaoEr/newapi-for-edu'
+
 // LocalStorage Keys
 export const STORAGE_KEYS = {
   SYSTEM_NAME: 'system_name',

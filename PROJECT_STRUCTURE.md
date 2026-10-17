@@ -1524,6 +1524,8 @@ newapi_2_-edu/
         │   │   ├── json-editor.tsx
         │   │   ├── language-switcher.tsx
         │   │   ├── layout/
+        │   │   │   ├── __tests__/
+        │   │   │   │   └── public-layout.test.tsx
         │   │   │   ├── components/
         │   │   │   │   ├── app-header.tsx
         │   │   │   │   ├── app-sidebar.tsx

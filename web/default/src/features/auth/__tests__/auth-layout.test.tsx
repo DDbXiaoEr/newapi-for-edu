@@ -60,4 +60,17 @@ describe('auth layout', () => {
       expect(screen.getByText(route.path)).toBeInTheDocument()
     }
   })
+
+  it('offers the AGPLv3 corresponding source link', () => {
+    render(
+      <AuthLayout>
+        <h2>Sign in</h2>
+      </AuthLayout>
+    )
+
+    expect(screen.getByRole('link', { name: '源代码' })).toHaveAttribute(
+      'href',
+      'https://github.com/DDbXiaoEr/newapi-for-edu'
+    )
+  })
 })

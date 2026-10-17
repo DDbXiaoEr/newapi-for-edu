@@ -17,10 +17,17 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import { useTranslation } from 'react-i18next'
 
-import { Sidebar, SidebarContent, SidebarRail } from '@/components/ui/sidebar'
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarRail,
+} from '@/components/ui/sidebar'
 import { useLayout } from '@/context/layout-provider'
 import { useSidebarView } from '@/hooks/use-sidebar-view'
+import { PROJECT_SOURCE_URL } from '@/lib/constants'
 import { MOTION_TRANSITION, MOTION_VARIANTS } from '@/lib/motion'
 
 import { NavGroup } from './nav-group'
@@ -44,6 +51,7 @@ import { SidebarViewHeader } from './sidebar-view-header'
  * in the registry; this component requires no changes.
  */
 export function AppSidebar() {
+  const { t } = useTranslation()
   const { collapsible, variant } = useLayout()
   const { key, view, navGroups } = useSidebarView()
   const shouldReduce = useReducedMotion()
@@ -70,6 +78,17 @@ export function AppSidebar() {
           </motion.div>
         </AnimatePresence>
       </SidebarContent>
+
+      <SidebarFooter className='text-muted-foreground/50 px-3 py-2 text-[10px]'>
+        <a
+          href={PROJECT_SOURCE_URL}
+          target='_blank'
+          rel='noopener noreferrer'
+          className='hover:text-foreground transition-colors'
+        >
+          AGPLv3 · {t('源代码')}
+        </a>
+      </SidebarFooter>
 
       <SidebarRail />
     </Sidebar>

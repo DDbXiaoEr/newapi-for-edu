@@ -305,6 +305,11 @@ LDAP / CAS 在控制台「系统设置 → 认证」中配置，不走上述环�
 
 本项目为开源项目，在 **NEWAPI** ([https://github.com/Calcium-Ion/new-api](https://github.com/Calcium-Ion/new-api))（基于 MIT 许可证）的基础上进行二次开发。
 
+本仓库是上游项目的修改版本，修改内容记录在提交历史及上文「高校定制功能」章节中。本修改版本的完整对应源码（Corresponding Source）可从以下地址获取：
+
+- GitHub：[https://github.com/DDbXiaoEr/newapi-for-edu](https://github.com/DDbXiaoEr/newapi-for-edu)
+- Gitee 镜像：[https://gitee.com/ddbxiaoer/newapi_2_-edu](https://gitee.com/ddbxiaoer/newapi_2_-edu)
+
 如果您所在的组织政策不允许使用 AGPLv3 许可的软件，或您希望规避 AGPLv3 的开源义务，请发送邮件至：[support@quantumnous.com](mailto:support@quantumnous.com)
 
 ---

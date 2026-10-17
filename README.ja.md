@@ -305,6 +305,11 @@ LDAP / CAS はコンソールの「システム設定 → 認証」で設定し�
 
 本プロジェクトは、**NEWAPI** ([https://github.com/Calcium-Ion/new-api](https://github.com/Calcium-Ion/new-api))（MITライセンスに基づく）をベースに二次開発されたオープンソースプロジェクトです。
 
+本リポジトリは上流プロジェクトの改変版です。改変内容はコミット履歴および上記の「大学カスタム機能」セクションに記録されています。本改変版の対応するソースコード（Corresponding Source）は以下で入手できます。
+
+- GitHub: [https://github.com/DDbXiaoEr/newapi-for-edu](https://github.com/DDbXiaoEr/newapi-for-edu)
+- Gitee ミラー: [https://gitee.com/ddbxiaoer/newapi_2_-edu](https://gitee.com/ddbxiaoer/newapi_2_-edu)
+
 お客様の組織のポリシーがAGPLv3ライセンスのソフトウェアの使用を許可していない場合、またはAGPLv3のオープンソース義務を回避したい場合は、こちらまでお問い合わせください：[support@quantumnous.com](mailto:support@quantumnous.com)
 
 ---

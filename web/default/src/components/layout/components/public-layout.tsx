@@ -16,6 +16,10 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+import { useTranslation } from 'react-i18next'
+
+import { PROJECT_SOURCE_URL } from '@/lib/constants'
+
 import type { TopNavLink } from '../types'
 import { PublicHeader, type PublicHeaderProps } from './public-header'
 
@@ -33,8 +37,9 @@ type PublicLayoutProps = {
 }
 
 export function PublicLayout(props: PublicLayoutProps) {
+  const { t } = useTranslation()
   return (
-    <div className='bg-background text-foreground relative min-h-svh overflow-x-clip'>
+    <div className='bg-background text-foreground relative flex min-h-svh flex-col overflow-x-clip'>
       <PublicHeader
         navContent={props.navContent}
         navLinks={props.navLinks}
@@ -47,12 +52,27 @@ export function PublicLayout(props: PublicLayoutProps) {
       />
 
       {props.showMainContainer !== false ? (
-        <main className='container px-4 py-6 pt-20 md:px-4'>
+        <main className='container flex-1 px-4 py-6 pt-20 md:px-4'>
           {props.children}
         </main>
       ) : (
-        props.children
+        <div className='flex-1'>{props.children}</div>
       )}
+
+      <footer className='border-border/40 border-t'>
+        <div className='text-muted-foreground/50 mx-auto flex w-full max-w-6xl flex-wrap items-center justify-center gap-x-2 gap-y-1 px-4 py-3 text-xs'>
+          <span>AGPLv3</span>
+          <span aria-hidden='true'>·</span>
+          <a
+            href={PROJECT_SOURCE_URL}
+            target='_blank'
+            rel='noopener noreferrer'
+            className='hover:text-foreground transition-colors'
+          >
+            {t('源代码')}
+          </a>
+        </div>
+      </footer>
     </div>
   )
 }
