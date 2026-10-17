@@ -187,6 +187,7 @@ func (s *s3ArtifactStore) Serve(c *gin.Context, task *model.Task, ref *StoredArt
 		if head.ContentDisposition != nil && *head.ContentDisposition != "" {
 			header.Set("Content-Disposition", *head.ContentDisposition)
 		}
+		SetTaskArtifactDownloadDisposition(c, c.Param("artifact_key"), header.Get("Content-Type"))
 		setStoredArtifactSecurityHeaders(header)
 		c.Status(http.StatusOK)
 		return nil
@@ -228,6 +229,7 @@ func (s *s3ArtifactStore) Serve(c *gin.Context, task *model.Task, ref *StoredArt
 	if output.ContentDisposition != nil && *output.ContentDisposition != "" {
 		header.Set("Content-Disposition", *output.ContentDisposition)
 	}
+	SetTaskArtifactDownloadDisposition(c, c.Param("artifact_key"), header.Get("Content-Type"))
 	setStoredArtifactSecurityHeaders(header)
 
 	status := http.StatusOK

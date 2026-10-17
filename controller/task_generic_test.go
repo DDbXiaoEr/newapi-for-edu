@@ -280,6 +280,42 @@ func TestLegacyVideoArtifactContentUsesGetResultURL(t *testing.T) {
 	assert.Equal(t, "bytes 0-3/4", recorder.Header().Get("Content-Range"))
 }
 
+func TestLegacyVideoArtifactDownloadUsesAttachmentDisposition(t *testing.T) {
+	task := setupGenericTaskTest(t)
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "video/mp4")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("video-bytes"))
+	}))
+	defer upstream.Close()
+	allowPrivateTaskMediaTest(t)
+
+	task.Action = constant.TaskActionTextToVideo
+	task.PrivateData.ResultURL = upstream.URL
+	task.FailReason = "https://stale.invalid/legacy-fallback.mp4"
+	require.NoError(t, model.DB.Save(task).Error)
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Set(middleware.TaskArtifactAccessContextKey, true)
+	c.Params = gin.Params{
+		{Key: "key", Value: task.TaskID},
+		{Key: "artifact_key", Value: "video"},
+	}
+	c.Request = httptest.NewRequest(
+		http.MethodGet,
+		"/v1/tasks/"+task.TaskID+"/artifacts/video/content?download=1",
+		nil,
+	)
+
+	TaskArtifactContent(c)
+
+	assert.Equal(t, http.StatusOK, recorder.Code)
+	disposition := recorder.Header().Get("Content-Disposition")
+	assert.Contains(t, disposition, "attachment;")
+	assert.Contains(t, disposition, "video.mp4")
+}
+
 func TestDisabledArtifactStorePreservesPluginUpstreamContent(t *testing.T) {
 	task := setupGenericTaskTest(t)
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

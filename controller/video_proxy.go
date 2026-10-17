@@ -308,6 +308,7 @@ func proxyTaskMedia(c *gin.Context, task *model.Task, descriptor *relaychannel.T
 	switch resp.StatusCode {
 	case http.StatusOK, http.StatusPartialContent, http.StatusNotModified, http.StatusRequestedRangeNotSatisfiable:
 		copyTaskMediaResponseHeaders(c.Writer.Header(), resp.Header)
+		service.SetTaskArtifactDownloadDisposition(c, c.Param("artifact_key"), c.Writer.Header().Get("Content-Type"))
 		setTaskMediaResponseSecurityHeaders(c.Writer.Header())
 		c.Status(resp.StatusCode)
 		c.Writer.WriteHeaderNow()
@@ -637,6 +638,7 @@ func writeVideoDataURL(c *gin.Context, dataURL string) error {
 
 	c.Writer.Header().Set("Content-Type", mimeType)
 	c.Writer.Header().Set("Content-Length", strconv.FormatInt(contentLength, 10))
+	service.SetTaskArtifactDownloadDisposition(c, c.Param("artifact_key"), mimeType)
 	setTaskMediaResponseSecurityHeaders(c.Writer.Header())
 	c.Writer.WriteHeader(http.StatusOK)
 	if c.Request.Method == http.MethodHead {

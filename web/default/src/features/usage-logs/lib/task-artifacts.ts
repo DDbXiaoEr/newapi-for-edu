@@ -132,6 +132,12 @@ function parseTaskArtifact(value: unknown): TaskArtifact {
   return artifact
 }
 
+export function taskArtifactDownloadUrl(contentUrl: string): string {
+  const url = new URL(contentUrl)
+  url.searchParams.set('download', '1')
+  return url.toString()
+}
+
 export function parseTaskArtifactsResponse(
   response: TaskArtifactsResponse
 ): TaskArtifactProjection {

@@ -73,6 +73,45 @@ func TestTaskArtifactObjectKey(t *testing.T) {
 	assert.Equal(t, "task_id_with_spaces/video", taskArtifactObjectKey(system_setting.TaskArtifactStoreConfig{}, task, "video"))
 }
 
+func TestTaskArtifactDownloadDisposition(t *testing.T) {
+	tests := []struct {
+		name  string
+		query string
+		want  bool
+	}{
+		{name: "absent", query: "", want: false},
+		{name: "one", query: "?download=1", want: true},
+		{name: "true", query: "?download=true", want: true},
+		{name: "bare", query: "?download", want: true},
+		{name: "false", query: "?download=0", want: false},
+	}
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(recorder)
+			c.Request = httptest.NewRequest(http.MethodGet, "/artifact"+testCase.query, nil)
+			assert.Equal(t, testCase.want, TaskArtifactDownloadRequested(c))
+		})
+	}
+
+	assert.Equal(t, "image-main.png", taskArtifactDownloadFilename("image-main", "image/png"))
+	assert.Equal(t, "clip.mp4", taskArtifactDownloadFilename("clip.mp4", "video/mp4"))
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodGet, "/artifact?download=1", nil)
+	SetTaskArtifactDownloadDisposition(c, "image-main", "image/png")
+	disposition := recorder.Header().Get("Content-Disposition")
+	assert.Contains(t, disposition, "attachment;")
+	assert.Contains(t, disposition, "image-main.png")
+
+	recorder = httptest.NewRecorder()
+	c, _ = gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodGet, "/artifact", nil)
+	SetTaskArtifactDownloadDisposition(c, "image-main", "image/png")
+	assert.Empty(t, recorder.Header().Get("Content-Disposition"))
+}
+
 func TestTaskArtifactStoreSigningRegion(t *testing.T) {
 	assert.Equal(t, system_setting.DefaultTaskArtifactStoreRegion, taskArtifactStoreSigningRegion(system_setting.TaskArtifactStoreConfig{}))
 	assert.Equal(t, system_setting.DefaultTaskArtifactStoreRegion, taskArtifactStoreSigningRegion(system_setting.TaskArtifactStoreConfig{Region: "   "}))
@@ -151,4 +190,14 @@ func TestS3TaskArtifactStorePersistResolveServe(t *testing.T) {
 	assert.Equal(t, "content", recorder.Body.String())
 	assert.Equal(t, "video/mp4", recorder.Header().Get("Content-Type"))
 	assert.Equal(t, "private, no-store", recorder.Header().Get("Cache-Control"))
+
+	downloadRecorder := httptest.NewRecorder()
+	downloadContext, _ := gin.CreateTestContext(downloadRecorder)
+	downloadContext.Params = gin.Params{{Key: "artifact_key", Value: "video"}}
+	downloadContext.Request = httptest.NewRequest(http.MethodGet, "/artifact?download=1", nil)
+	require.NoError(t, store.Serve(downloadContext, task, resolved))
+	assert.Equal(t, http.StatusOK, downloadRecorder.Code)
+	disposition := downloadRecorder.Header().Get("Content-Disposition")
+	assert.Contains(t, disposition, "attachment;")
+	assert.Contains(t, disposition, "video.mp4")
 }

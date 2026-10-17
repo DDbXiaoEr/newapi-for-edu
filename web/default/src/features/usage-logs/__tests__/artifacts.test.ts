@@ -17,6 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 import assert from 'node:assert/strict'
+
 import { describe, test } from 'vitest'
 
 import {
@@ -24,6 +25,7 @@ import {
   parseTaskArtifactsResponse,
   resolveTaskPreviewMode,
   shouldLoadTaskArtifacts,
+  taskArtifactDownloadUrl,
   TaskArtifactApiError,
 } from '../lib/task-artifacts'
 import type { TaskLog } from '../types'
@@ -333,6 +335,19 @@ describe('legacy task preview compatibility', () => {
         })
       ),
       'plugin'
+    )
+  })
+})
+
+describe('task artifact download URLs', () => {
+  test('adds the download flag while preserving the access token', () => {
+    const contentUrl = artifactContentUrl('image-main')
+    const downloadUrl = new URL(taskArtifactDownloadUrl(contentUrl))
+    assert.equal(downloadUrl.searchParams.get('download'), '1')
+    assert.equal(downloadUrl.searchParams.get('access'), artifactAccessToken)
+    assert.equal(
+      downloadUrl.pathname,
+      '/media-prefix/v1/tasks/task-public/artifacts/image-main/content'
     )
   })
 })

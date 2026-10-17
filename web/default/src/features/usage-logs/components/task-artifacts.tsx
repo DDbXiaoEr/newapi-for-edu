@@ -62,6 +62,7 @@ import { getTaskArtifacts } from '../api'
 import {
   resolveTaskPreviewMode,
   shouldLoadTaskArtifacts,
+  taskArtifactDownloadUrl,
 } from '../lib/task-artifacts'
 import type { TaskArtifact, TaskArtifactType, TaskLog } from '../types'
 import {
@@ -282,12 +283,7 @@ function TaskArtifactCard(props: { artifact: TaskArtifact }) {
           size='sm'
           nativeButton={false}
           render={
-            <a
-              href={props.artifact.content_url}
-              download={props.artifact.key}
-              target='_blank'
-              rel='noopener noreferrer'
-            />
+            <a href={taskArtifactDownloadUrl(props.artifact.content_url)} />
           }
         >
           <HugeiconsIcon
