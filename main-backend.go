@@ -136,6 +136,8 @@ func main() {
 		return a
 	}
 
+	service.TaskArtifactSourceFactory = relay.NewTaskArtifactSource
+
 	// Register the periodic channel test, upstream model update, and async task
 	// polling jobs as scheduled system tasks, then start the runner.
 	controller.RegisterScheduledSystemTasks()

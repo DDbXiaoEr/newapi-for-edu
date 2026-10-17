@@ -89,6 +89,7 @@
 | 去掉 SQLite | ✅ 已完成 | 僅支援 MySQL ≥ 5.7.8 / PostgreSQL ≥ 9.6；啟動必須提供 `SQL_DSN` |
 | JWT 會話 | ✅ 已完成 | 去掉 Cookie Session，控制台鑑權改為 JWT（`JWT_SECRET` / `JWT_EXPIRATION_SECONDS`） |
 | Syslog | ✅ 已完成 | 可選輸出到遠端/本機 syslog，連線逾時避免阻塞啟動 |
+| S3 製品存儲 | ✅ 已完成 | 圖片/影片任務產物持久化到 S3 相容儲存（RustFS、MinIO、AWS S3）；下載由服務端代理，region 可留空 |
 | Docker Compose 全棧 | ✅ 已完成 | `docker-compose/` 提供 PostgreSQL、Redis、ClickHouse、OpenLDAP 與本服務 |
 | Kubernetes | ✅ 已完成 | `kubernetes/` 含 Deployment、Service、HPA、ConfigMap/Secret 及外部依賴清單 |
 | amd64 / arm64 構建 | ✅ 已完成 | `make` 可交叉編譯 Linux amd64/arm64，以及純後端 / 全棧鏡像 |
@@ -167,6 +168,7 @@ docker compose -f docker-compose/docker-compose.yml up -d
 - 👥 **批次分配使用者分組**：管理端可批次劃入指定分組
 - 🧾 **JWT + Syslog**：去掉 Cookie Session；可選 syslog，逾時不阻塞啟動
 - 🚢 **高校部署清單**：去掉 SQLite；提供 Docker Compose 全棧與 Kubernetes + HPA
+- 🗄️ **S3 製品存儲**：圖片/影片任務產物自動保存到 S3 相容物件儲存（RustFS、MinIO、AWS S3）；下載仍由服務端代理，金鑰不會暴露給用戶端
 - 📚 **課程 / 班級管理**（🔜 規劃中）
 
 ---
@@ -242,8 +244,16 @@ kubectl apply -k kubernetes/
 | `SYSLOG_NETWORK` | syslog 協議（`udp`/`tcp`，空則本機 socket） | - |
 | `SYSLOG_ADDR` | 遠端 syslog 地址 | - |
 | `SYSLOG_TAG` | syslog 標識 | `newapi` |
+| `TASK_ARTIFACT_STORE_MODE` | 製品存儲模式（`upstream` / `s3`） | `upstream` |
+| `TASK_ARTIFACT_STORE_S3_ENDPOINT` | S3 相容服務位址 | - |
+| `TASK_ARTIFACT_STORE_S3_BUCKET` | 任務製品存儲桶 | - |
+| `TASK_ARTIFACT_STORE_S3_REGION` | 簽名 region；RustFS / MinIO 可留空 | - |
+| `TASK_ARTIFACT_STORE_S3_ACCESS_KEY` | S3 Access Key | - |
+| `TASK_ARTIFACT_STORE_S3_SECRET_KEY` | S3 Secret Key | - |
+| `TASK_ARTIFACT_STORE_S3_PREFIX` | 物件 Key 前綴 | - |
+| `TASK_ARTIFACT_STORE_S3_PATH_STYLE` | 使用 path-style 尋址 | `true` |
 
-LDAP / CAS 在控制台「系統設置 → 認證」中配置，不走上述環境變數。
+LDAP / CAS 在控制台「系統設置 → 認證」中配置，不走上述環境變數。S3 製品存儲也可在控制台的「Artifact Storage」中設定。
 
 📖 **完整配置**：請參考 NEWAPI 環境變數文檔 + 本倉庫 `docker-compose/`、`kubernetes/`
 

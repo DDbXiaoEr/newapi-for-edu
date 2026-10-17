@@ -426,6 +426,13 @@ export type OperationsSettings = {
   'perf_metrics_setting.flush_interval': number
   'perf_metrics_setting.bucket_time': 'hour' | 'minute' | '5min'
   'perf_metrics_setting.retention_days': number
+  'task_artifact_store.mode': 'upstream' | 's3'
+  'task_artifact_store.endpoint': string
+  'task_artifact_store.bucket': string
+  'task_artifact_store.region': string
+  'task_artifact_store.access_key': string
+  'task_artifact_store.prefix': string
+  'task_artifact_store.path_style': boolean
 }
 
 export type SecuritySettings = {

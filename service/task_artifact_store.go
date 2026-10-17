@@ -6,13 +6,11 @@ import (
 	"io"
 
 	"github.com/QuantumNous/new-api/model"
-	"github.com/QuantumNous/new-api/setting/system_setting"
 	"github.com/QuantumNous/new-api/types"
 	"github.com/gin-gonic/gin"
 )
 
-// StoredArtifactRef describes a persisted artifact object. No reference is
-// produced until a concrete storage backend is implemented.
+// StoredArtifactRef describes a persisted artifact object.
 type StoredArtifactRef struct {
 	Backend   string
 	Bucket    string
@@ -25,39 +23,22 @@ type StoredArtifactRef struct {
 // types.TaskArtifact is re-exported by relay/channel as channel.TaskArtifact.
 type TaskArtifactStore interface {
 	Enabled() bool
-	Resolve(task *model.Task, artifactKey string) (*StoredArtifactRef, error)
+	Resolve(ctx context.Context, task *model.Task, artifactKey string) (*StoredArtifactRef, error)
 	Persist(ctx context.Context, task *model.Task, artifact types.TaskArtifact, content io.Reader) (*StoredArtifactRef, error)
 	Serve(c *gin.Context, task *model.Task, ref *StoredArtifactRef) error
 }
 
-var ErrTaskArtifactStoreDisabled = errors.New("task artifact store is disabled")
+var (
+	ErrTaskArtifactStoreDisabled       = errors.New("task artifact store is disabled")
+	ErrTaskArtifactNotFound            = errors.New("task artifact not found")
+	ErrTaskArtifactStoreUnavailable    = errors.New("task artifact store is unavailable")
+	ErrTaskArtifactRangeNotSatisfiable = errors.New("task artifact range is not satisfiable")
+)
 
-type disabledArtifactStore struct{}
+var taskArtifactStore TaskArtifactStore = newS3ArtifactStore()
 
-func (disabledArtifactStore) Enabled() bool {
-	return false
-}
-
-func (disabledArtifactStore) Resolve(*model.Task, string) (*StoredArtifactRef, error) {
-	return nil, nil
-}
-
-func (disabledArtifactStore) Persist(context.Context, *model.Task, types.TaskArtifact, io.Reader) (*StoredArtifactRef, error) {
-	return nil, ErrTaskArtifactStoreDisabled
-}
-
-func (disabledArtifactStore) Serve(*gin.Context, *model.Task, *StoredArtifactRef) error {
-	return ErrTaskArtifactStoreDisabled
-}
-
-var taskArtifactStore TaskArtifactStore = &disabledArtifactStore{}
-
-func init() {
-	_ = system_setting.LoadTaskArtifactStoreConfig()
-}
-
-// GetTaskArtifactStore returns the process-wide artifact storage backend. This
-// release always returns the disabled implementation.
+// GetTaskArtifactStore returns the process-wide artifact storage backend. The
+// returned store is inert while S3 artifact storage is disabled or incomplete.
 func GetTaskArtifactStore() TaskArtifactStore {
 	return taskArtifactStore
 }

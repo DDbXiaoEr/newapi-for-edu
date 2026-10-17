@@ -89,6 +89,7 @@ Note: 本项目目前所有的更改全部由AI完成，由于本人去年脑出
 | 去掉 SQLite | ✅ 已完成 | 仅支持 MySQL ≥ 5.7.8 / PostgreSQL ≥ 9.6；启动必须提供 `SQL_DSN` |
 | JWT 会话 | ✅ 已完成 | 去掉 Cookie Session，控制台鉴权改为 JWT（`JWT_SECRET` / `JWT_EXPIRATION_SECONDS`） |
 | Syslog | ✅ 已完成 | 可选输出到远程/本地 syslog，连接超时避免阻塞启动 |
+| S3 制品存储 | ✅ 已完成 | 图片/视频任务产物持久化到 S3 兼容存储（RustFS、MinIO、AWS S3）；下载由服务端代理，region 可留空 |
 | Docker Compose 全栈 | ✅ 已完成 | `docker-compose/` 提供 PostgreSQL、Redis、ClickHouse、OpenLDAP 与本服务 |
 | Kubernetes | ✅ 已完成 | `kubernetes/` 含 Deployment、Service、HPA、ConfigMap/Secret 及外部依赖清单 |
 | amd64 / arm64 构建 | ✅ 已完成 | `make` 可交叉编译 Linux amd64/arm64，以及纯后端 / 全栈镜像 |
@@ -167,6 +168,7 @@ docker compose -f docker-compose/docker-compose.yml up -d
 - 👥 **批量分配用户分组**：管理端可批量划入指定分组
 - 🧾 **JWT + Syslog**：去掉 Cookie Session；可选 syslog，超时不阻塞启动
 - 🚢 **高校部署清单**：去掉 SQLite；提供 Docker Compose 全栈与 Kubernetes + HPA
+- 🗄️ **S3 制品存储**：图片/视频任务产物自动保存到 S3 兼容对象存储（RustFS、MinIO、AWS S3）；下载仍由服务端代理，密钥不会暴露给客户端
 - 📚 **课程 / 班级管理**（🔜 计划中）
 
 ---
@@ -242,8 +244,16 @@ kubectl apply -k kubernetes/
 | `SYSLOG_NETWORK` | syslog 协议（`udp`/`tcp`，空则本地 socket） | - |
 | `SYSLOG_ADDR` | 远程 syslog 地址 | - |
 | `SYSLOG_TAG` | syslog 标识 | `newapi` |
+| `TASK_ARTIFACT_STORE_MODE` | 制品存储模式（`upstream` / `s3`） | `upstream` |
+| `TASK_ARTIFACT_STORE_S3_ENDPOINT` | S3 兼容服务地址 | - |
+| `TASK_ARTIFACT_STORE_S3_BUCKET` | 任务制品存储桶 | - |
+| `TASK_ARTIFACT_STORE_S3_REGION` | 签名 region；RustFS / MinIO 可留空 | - |
+| `TASK_ARTIFACT_STORE_S3_ACCESS_KEY` | S3 Access Key | - |
+| `TASK_ARTIFACT_STORE_S3_SECRET_KEY` | S3 Secret Key | - |
+| `TASK_ARTIFACT_STORE_S3_PREFIX` | 对象 Key 前缀 | - |
+| `TASK_ARTIFACT_STORE_S3_PATH_STYLE` | 使用 path-style 寻址 | `true` |
 
-LDAP / CAS 在控制台「系统设置 → 认证」中配置，不走上述环境变量。
+LDAP / CAS 在控制台「系统设置 → 认证」中配置，不走上述环境变量。S3 制品存储也可在控制台「系统设置 → 运维 → Artifact Storage」中配置。
 
 📖 **完整配置**：请参考 NEWAPI 环境变量文档 + 本仓库 `docker-compose/`、`kubernetes/`
 

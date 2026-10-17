@@ -21,11 +21,12 @@ import { EmailSettingsSection } from '../integrations/email-settings-section'
 import { MonitoringSettingsSection } from '../integrations/monitoring-settings-section'
 import { WorkerSettingsSection } from '../integrations/worker-settings-section'
 import { LogSettingsSection } from '../maintenance/log-settings-section'
-import { SyslogSettingsSection } from '../maintenance/syslog-settings-section'
 import { PerformanceSection } from '../maintenance/performance-section'
+import { SyslogSettingsSection } from '../maintenance/syslog-settings-section'
 import { UpdateCheckerSection } from '../maintenance/update-checker-section'
 import type { OperationsSettings } from '../types'
 import { createSectionRegistry } from '../utils/section-registry'
+import { ArtifactStorageSection } from './artifact-storage-section'
 
 const OPERATIONS_SECTIONS = [
   {
@@ -113,6 +114,30 @@ const OPERATIONS_SECTIONS = [
           SyslogNetwork: settings.SyslogNetwork,
           SyslogAddr: settings.SyslogAddr,
           SyslogTag: settings.SyslogTag,
+        }}
+      />
+    ),
+  },
+  {
+    id: 'artifact-storage',
+    titleKey: 'Artifact Storage',
+    build: (settings: OperationsSettings) => (
+      <ArtifactStorageSection
+        defaultValues={{
+          'task_artifact_store.mode':
+            settings['task_artifact_store.mode'] ?? 'upstream',
+          'task_artifact_store.endpoint':
+            settings['task_artifact_store.endpoint'] ?? '',
+          'task_artifact_store.bucket':
+            settings['task_artifact_store.bucket'] ?? '',
+          'task_artifact_store.region':
+            settings['task_artifact_store.region'] ?? '',
+          'task_artifact_store.access_key':
+            settings['task_artifact_store.access_key'] ?? '',
+          'task_artifact_store.prefix':
+            settings['task_artifact_store.prefix'] ?? '',
+          'task_artifact_store.path_style':
+            settings['task_artifact_store.path_style'] ?? true,
         }}
       />
     ),

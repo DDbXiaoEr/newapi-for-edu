@@ -375,6 +375,9 @@ func updateBatchTasks(ctx context.Context, adaptor BatchTaskPollingAdaptor, chan
 			if task.Status == model.TaskStatusFailure && !billingSettled && task.Quota != 0 {
 				RefundTaskQuota(ctx, task, task.FailReason)
 			}
+			if task.Status == model.TaskStatusSuccess {
+				QueueTaskArtifactPersistence(task)
+			}
 		}
 	}
 	return nil
@@ -617,6 +620,9 @@ func updateVideoSingleTask(ctx context.Context, adaptor TaskPollingAdaptor, ch *
 		billingSettled := settleTaskBillingOnComplete(ctx, adaptor, task, taskResult)
 		if task.Status == model.TaskStatusFailure && !billingSettled && task.Quota != 0 {
 			RefundTaskQuota(ctx, task, task.FailReason)
+		}
+		if task.Status == model.TaskStatusSuccess {
+			QueueTaskArtifactPersistence(task)
 		}
 	}
 

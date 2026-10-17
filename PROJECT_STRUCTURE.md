@@ -898,6 +898,7 @@ newapi_2_-edu/
 │   ├── relay_adaptor.go
 │   ├── relay_adaptor_jsplugin_test.go
 │   ├── relay_task.go
+│   ├── relay_task_artifact.go
 │   ├── relay_task_test.go
 │   ├── request_billing.go
 │   ├── request_clone_test.go
@@ -1209,6 +1210,9 @@ newapi_2_-edu/
 │   ├── task.go
 │   ├── task_artifact_access.go
 │   ├── task_artifact_access_test.go
+│   ├── task_artifact_persist.go
+│   ├── task_artifact_persist_test.go
+│   ├── task_artifact_s3.go
 │   ├── task_artifact_store.go
 │   ├── task_artifact_store_test.go
 │   ├── task_billing.go
@@ -2554,6 +2558,9 @@ newapi_2_-edu/
         │   │   │   │   ├── visual-condition-tree.css
         │   │   │   │   └── visual-condition-tree.tsx
         │   │   │   ├── operations/
+        │   │   │   │   ├── __tests__/
+        │   │   │   │   │   └── artifact-storage-region.test.tsx
+        │   │   │   │   ├── artifact-storage-section.tsx
         │   │   │   │   ├── index.tsx
         │   │   │   │   └── section-registry.tsx
         │   │   │   ├── request-limits/

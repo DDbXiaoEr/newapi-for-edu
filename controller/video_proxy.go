@@ -18,6 +18,7 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/relay"
 	relaychannel "github.com/QuantumNous/new-api/relay/channel"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting/system_setting"
@@ -82,31 +83,56 @@ func VideoProxy(c *gin.Context) {
 		return
 	}
 
-	var descriptor *relaychannel.TaskContentRequest
+	artifactKey := ""
 	if taskHasPluginExecution(task) {
 		artifacts, projectionErr := projectTaskArtifacts(task)
 		if projectionErr == nil {
 			for _, artifact := range artifacts {
-				if artifact.Type != "video" {
-					continue
+				if artifact.Type == "video" {
+					artifactKey = artifact.Key
+					break
 				}
-				adaptor, adaptorErr := initTaskArtifactAdaptor(task)
-				if adaptorErr == nil {
-					if provider, ok := adaptor.(relaychannel.TaskContentRequestProvider); ok {
-						descriptor, adaptorErr = provider.BuildContentRequest(task, artifact.Key, relaychannel.TaskArtifactClientRequest{
-							Method:  c.Request.Method,
-							Headers: taskArtifactClientHeaders(c.Request.Header),
-						})
-					}
-				}
-				if adaptorErr != nil {
-					logger.LogWarn(c.Request.Context(), fmt.Sprintf("Failed to resolve plugin video content for task %s", taskID))
-					descriptor = nil
-				}
-				break
 			}
 		} else {
 			logger.LogWarn(c.Request.Context(), fmt.Sprintf("Failed to project plugin video for task %s", taskID))
+		}
+	} else if legacyVideoAvailable(task) {
+		artifactKey = "video"
+	}
+	if artifactKey == "" {
+		for key, stored := range task.PrivateData.Artifacts {
+			if stored.Type == "video" || key == "video" {
+				artifactKey = key
+				break
+			}
+		}
+	}
+	if artifactKey != "" {
+		served, serveErr := serveTaskArtifactFromStorage(c, task, artifactKey)
+		if serveErr != nil {
+			writeTaskArtifactStorageError(c, serveErr)
+			return
+		}
+		if served {
+			return
+		}
+		queueTaskArtifactPersist(task)
+	}
+
+	var descriptor *relaychannel.TaskContentRequest
+	if taskHasPluginExecution(task) && artifactKey != "" {
+		adaptor, adaptorErr := relay.InitTaskArtifactAdaptor(task)
+		if adaptorErr == nil {
+			if provider, ok := adaptor.(relaychannel.TaskContentRequestProvider); ok {
+				descriptor, adaptorErr = provider.BuildContentRequest(task, artifactKey, relaychannel.TaskArtifactClientRequest{
+					Method:  c.Request.Method,
+					Headers: taskArtifactClientHeaders(c.Request.Header),
+				})
+			}
+		}
+		if adaptorErr != nil {
+			logger.LogWarn(c.Request.Context(), fmt.Sprintf("Failed to resolve plugin video content for task %s", taskID))
+			descriptor = nil
 		}
 	}
 	if descriptor == nil {

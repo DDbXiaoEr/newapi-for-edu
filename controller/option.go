@@ -94,6 +94,7 @@ func GetOptions(c *gin.Context) {
 			strings.HasSuffix(k, "Secret") ||
 			strings.HasSuffix(k, "Key") ||
 			strings.HasSuffix(k, "secret") ||
+			strings.HasSuffix(k, "secret_key") ||
 			strings.HasSuffix(k, "api_key")
 		if isSensitiveKey {
 			continue
@@ -199,6 +200,12 @@ func UpdateOption(c *gin.Context) {
 		option.Value = common.Interface2String(option.Value.(int))
 	default:
 		option.Value = fmt.Sprintf("%v", option.Value)
+	}
+	if strings.HasPrefix(option.Key, system_setting.TaskArtifactStoreConfigName+".") {
+		if err := system_setting.ValidateTaskArtifactStoreOption(option.Key, option.Value.(string)); err != nil {
+			common.ApiErrorMsg(c, err.Error())
+			return
+		}
 	}
 	switch option.Key {
 	case "QuotaForInviter", "QuotaForInvitee":

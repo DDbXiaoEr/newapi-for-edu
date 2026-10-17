@@ -691,6 +691,9 @@ func executeTaskSubmissionWith(
 	}
 	service.LogTaskConsumption(c, relayInfo, task)
 	diagnostics.complete(task, result.Quota)
+	if task.Status == model.TaskStatusSuccess {
+		service.QueueTaskArtifactPersistence(task)
+	}
 
 	return &taskSubmissionOutcome{Result: result, Task: task, RelayInfo: relayInfo}, nil
 }

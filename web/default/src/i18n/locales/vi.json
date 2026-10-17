@@ -6838,6 +6838,26 @@
     "、": ", ",
     "，": ", ",
     "，and ": " và ",
-    "由 <author>V0ker</author> 二次开发。": "Phát triển lại bởi <author>V0ker</author>."
+    "由 <author>V0ker</author> 二次开发。": "Phát triển lại bởi <author>V0ker</author>.",
+    "Artifact Storage": "Artifact Storage",
+    "Store generated artifacts in S3": "Store generated artifacts in S3",
+    "Image and video task artifacts are copied to object storage. Downloads stay proxied by this server so S3 credentials are never exposed.": "Image and video task artifacts are copied to object storage. Downloads stay proxied by this server so S3 credentials are never exposed.",
+    "S3 Endpoint": "S3 Endpoint",
+    "Bucket": "Bucket",
+    "Region": "Region",
+    "Object Prefix": "Object Prefix",
+    "Access Key": "Access Key",
+    "Enter new secret to update": "Enter new secret to update",
+    "Leave blank to keep the existing secret. Fill all fields before enabling S3.": "Leave blank to keep the existing secret. Fill all fields before enabling S3.",
+    "Use path-style addressing": "Use path-style addressing",
+    "Enable for MinIO and most self-hosted S3-compatible services.": "Enable for MinIO and most self-hosted S3-compatible services.",
+    "Save artifact storage settings": "Save artifact storage settings",
+    "Endpoint and bucket are required before enabling S3": "Endpoint and bucket are required before enabling S3",
+    "The prefix must not start with a slash or contain backslashes": "The prefix must not start with a slash or contain backslashes",
+    "Use lowercase letters, numbers, dots, and hyphens": "Use lowercase letters, numbers, dots, and hyphens",
+    "optional/path": "optional/path",
+    "Access key ID": "Access key ID",
+    "https://s3.example.com": "https://s3.example.com",
+    "task-artifacts": "task-artifacts"
   }
 }

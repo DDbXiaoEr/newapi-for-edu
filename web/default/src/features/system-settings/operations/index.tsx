@@ -60,6 +60,13 @@ const defaultOperationsSettings: OperationsSettings = {
   'perf_metrics_setting.flush_interval': 5,
   'perf_metrics_setting.bucket_time': 'hour',
   'perf_metrics_setting.retention_days': 0,
+  'task_artifact_store.mode': 'upstream',
+  'task_artifact_store.endpoint': '',
+  'task_artifact_store.bucket': '',
+  'task_artifact_store.region': '',
+  'task_artifact_store.access_key': '',
+  'task_artifact_store.prefix': '',
+  'task_artifact_store.path_style': true,
 }
 
 export function OperationsSettings() {

@@ -89,6 +89,7 @@
 | SQLite 廃止 | ✅ 完了 | MySQL ≥ 5.7.8 / PostgreSQL ≥ 9.6 のみ。起動時に `SQL_DSN` 必須 |
 | JWT セッション | ✅ 完了 | Cookie Session を廃止し、コンソール認証を JWT に変更（`JWT_SECRET` / `JWT_EXPIRATION_SECONDS`） |
 | Syslog | ✅ 完了 | リモート/ローカル syslog。接続タイムアウトで起動ブロックを回避 |
+| S3 アーティファクトストレージ | ✅ 完了 | 画像/動画タスクの成果物を S3 互換ストレージ（RustFS、MinIO、AWS S3）へ永続化。ダウンロードはプロキシ経由、リージョンは省略可能 |
 | Docker Compose スタック | ✅ 完了 | `docker-compose/` に PostgreSQL、Redis、ClickHouse、OpenLDAP と本サービス |
 | Kubernetes | ✅ 完了 | `kubernetes/` に Deployment、Service、HPA、ConfigMap/Secret と外部依存マニフェスト |
 | amd64 / arm64 ビルド | ✅ 完了 | `make` で Linux amd64/arm64 クロスコンパイル、純バックエンド / オールインワンイメージ |
@@ -167,6 +168,7 @@ docker compose -f docker-compose/docker-compose.yml up -d
 - 👥 **ユーザーの一括グループ割当**：管理画面から対象グループへ一括移動
 - 🧾 **JWT + syslog**：Cookie Session 廃止。任意の syslog、接続タイムアウトで起動ブロック回避
 - 🚢 **大学向けデプロイ**：SQLite 廃止。Docker Compose スタックと Kubernetes + HPA
+- 🗄️ **S3 アーティファクトストレージ**：画像/動画タスクの成果物を S3 互換オブジェクトストレージ（RustFS、MinIO、AWS S3）へ保存。ダウンロードは引き続きサーバー経由で、認証情報はクライアントに公開されません
 - 📚 **コース / クラス管理**（🔜 計画中）
 
 ---
@@ -242,8 +244,16 @@ kubectl apply -k kubernetes/
 | `SYSLOG_NETWORK` | syslog プロトコル（`udp`/`tcp`、空ならローカル socket） | - |
 | `SYSLOG_ADDR` | リモート syslog アドレス | - |
 | `SYSLOG_TAG` | syslog タグ | `newapi` |
+| `TASK_ARTIFACT_STORE_MODE` | アーティファクト保存モード（`upstream` / `s3`） | `upstream` |
+| `TASK_ARTIFACT_STORE_S3_ENDPOINT` | S3 互換エンドポイント | - |
+| `TASK_ARTIFACT_STORE_S3_BUCKET` | タスクアーティファクト用バケット | - |
+| `TASK_ARTIFACT_STORE_S3_REGION` | 署名リージョン。RustFS / MinIO では空で可 | - |
+| `TASK_ARTIFACT_STORE_S3_ACCESS_KEY` | S3 アクセスキー | - |
+| `TASK_ARTIFACT_STORE_S3_SECRET_KEY` | S3 シークレットキー | - |
+| `TASK_ARTIFACT_STORE_S3_PREFIX` | オブジェクトキーのプレフィックス | - |
+| `TASK_ARTIFACT_STORE_S3_PATH_STYLE` | path-style アドレッシングを使用 | `true` |
 
-LDAP / CAS はコンソールの「システム設定 → 認証」で設定し、上記の環境変数は使いません。
+LDAP / CAS はコンソールの「システム設定 → 認証」で設定し、上記の環境変数は使いません。S3 アーティファクトストレージはコンソールの「Artifact Storage」からも設定できます。
 
 📖 **完全な設定**：NEWAPI 環境変数ドキュメント + 本リポジトリの `docker-compose/`、`kubernetes/`
 

@@ -12,6 +12,8 @@ import (
 	"github.com/QuantumNous/new-api/pkg/billingexpr"
 	commonRelay "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/relaykit/dto"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type TaskStatus string
@@ -131,6 +133,21 @@ type TaskPrivateData struct {
 	PluginState json.RawMessage `json:"plugin_state,omitempty"`
 	// PollFailures counts consecutive unrecognized or transient poll outcomes.
 	PollFailures int `json:"poll_failures,omitempty"`
+	// Artifacts records durable copies of task outputs. Keeping the manifest
+	// beside other private task state lets stored artifacts stay listable and
+	// downloadable even when the task plugin that produced them is unavailable.
+	Artifacts map[string]TaskStoredArtifact `json:"artifacts,omitempty"`
+}
+
+// TaskStoredArtifact identifies one durable task output.
+type TaskStoredArtifact struct {
+	Key       string `json:"key"`
+	Type      string `json:"type"`
+	MimeType  string `json:"mime_type,omitempty"`
+	Size      int64  `json:"size,omitempty"`
+	Backend   string `json:"backend,omitempty"`
+	Bucket    string `json:"bucket,omitempty"`
+	ObjectKey string `json:"object_key,omitempty"`
 }
 
 type TaskExecutionSnapshot struct {
@@ -202,7 +219,8 @@ func (p TaskPrivateData) Value() (driver.Value, error) {
 	if p.Key == "" && p.UpstreamTaskID == "" && p.ResultURL == "" &&
 		p.Execution == nil && p.BillingSource == "" && p.SubscriptionId == 0 &&
 		p.TokenId == 0 && p.NodeName == "" && p.BillingContext == nil &&
-		!p.ResponsesBackground && len(p.PluginState) == 0 && p.PollFailures == 0 {
+		!p.ResponsesBackground && len(p.PluginState) == 0 && p.PollFailures == 0 &&
+		len(p.Artifacts) == 0 {
 		return nil, nil
 	}
 	// 同 Properties.Value:string 避免 PG simple protocol 的 bytea 编码。
@@ -523,6 +541,31 @@ func (Task *Task) Update() error {
 
 func (t *Task) UpdateQuota() error {
 	return DB.Model(t).Update("quota", t.Quota).Error
+}
+
+// MergeStoredArtifacts merges durable artifact references into the task's
+// private manifest. It reloads private_data first so concurrent writers do not
+// lose unrelated task state.
+func MergeStoredArtifacts(taskID int64, artifacts []TaskStoredArtifact) error {
+	if taskID == 0 || len(artifacts) == 0 {
+		return nil
+	}
+	return DB.Transaction(func(tx *gorm.DB) error {
+		var task Task
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Select("id", "private_data").First(&task, taskID).Error; err != nil {
+			return err
+		}
+		if task.PrivateData.Artifacts == nil {
+			task.PrivateData.Artifacts = make(map[string]TaskStoredArtifact, len(artifacts))
+		}
+		for _, artifact := range artifacts {
+			if artifact.Key == "" {
+				continue
+			}
+			task.PrivateData.Artifacts[artifact.Key] = artifact
+		}
+		return tx.Model(&task).Update("private_data", task.PrivateData).Error
+	})
 }
 
 // UpdateWithStatus performs a conditional UPDATE guarded by fromStatus (CAS).

@@ -150,6 +150,8 @@ func main() {
 		return a
 	}
 
+	service.TaskArtifactSourceFactory = relay.NewTaskArtifactSource
+
 	// Register the periodic channel test, upstream model update, and async task
 	// polling (Midjourney / Suno / video) jobs as scheduled system tasks
 	// (DB-lease dedup across masters + run history), then start the runner that

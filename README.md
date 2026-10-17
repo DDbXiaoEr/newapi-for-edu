@@ -89,6 +89,7 @@ Deltas versus upstream [NEWAPI](https://github.com/Calcium-Ion/new-api). Everyth
 | No SQLite | ✅ Done | MySQL ≥ 5.7.8 or PostgreSQL ≥ 9.6 only; `SQL_DSN` is required at startup |
 | JWT sessions | ✅ Done | Cookie sessions removed; console auth is JWT (`JWT_SECRET` / `JWT_EXPIRATION_SECONDS`) |
 | Syslog | ✅ Done | Optional remote/local syslog; dial timeout so an unreachable server cannot block startup |
+| S3 artifact storage | ✅ Done | Image/video task artifacts persist to S3-compatible storage (RustFS, MinIO, AWS S3); downloads stay proxied and region is optional |
 | Docker Compose stack | ✅ Done | `docker-compose/` ships PostgreSQL, Redis, ClickHouse, OpenLDAP, and this service |
 | Kubernetes | ✅ Done | `kubernetes/` includes Deployment, Service, HPA, ConfigMap/Secret, and external dependency manifests |
 | amd64 / arm64 builds | ✅ Done | `make` cross-compiles Linux amd64/arm64, plus pure-backend and all-in-one images |
@@ -167,6 +168,7 @@ Since this project is developed on top of NEWAPI, most basic functionality docum
 - 👥 **Batch assign users to group**: admins can move selected users into a target group
 - 🧾 **JWT + syslog**: cookie sessions removed; optional syslog with a dial timeout
 - 🚢 **Campus deployment**: no SQLite; Docker Compose stack and Kubernetes + HPA
+- 🗄️ **S3 artifact storage**: image/video task artifacts are copied to S3-compatible storage (RustFS, MinIO, AWS S3); downloads stay proxied so credentials never reach clients
 - 📚 **Course / class management** (🔜 Planned)
 
 ---
@@ -242,8 +244,16 @@ kubectl apply -k kubernetes/
 | `SYSLOG_NETWORK` | syslog protocol (`udp`/`tcp`; empty = local socket) | - |
 | `SYSLOG_ADDR` | Remote syslog address | - |
 | `SYSLOG_TAG` | syslog tag | `newapi` |
+| `TASK_ARTIFACT_STORE_MODE` | Artifact storage mode (`upstream` / `s3`) | `upstream` |
+| `TASK_ARTIFACT_STORE_S3_ENDPOINT` | S3-compatible endpoint | - |
+| `TASK_ARTIFACT_STORE_S3_BUCKET` | Bucket for task artifacts | - |
+| `TASK_ARTIFACT_STORE_S3_REGION` | Signing region; leave empty for RustFS / MinIO | - |
+| `TASK_ARTIFACT_STORE_S3_ACCESS_KEY` | S3 access key | - |
+| `TASK_ARTIFACT_STORE_S3_SECRET_KEY` | S3 secret key | - |
+| `TASK_ARTIFACT_STORE_S3_PREFIX` | Object key prefix | - |
+| `TASK_ARTIFACT_STORE_S3_PATH_STYLE` | Use path-style addressing | `true` |
 
-LDAP / CAS are configured in the console under System Settings → Authentication, not via the env vars above.
+LDAP / CAS are configured in the console under System Settings → Authentication, not via the env vars above. S3 artifact storage can also be configured under System Settings → Operations → Artifact Storage.
 
 📖 **Full configuration**: NEWAPI environment-variable docs plus `docker-compose/` and `kubernetes/` in this repo
 

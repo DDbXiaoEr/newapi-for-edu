@@ -89,6 +89,7 @@ Différences par rapport à l'amont [NEWAPI](https://github.com/Calcium-Ion/new-
 | Plus de SQLite | ✅ Fait | MySQL ≥ 5.7.8 ou PostgreSQL ≥ 9.6 uniquement ; `SQL_DSN` obligatoire au démarrage |
 | Sessions JWT | ✅ Fait | Cookies de session retirés ; auth console en JWT (`JWT_SECRET` / `JWT_EXPIRATION_SECONDS`) |
 | Syslog | ✅ Fait | Syslog distant/local optionnel ; timeout de connexion pour ne pas bloquer le démarrage |
+| Stockage d'artefacts S3 | ✅ Fait | Les artefacts des tâches image/vidéo sont persistés dans un stockage compatible S3 (RustFS, MinIO, AWS S3) ; téléchargements proxifiés et région facultative |
 | Stack Docker Compose | ✅ Fait | `docker-compose/` fournit PostgreSQL, Redis, ClickHouse, OpenLDAP et ce service |
 | Kubernetes | ✅ Fait | `kubernetes/` : Deployment, Service, HPA, ConfigMap/Secret et dépendances externes |
 | Builds amd64 / arm64 | ✅ Fait | `make` compile Linux amd64/arm64, images backend-seul et all-in-one |
@@ -167,6 +168,7 @@ Image backend seul (sans frontend intégré) : `make docker-backend` → `newapi
 - 👥 **Affectation groupée des utilisateurs** : l'admin peut déplacer une sélection vers un groupe
 - 🧾 **JWT + syslog** : cookies de session retirés ; syslog optionnel avec timeout de connexion
 - 🚢 **Déploiement campus** : plus de SQLite ; stack Docker Compose et Kubernetes + HPA
+- 🗄️ **Stockage d'artefacts S3** : les artefacts des tâches image/vidéo sont copiés vers un stockage compatible S3 (RustFS, MinIO, AWS S3) ; les téléchargements restent proxifiés et les identifiants ne sont jamais exposés aux clients
 - 📚 **Gestion des cours / classes** (🔜 Prévu)
 
 ---
@@ -242,8 +244,16 @@ kubectl apply -k kubernetes/
 | `SYSLOG_NETWORK` | Protocole syslog (`udp`/`tcp` ; vide = socket local) | - |
 | `SYSLOG_ADDR` | Adresse syslog distante | - |
 | `SYSLOG_TAG` | Tag syslog | `newapi` |
+| `TASK_ARTIFACT_STORE_MODE` | Mode de stockage des artefacts (`upstream` / `s3`) | `upstream` |
+| `TASK_ARTIFACT_STORE_S3_ENDPOINT` | Endpoint compatible S3 | - |
+| `TASK_ARTIFACT_STORE_S3_BUCKET` | Bucket des artefacts de tâches | - |
+| `TASK_ARTIFACT_STORE_S3_REGION` | Région de signature ; laisser vide pour RustFS / MinIO | - |
+| `TASK_ARTIFACT_STORE_S3_ACCESS_KEY` | Clé d'accès S3 | - |
+| `TASK_ARTIFACT_STORE_S3_SECRET_KEY` | Clé secrète S3 | - |
+| `TASK_ARTIFACT_STORE_S3_PREFIX` | Préfixe des clés d'objet | - |
+| `TASK_ARTIFACT_STORE_S3_PATH_STYLE` | Utiliser l'adressage path-style | `true` |
 
-LDAP / CAS se configurent dans la console : Paramètres système → Authentification, pas via les variables ci-dessus.
+LDAP / CAS se configurent dans la console : Paramètres système → Authentification, pas via les variables ci-dessus. Le stockage d'artefacts S3 se configure aussi dans la console, section « Artifact Storage ».
 
 📖 **Configuration complète** : documentation des variables d'environnement NEWAPI + `docker-compose/` et `kubernetes/` de ce dépôt
 

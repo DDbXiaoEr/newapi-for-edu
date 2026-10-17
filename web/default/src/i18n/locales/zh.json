@@ -6838,6 +6838,26 @@
     "、": "、",
     "，": "，",
     "，and ": "，并",
-    "由 <author>V0ker</author> 二次开发。": "由 <author>V0ker</author> 二次开发。"
+    "由 <author>V0ker</author> 二次开发。": "由 <author>V0ker</author> 二次开发。",
+    "Artifact Storage": "制品存储",
+    "Store generated artifacts in S3": "将生成的制品保存到 S3",
+    "Image and video task artifacts are copied to object storage. Downloads stay proxied by this server so S3 credentials are never exposed.": "图像和视频任务制品会复制到对象存储。用户下载仍由本服务代理，S3 凭据不会暴露给用户。",
+    "S3 Endpoint": "S3 地址",
+    "Bucket": "Bucket",
+    "Region": "区域",
+    "Object Prefix": "对象前缀",
+    "Access Key": "访问密钥",
+    "Enter new secret to update": "输入新的 Secret 以更新",
+    "Leave blank to keep the existing secret. Fill all fields before enabling S3.": "留空表示保持现有 Secret。启用 S3 前请先填写全部配置。",
+    "Use path-style addressing": "使用 Path-style 寻址",
+    "Enable for MinIO and most self-hosted S3-compatible services.": "MinIO 和大多数自建 S3 兼容服务建议开启。",
+    "Save artifact storage settings": "保存制品存储设置",
+    "Endpoint and bucket are required before enabling S3": "启用 S3 前必须填写地址和 Bucket",
+    "The prefix must not start with a slash or contain backslashes": "前缀不能以斜杠开头，也不能包含反斜杠",
+    "Use lowercase letters, numbers, dots, and hyphens": "使用小写字母、数字、点和连字符",
+    "optional/path": "可选/路径",
+    "Access key ID": "访问密钥 ID",
+    "https://s3.example.com": "https://s3.example.com",
+    "task-artifacts": "task-artifacts"
   }
 }

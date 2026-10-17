@@ -5,17 +5,18 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/dto"
+	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/middleware"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/relay"
 	relaychannel "github.com/QuantumNous/new-api/relay/channel"
-	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/types"
 	"github.com/gin-gonic/gin"
@@ -91,11 +92,16 @@ func GetDashboardTaskArtifacts(c *gin.Context) {
 
 func writeTaskArtifacts(c *gin.Context, task *model.Task, dashboard bool) {
 	c.Header("Cache-Control", "private, no-store")
+	stored := storedTaskArtifacts(task)
 	artifacts, err := projectTaskArtifacts(task)
 	if err != nil {
-		writeTaskArtifactProjectionError(c, err)
-		return
+		if len(stored) == 0 {
+			writeTaskArtifactProjectionError(c, err)
+			return
+		}
+		artifacts = nil
 	}
+	artifacts = mergeTaskArtifacts(artifacts, stored)
 	items := make([]taskArtifactResponse, 0, len(artifacts))
 	for _, artifact := range artifacts {
 		item := taskArtifactResponse{
@@ -125,19 +131,69 @@ func projectTaskArtifacts(task *model.Task) ([]relaychannel.TaskArtifact, error)
 	if task == nil || task.Status != model.TaskStatusSuccess || !taskHasPluginExecution(task) {
 		return []relaychannel.TaskArtifact{}, nil
 	}
-	adaptor := relay.GetTaskAdaptor(task.Platform)
-	if adaptor == nil {
-		return nil, errTaskArtifactPluginUnavailable
-	}
-	provider, ok := adaptor.(relaychannel.TaskArtifactProvider)
-	if !ok {
-		return []relaychannel.TaskArtifact{}, nil
-	}
-	artifacts, err := provider.ListArtifacts(task)
+	artifacts, err := relay.ListTaskArtifacts(task)
 	if err != nil {
+		if errors.Is(err, relay.ErrTaskArtifactPluginUnavailable) {
+			return nil, fmt.Errorf("%w: %v", errTaskArtifactPluginUnavailable, err)
+		}
 		return nil, fmt.Errorf("%w: %v", errTaskArtifactPlugin, err)
 	}
 	return validateProjectedTaskArtifacts(artifacts)
+}
+
+func storedTaskArtifacts(task *model.Task) []relaychannel.TaskArtifact {
+	if task == nil || task.Status != model.TaskStatusSuccess || len(task.PrivateData.Artifacts) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(task.PrivateData.Artifacts))
+	for key := range task.PrivateData.Artifacts {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	artifacts := make([]relaychannel.TaskArtifact, 0, len(keys))
+	for _, key := range keys {
+		stored := task.PrivateData.Artifacts[key]
+		if stored.Key == "" {
+			stored.Key = key
+		}
+		artifacts = append(artifacts, relaychannel.TaskArtifact{
+			Key:      stored.Key,
+			Type:     stored.Type,
+			MimeType: stored.MimeType,
+		})
+	}
+	return artifacts
+}
+
+func mergeTaskArtifacts(projected, stored []relaychannel.TaskArtifact) []relaychannel.TaskArtifact {
+	if len(stored) == 0 {
+		return projected
+	}
+	merged := make([]relaychannel.TaskArtifact, 0, len(projected)+len(stored))
+	seen := make(map[string]struct{}, len(projected)+len(stored))
+	for _, artifact := range projected {
+		seen[artifact.Key] = struct{}{}
+		for _, candidate := range stored {
+			if candidate.Key == artifact.Key {
+				if artifact.Type == "" {
+					artifact.Type = candidate.Type
+				}
+				if artifact.MimeType == "" {
+					artifact.MimeType = candidate.MimeType
+				}
+				break
+			}
+		}
+		merged = append(merged, artifact)
+	}
+	for _, artifact := range stored {
+		if _, exists := seen[artifact.Key]; exists {
+			continue
+		}
+		seen[artifact.Key] = struct{}{}
+		merged = append(merged, artifact)
+	}
+	return merged
 }
 
 func validateProjectedTaskArtifacts(artifacts []relaychannel.TaskArtifact) ([]relaychannel.TaskArtifact, error) {
@@ -169,37 +225,6 @@ func validateProjectedTaskArtifacts(artifacts []relaychannel.TaskArtifact) ([]re
 	return artifacts, nil
 }
 
-func initTaskArtifactAdaptor(task *model.Task) (relaychannel.TaskAdaptor, error) {
-	if task == nil || !taskHasPluginExecution(task) {
-		return nil, errTaskArtifactPluginUnavailable
-	}
-	channelModel, err := model.CacheGetChannel(task.ChannelId)
-	if err != nil {
-		return nil, fmt.Errorf("%w: channel unavailable", errTaskArtifactPluginUnavailable)
-	}
-	adaptor := relay.GetTaskAdaptor(task.Platform)
-	if adaptor == nil {
-		return nil, errTaskArtifactPluginUnavailable
-	}
-	pluginKey := task.PrivateData.Key
-	if pluginKey == "" {
-		pluginKey = channelModel.Key
-	}
-	baseURL := channelModel.GetBaseURL()
-	if baseURL == "" {
-		baseURL = constant.GetChannelBaseURL(channelModel.Type)
-	}
-	adaptor.Init(&relaycommon.RelayInfo{
-		ChannelMeta: &relaycommon.ChannelMeta{
-			ChannelType:    channelModel.Type,
-			ChannelBaseUrl: baseURL,
-			ApiKey:         pluginKey,
-			ChannelSetting: channelModel.GetSetting(),
-		},
-	})
-	return adaptor, nil
-}
-
 func taskHasPluginExecution(task *model.Task) bool {
 	return task != nil &&
 		task.PrivateData.Execution != nil &&
@@ -208,21 +233,7 @@ func taskHasPluginExecution(task *model.Task) bool {
 }
 
 func legacyVideoAvailable(task *model.Task) bool {
-	if task == nil || task.Status != model.TaskStatusSuccess ||
-		taskHasPluginExecution(task) || task.Platform == constant.TaskPlatformSuno ||
-		strings.TrimSpace(task.GetResultURL()) == "" {
-		return false
-	}
-	switch constant.NormalizeTaskAction(task.Action) {
-	case constant.TaskActionImageToVideo,
-		constant.TaskActionTextToVideo,
-		constant.TaskActionFirstTailToVideo,
-		constant.TaskActionReferenceToVideo,
-		constant.TaskActionRemix:
-		return true
-	default:
-		return false
-	}
+	return service.LegacyVideoTaskAvailable(task)
 }
 
 func getTaskForArtifactRequest(c *gin.Context, taskID string) (*model.Task, bool, error) {
@@ -290,11 +301,22 @@ func TaskArtifactContent(c *gin.Context) {
 		writeTaskArtifactError(c, http.StatusConflict, "artifact_not_ready", "Task artifacts are not ready")
 		return
 	}
+
+	served, serveErr := serveTaskArtifactFromStorage(c, task, artifactKey)
+	if serveErr != nil {
+		writeTaskArtifactStorageError(c, serveErr)
+		return
+	}
+	if served {
+		return
+	}
+
 	if !taskHasPluginExecution(task) {
 		if artifactKey != "video" || !legacyVideoAvailable(task) {
 			writeTaskArtifactError(c, http.StatusNotFound, "artifact_not_found", "Task or artifact not found")
 			return
 		}
+		queueTaskArtifactPersist(task)
 		descriptor := &relaychannel.TaskContentRequest{
 			URL:            task.GetResultURL(),
 			Method:         c.Request.Method,
@@ -321,15 +343,16 @@ func TaskArtifactContent(c *gin.Context) {
 		writeTaskArtifactError(c, http.StatusNotFound, "artifact_not_found", "Task or artifact not found")
 		return
 	}
-	artifactStore := service.GetTaskArtifactStore()
-	if ref, resolveErr := artifactStore.Resolve(task, artifactKey); resolveErr == nil && ref != nil {
-		_ = artifactStore.Serve(c, task, ref)
-		return
-	}
 
-	adaptor, err := initTaskArtifactAdaptor(task)
+	queueTaskArtifactPersist(task)
+
+	adaptor, err := relay.InitTaskArtifactAdaptor(task)
 	if err != nil {
-		writeTaskArtifactProjectionError(c, err)
+		if errors.Is(err, relay.ErrTaskArtifactPluginUnavailable) {
+			writeTaskArtifactProjectionError(c, errTaskArtifactPluginUnavailable)
+		} else {
+			writeTaskArtifactProjectionError(c, err)
+		}
 		return
 	}
 	provider, ok := adaptor.(relaychannel.TaskContentRequestProvider)
@@ -349,6 +372,62 @@ func TaskArtifactContent(c *gin.Context) {
 	if err := proxyTaskMedia(c, task, descriptor); err != nil {
 		writeTaskMediaProxyError(c, err)
 	}
+}
+
+func serveTaskArtifactFromStorage(c *gin.Context, task *model.Task, artifactKey string) (bool, error) {
+	store := service.GetTaskArtifactStore()
+	if !store.Enabled() {
+		return false, nil
+	}
+	ref, err := store.Resolve(c.Request.Context(), task, artifactKey)
+	if err != nil {
+		if errors.Is(err, service.ErrTaskArtifactNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+	if ref == nil {
+		return false, nil
+	}
+	if err := store.Serve(c, task, ref); err != nil {
+		if c.Writer.Written() {
+			logger.LogError(c.Request.Context(), "failed to stream stored task artifact: "+err.Error())
+			return true, nil
+		}
+		if errors.Is(err, service.ErrTaskArtifactNotFound) {
+			return false, nil
+		}
+		if errors.Is(err, service.ErrTaskArtifactRangeNotSatisfiable) {
+			c.Header("Content-Range", "bytes */*")
+			c.Status(http.StatusRequestedRangeNotSatisfiable)
+			return true, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
+func writeTaskArtifactStorageError(c *gin.Context, err error) {
+	writeTaskMediaProxyError(c, &taskMediaProxyError{
+		status:  http.StatusBadGateway,
+		code:    "artifact_storage_error",
+		message: "Failed to load artifact from storage",
+		err:     err,
+	})
+}
+
+func queueTaskArtifactPersist(task *model.Task) {
+	if task == nil || !service.GetTaskArtifactStore().Enabled() {
+		return
+	}
+	taskCopy := *task
+	if task.PrivateData.Artifacts != nil {
+		taskCopy.PrivateData.Artifacts = make(map[string]model.TaskStoredArtifact, len(task.PrivateData.Artifacts))
+		for key, value := range task.PrivateData.Artifacts {
+			taskCopy.PrivateData.Artifacts[key] = value
+		}
+	}
+	service.QueueTaskArtifactPersistence(&taskCopy)
 }
 
 func taskArtifactClientHeaders(headers http.Header) map[string]string {
