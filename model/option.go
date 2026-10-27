@@ -57,6 +57,7 @@ func InitOptionMap() {
 	common.OptionMap["SyslogNetwork"] = common.SyslogNetwork
 	common.OptionMap["SyslogAddr"] = common.SyslogAddr
 	common.OptionMap["SyslogTag"] = common.SyslogTag
+	common.OptionMap["SyslogHostname"] = common.SyslogHostname
 	common.OptionMap["DisplayInCurrencyEnabled"] = strconv.FormatBool(common.DisplayInCurrencyEnabled)
 	common.OptionMap["DisplayTokenStatEnabled"] = strconv.FormatBool(common.DisplayTokenStatEnabled)
 	common.OptionMap["DrawingEnabled"] = strconv.FormatBool(common.DrawingEnabled)
@@ -715,13 +716,15 @@ func updateOptionMap(key string, value string) (err error) {
 		common.SyslogAddr = value
 	case "SyslogTag":
 		common.SyslogTag = value
+	case "SyslogHostname":
+		common.SyslogHostname = value
 	}
 	return err
 }
 
 func isSyslogOption(key string) bool {
 	switch key {
-	case "SyslogEnabled", "SyslogNetwork", "SyslogAddr", "SyslogTag":
+	case "SyslogEnabled", "SyslogNetwork", "SyslogAddr", "SyslogTag", "SyslogHostname":
 		return true
 	default:
 		return false

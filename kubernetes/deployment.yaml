@@ -32,6 +32,11 @@ spec:
             - name: http
               containerPort: 3000
               protocol: TCP
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
           envFrom:
             - configMapRef:
                 name: newapi-edu-config

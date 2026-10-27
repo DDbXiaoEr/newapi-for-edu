@@ -99,6 +99,7 @@ var SyslogEnabled bool
 var SyslogNetwork string
 var SyslogAddr string
 var SyslogTag = "newapi"
+var SyslogHostname string
 
 var TLSInsecureSkipVerify bool
 var InsecureTLSConfig = &tls.Config{InsecureSkipVerify: true}

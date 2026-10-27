@@ -45,6 +45,7 @@ const syslogSchema = z.object({
   SyslogNetwork: z.string(),
   SyslogAddr: z.string(),
   SyslogTag: z.string(),
+  SyslogHostname: z.string(),
 })
 
 type SyslogFormValues = z.infer<typeof syslogSchema>
@@ -110,6 +111,26 @@ export function SyslogSettingsSection({
               <SettingsSwitchItem>
                 <SettingsSwitchContent>
                   <FormLabel>{t('Syslog Tag')}</FormLabel>
+                </SettingsSwitchContent>
+                <FormControl>
+                  <Input placeholder='newapi' {...field} />
+                </FormControl>
+                <FormMessage />
+              </SettingsSwitchItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name='SyslogHostname'
+            render={({ field }) => (
+              <SettingsSwitchItem>
+                <SettingsSwitchContent>
+                  <FormLabel>{t('Syslog Hostname')}</FormLabel>
+                  <FormDescription>
+                    {t(
+                      'Shared syslog HOSTNAME for all instances. Leave empty to use the tag so Kubernetes pods write to one directory; each line is prefixed with the pod/container name.'
+                    )}
+                  </FormDescription>
                 </SettingsSwitchContent>
                 <FormControl>
                   <Input placeholder='newapi' {...field} />

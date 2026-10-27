@@ -114,6 +114,7 @@ const OPERATIONS_SECTIONS = [
           SyslogNetwork: settings.SyslogNetwork,
           SyslogAddr: settings.SyslogAddr,
           SyslogTag: settings.SyslogTag,
+          SyslogHostname: settings.SyslogHostname,
         }}
       />
     ),
