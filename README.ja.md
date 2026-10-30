@@ -11,7 +11,7 @@
 毎日リハビリに通っており時間と体力に限りがあり、収入がないため、トークンは各プラットフォームの新規ユーザー枠や招待特典に頼っています。現在、開発効率は限界に達しています。トークンに余裕のある方はぜひご支援ください）
 ###GLMとアリババクラウド百煉、DeepSeek（梁文谷）そして[親友](https://github.com/FireSpoonYZ)が支援してくれたgrokに感謝します
 
-> ⚠️ **現在の進捗**：キャンパス LDAP / CAS ログイン、グループ×チャネル固定、トークンの所属グループ固定、JWT セッション、Syslog、Kubernetes / Docker Compose デプロイは実装済みです。コース管理やクラス管理はまだ計画中です。貢献を歓迎します！
+> ⚠️ **現在の進捗**：キャンパス LDAP / CAS ログイン、グループ×チャネル固定、トークンの所属グループ固定、ログインセッション、Syslog、Kubernetes / Docker Compose デプロイは実装済みです。コース管理やクラス管理はまだ計画中です。貢献を歓迎します！
 
 <p align="center">
   <a href="./README.zh_CN.md">简体中文</a> |
@@ -87,7 +87,7 @@
 | 機能 | 状態 | 説明 |
 |------|------|------|
 | SQLite 廃止 | ✅ 完了 | MySQL ≥ 5.7.8 / PostgreSQL ≥ 9.6 のみ。起動時に `SQL_DSN` 必須 |
-| JWT セッション | ✅ 完了 | Cookie Session を廃止し、コンソール認証を JWT に変更（`JWT_SECRET` / `JWT_EXPIRATION_SECONDS`） |
+| ログインセッション | ✅ 完了 | サーバー側ログインセッション：HttpOnly リフレッシュ Cookie + 短命アクセストークン。セッション一覧・失効に対応 |
 | Syslog | ✅ 完了 | リモート/ローカル syslog。接続タイムアウトで起動ブロックを回避 |
 | S3 アーティファクトストレージ | ✅ 完了 | 画像/動画タスクの成果物を S3 互換ストレージ（RustFS、MinIO、AWS S3）へ永続化。ダウンロードはプロキシ経由、リージョンは省略可能 |
 | Docker Compose スタック | ✅ 完了 | `docker-compose/` に PostgreSQL、Redis、ClickHouse、OpenLDAP と本サービス |
@@ -109,13 +109,13 @@ cd newapi_2_-edu
 # オールインワンイメージをビルド（フロントエンド埋め込み）
 make docker-allinone
 
-# docker-compose/docker-compose.yml のパスワードと JWT_SECRET を変更してから起動
+# docker-compose/docker-compose.yml のパスワードを変更してから起動
 docker compose -f docker-compose/docker-compose.yml up -d
 ```
 
 純バックエンドイメージ（フロントエンドなし）は `make docker-backend` → `newapi-edu-pure`。
 
-> **⚠️ 本番では** PostgreSQL / Redis / LDAP のデフォルトパスワードと `JWT_SECRET` を必ず変更してください。起動には `SQL_DSN` と `LOG_SQL_DSN` が必要です（`REQUIRED_ENV_VARS=""` でチェックを無効化できます）。
+> **⚠️ 本番では** PostgreSQL / Redis / LDAP のデフォルトパスワードを必ず変更してください。起動には `SQL_DSN` と `LOG_SQL_DSN` が必要です（`REQUIRED_ENV_VARS=""` でチェックを無効化できます）。
 
 ---
 
@@ -166,7 +166,7 @@ docker compose -f docker-compose/docker-compose.yml up -d
 - 🔗 **グループ×チャネル固定**：グループ+モデルでチャネルを固定。未設定は上流ルーティング
 - 🔒 **トークンの所属グループ固定**：ユーザーはトークングループを選べない。モデル広場は所属グループのモデルのみ
 - 👥 **ユーザーの一括グループ割当**：管理画面から対象グループへ一括移動
-- 🧾 **JWT + syslog**：Cookie Session 廃止。任意の syslog、接続タイムアウトで起動ブロック回避
+- 🧾 **ログインセッション + syslog**：サーバー側ログインセッションで失効管理。任意の syslog、接続タイムアウトで起動ブロック回避
 - 🚢 **大学向けデプロイ**：SQLite 廃止。Docker Compose スタックと Kubernetes + HPA
 - 🗄️ **S3 アーティファクトストレージ**：画像/動画タスクの成果物を S3 互換オブジェクトストレージ（RustFS、MinIO、AWS S3）へ保存。ダウンロードは引き続きサーバー経由で、認証情報はクライアントに公開されません
 - 📚 **コース / クラス管理**（🔜 計画中）
@@ -238,8 +238,6 @@ kubectl apply -k kubernetes/
 | `SQL_DSN` | メイン DB 接続文字列（必須） | - |
 | `LOG_SQL_DSN` | ログ DB 接続文字列（デフォルト必須） | - |
 | `REQUIRED_ENV_VARS` | 起動時必須変数リスト。空文字でチェック無効 | `SQL_DSN,LOG_SQL_DSN` |
-| `JWT_SECRET` | JWT 署名シークレット（未設定時は `SESSION_SECRET`） | `uuid` |
-| `JWT_EXPIRATION_SECONDS` | JWT 有効期限（秒） | `604800` |
 | `SYSLOG_ENABLED` | syslog を有効化 | `false` |
 | `SYSLOG_NETWORK` | syslog プロトコル（`udp`/`tcp`、空ならローカル socket） | - |
 | `SYSLOG_ADDR` | リモート syslog アドレス | - |

@@ -10,7 +10,7 @@ This is an AI API gateway/proxy built with Go. It aggregates 40+ upstream AI pro
 - **Frontend**: React 18, Vite, Semi Design UI (@douyinfe/semi-ui)
 - **Databases**: MySQL, PostgreSQL (both must be supported); ClickHouse is optional for logs only
 - **Cache**: Redis (go-redis) + in-memory cache
-- **Auth**: JWT, WebAuthn/Passkeys, OAuth (GitHub, Discord, OIDC, etc.)
+- **Auth**: Server-side login sessions, WebAuthn/Passkeys, OAuth (GitHub, Discord, OIDC, etc.)
 - **Frontend package manager**: Bun (preferred over npm/yarn/pnpm)
 
 ## Architecture

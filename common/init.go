@@ -57,23 +57,6 @@ func InitEnv() {
 			SessionSecret = ss
 		}
 	}
-	if os.Getenv("JWT_SECRET") != "" {
-		js := os.Getenv("JWT_SECRET")
-		if js == "random_string" {
-			log.Println("WARNING: JWT_SECRET is set to the default value 'random_string', please change it to a random string.")
-			log.Println("警告：JWT_SECRET被设置为默认值'random_string'，请修改为随机字符串。")
-			log.Fatal("Please set JWT_SECRET to a random string.")
-		} else {
-			JWTSecret = js
-		}
-	} else {
-		JWTSecret = SessionSecret
-	}
-	if os.Getenv("JWT_EXPIRATION_SECONDS") != "" {
-		if exp, err := strconv.Atoi(os.Getenv("JWT_EXPIRATION_SECONDS")); err == nil {
-			JWTExpirationSeconds = exp
-		}
-	}
 	if os.Getenv("CRYPTO_SECRET") != "" {
 		CryptoSecret = os.Getenv("CRYPTO_SECRET")
 	} else {

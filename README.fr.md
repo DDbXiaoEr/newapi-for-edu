@@ -11,7 +11,7 @@ Remarque : Toutes les modifications actuelles de ce projet ont été effectuées
 Je vais à l'hôpital chaque jour pour la rééducation, mon temps et mon énergie sont limités, et sans travail ni revenu, les tokens dépendent entièrement des quotas pour nouveaux utilisateurs et des invitations offertes par les plateformes. L'efficacité du développement a atteint sa limite. Les personnes disposant de tokens en abondance sont les bienvenues pour contribuer)
 ###Remerciements à GLM, Alibaba Cloud Bailian, DeepSeek (Liang Wengu) et mon [bon ami](https://github.com/FireSpoonYZ) qui a fourni un accès à grok
 
-> ⚠️ **Avancement actuel** : Connexion LDAP / CAS campus, liaison groupe-canal, jetons verrouillés sur le groupe du compte, sessions JWT, syslog et déploiement Kubernetes / Docker Compose sont implémentés. La gestion des cours et des classes reste prévue. Les contributions sont les bienvenues !
+> ⚠️ **Avancement actuel** : Connexion LDAP / CAS campus, liaison groupe-canal, jetons verrouillés sur le groupe du compte, sessions de connexion, syslog et déploiement Kubernetes / Docker Compose sont implémentés. La gestion des cours et des classes reste prévue. Les contributions sont les bienvenues !
 
 <p align="center">
   <a href="./README.zh_CN.md">简体中文</a> |
@@ -87,7 +87,7 @@ Différences par rapport à l'amont [NEWAPI](https://github.com/Calcium-Ion/new-
 | Fonctionnalité | Statut | Description |
 |----------------|--------|-------------|
 | Plus de SQLite | ✅ Fait | MySQL ≥ 5.7.8 ou PostgreSQL ≥ 9.6 uniquement ; `SQL_DSN` obligatoire au démarrage |
-| Sessions JWT | ✅ Fait | Cookies de session retirés ; auth console en JWT (`JWT_SECRET` / `JWT_EXPIRATION_SECONDS`) |
+| Sessions de connexion | ✅ Fait | Sessions côté serveur : cookie de rafraîchissement HttpOnly + jetons d'accès courts, avec liste et révocation des sessions |
 | Syslog | ✅ Fait | Syslog distant/local optionnel ; timeout de connexion pour ne pas bloquer le démarrage |
 | Stockage d'artefacts S3 | ✅ Fait | Les artefacts des tâches image/vidéo sont persistés dans un stockage compatible S3 (RustFS, MinIO, AWS S3) ; téléchargements proxifiés et région facultative |
 | Stack Docker Compose | ✅ Fait | `docker-compose/` fournit PostgreSQL, Redis, ClickHouse, OpenLDAP et ce service |
@@ -109,13 +109,13 @@ cd newapi_2_-edu
 # Construire l'image all-in-one (frontend intégré)
 make docker-allinone
 
-# Modifier d'abord les mots de passe et JWT_SECRET dans docker-compose/docker-compose.yml
+# Modifier d'abord les mots de passe dans docker-compose/docker-compose.yml
 docker compose -f docker-compose/docker-compose.yml up -d
 ```
 
 Image backend seul (sans frontend intégré) : `make docker-backend` → `newapi-edu-pure`.
 
-> **⚠️ En production**, changez les mots de passe PostgreSQL / Redis / LDAP et `JWT_SECRET`. Le démarrage exige `SQL_DSN` et `LOG_SQL_DSN` (mettez `REQUIRED_ENV_VARS=""` pour désactiver le contrôle).
+> **⚠️ En production**, changez les mots de passe PostgreSQL / Redis / LDAP. Le démarrage exige `SQL_DSN` et `LOG_SQL_DSN` (mettez `REQUIRED_ENV_VARS=""` pour désactiver le contrôle).
 
 ---
 
@@ -166,7 +166,7 @@ Image backend seul (sans frontend intégré) : `make docker-backend` → `newapi
 - 🔗 **Liaison groupe-canal** : épingler les canaux par groupe+modèle ; les modèles non liés gardent le routage amont
 - 🔒 **Jetons verrouillés sur le groupe du compte** : l'utilisateur ne choisit pas le groupe du jeton ; la place n'affiche que les modèles du groupe courant
 - 👥 **Affectation groupée des utilisateurs** : l'admin peut déplacer une sélection vers un groupe
-- 🧾 **JWT + syslog** : cookies de session retirés ; syslog optionnel avec timeout de connexion
+- 🧾 **Sessions + syslog** : sessions côté serveur avec révocation ; syslog optionnel avec timeout de connexion
 - 🚢 **Déploiement campus** : plus de SQLite ; stack Docker Compose et Kubernetes + HPA
 - 🗄️ **Stockage d'artefacts S3** : les artefacts des tâches image/vidéo sont copiés vers un stockage compatible S3 (RustFS, MinIO, AWS S3) ; les téléchargements restent proxifiés et les identifiants ne sont jamais exposés aux clients
 - 📚 **Gestion des cours / classes** (🔜 Prévu)
@@ -238,8 +238,6 @@ kubectl apply -k kubernetes/
 | `SQL_DSN` | DSN de la base principale (obligatoire) | - |
 | `LOG_SQL_DSN` | DSN de la base de logs (obligatoire par défaut) | - |
 | `REQUIRED_ENV_VARS` | Liste des variables requises au démarrage ; chaîne vide pour désactiver | `SQL_DSN,LOG_SQL_DSN` |
-| `JWT_SECRET` | Secret de signature JWT (repli sur `SESSION_SECRET`) | `uuid` |
-| `JWT_EXPIRATION_SECONDS` | Durée de vie JWT en secondes | `604800` |
 | `SYSLOG_ENABLED` | Activer syslog | `false` |
 | `SYSLOG_NETWORK` | Protocole syslog (`udp`/`tcp` ; vide = socket local) | - |
 | `SYSLOG_ADDR` | Adresse syslog distante | - |

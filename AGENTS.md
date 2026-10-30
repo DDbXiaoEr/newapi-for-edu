@@ -16,7 +16,7 @@ AI API gateway/proxy built with Go. Aggregates 40+ upstream AI providers (OpenAI
 - **Frontend**: React 19, TypeScript, Rsbuild + TanStack Router (`web/default/`)
 - **Databases**: MySQL, PostgreSQL (both must be supported); ClickHouse is optional for logs only
 - **Cache**: Redis (go-redis) + in-memory cache
-- **Auth**: JWT, WebAuthn/Passkeys, OAuth (GitHub, Discord, OIDC, etc.)
+- **Auth**: Server-side login sessions, WebAuthn/Passkeys, OAuth (GitHub, Discord, OIDC, etc.)
 - **Frontend package manager**: Bun
 
 ## Architecture

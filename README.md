@@ -11,7 +11,7 @@ Note: All current modifications to this project have been done by AI. The author
 I go to the hospital for rehabilitation every day, with limited time and energy. Without a job or income, tokens rely entirely on free new-user quotas and invitation rewards from various platforms. Development efficiency has reached its limit. Those with abundant tokens are welcome to contribute)
 ###Thanks to GLM, Alibaba Cloud Bailian, DeepSeek (Liang Wengu) and my [good friend](https://github.com/FireSpoonYZ) who provided grok access
 
-> ⚠️ **Current Progress**: Campus LDAP / CAS login, group-channel bindings, tokens locked to the account group, JWT sessions, syslog, and Kubernetes / Docker Compose deployment are implemented. Course and class-management features are still planned. Contributions are welcome!
+> ⚠️ **Current Progress**: Campus LDAP / CAS login, group-channel bindings, tokens locked to the account group, login sessions, syslog, and Kubernetes / Docker Compose deployment are implemented. Course and class-management features are still planned. Contributions are welcome!
 
 <p align="center">
   <a href="./README.zh_CN.md">简体中文</a> |
@@ -87,7 +87,7 @@ Deltas versus upstream [NEWAPI](https://github.com/Calcium-Ion/new-api). Everyth
 | Feature | Status | Description |
 |---------|--------|-------------|
 | No SQLite | ✅ Done | MySQL ≥ 5.7.8 or PostgreSQL ≥ 9.6 only; `SQL_DSN` is required at startup |
-| JWT sessions | ✅ Done | Cookie sessions removed; console auth is JWT (`JWT_SECRET` / `JWT_EXPIRATION_SECONDS`) |
+| Login sessions | ✅ Done | Server-side console sessions: HttpOnly refresh cookie + short-lived access tokens, with session listing and revocation |
 | Syslog | ✅ Done | Optional remote/local syslog; dial timeout so an unreachable server cannot block startup |
 | S3 artifact storage | ✅ Done | Image/video task artifacts persist to S3-compatible storage (RustFS, MinIO, AWS S3); downloads stay proxied and region is optional |
 | Docker Compose stack | ✅ Done | `docker-compose/` ships PostgreSQL, Redis, ClickHouse, OpenLDAP, and this service |
@@ -109,13 +109,13 @@ cd newapi_2_-edu
 # Build the all-in-one image (frontend embedded)
 make docker-allinone
 
-# Change passwords and JWT_SECRET in docker-compose/docker-compose.yml first
+# Change the passwords in docker-compose/docker-compose.yml first
 docker compose -f docker-compose/docker-compose.yml up -d
 ```
 
 Pure-backend image (no embedded frontend): `make docker-backend` → `newapi-edu-pure`.
 
-> **⚠️ Change** PostgreSQL / Redis / LDAP passwords and `JWT_SECRET` before production. Startup requires `SQL_DSN` and `LOG_SQL_DSN` (set `REQUIRED_ENV_VARS=""` to skip the check).
+> **⚠️ Change** PostgreSQL / Redis / LDAP passwords before production. Startup requires `SQL_DSN` and `LOG_SQL_DSN` (set `REQUIRED_ENV_VARS=""` to skip the check).
 
 ---
 
@@ -166,7 +166,7 @@ Since this project is developed on top of NEWAPI, most basic functionality docum
 - 🔗 **Group-channel bindings**: pin channels per group+model; unbound models keep upstream routing
 - 🔒 **Tokens locked to account group**: users cannot pick a token group; model square shows only the current group's models
 - 👥 **Batch assign users to group**: admins can move selected users into a target group
-- 🧾 **JWT + syslog**: cookie sessions removed; optional syslog with a dial timeout
+- 🧾 **Login sessions + syslog**: server-side sessions with revocation; optional syslog with a dial timeout
 - 🚢 **Campus deployment**: no SQLite; Docker Compose stack and Kubernetes + HPA
 - 🗄️ **S3 artifact storage**: image/video task artifacts are copied to S3-compatible storage (RustFS, MinIO, AWS S3); downloads stay proxied so credentials never reach clients
 - 📚 **Course / class management** (🔜 Planned)
@@ -238,8 +238,6 @@ kubectl apply -k kubernetes/
 | `SQL_DSN` | Main database DSN (required) | - |
 | `LOG_SQL_DSN` | Log database DSN (required by default) | - |
 | `REQUIRED_ENV_VARS` | Startup required-var list; empty string disables the check | `SQL_DSN,LOG_SQL_DSN` |
-| `JWT_SECRET` | JWT signing secret (falls back to `SESSION_SECRET`) | `uuid` |
-| `JWT_EXPIRATION_SECONDS` | JWT TTL in seconds | `604800` |
 | `SYSLOG_ENABLED` | Enable syslog | `false` |
 | `SYSLOG_NETWORK` | syslog protocol (`udp`/`tcp`; empty = local socket) | - |
 | `SYSLOG_ADDR` | Remote syslog address | - |

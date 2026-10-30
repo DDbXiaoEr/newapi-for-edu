@@ -10,7 +10,7 @@ New API 是一个基于 Go 构建的 AI API 网关/代理，聚合了 40+ 个上
 - **前端**: React 18, Vite, Semi Design UI (@douyinfe/semi-ui)
 - **数据库**: SQLite, MySQL, PostgreSQL (三者都必须支持)
 - **缓存**: Redis (go-redis) + 内存缓存
-- **认证**: JWT, WebAuthn/Passkeys, OAuth (GitHub, Discord, OIDC 等)
+- **认证**: 服务端登录会话、WebAuthn/Passkeys、OAuth（GitHub、Discord、OIDC 等）
 - **前端包管理器**: Bun (优先于 npm/yarn/pnpm)
 
 ## 📁 项目架构

@@ -59,7 +59,6 @@ newapi_2_-edu/
 │   ├── ip.go
 │   ├── json.go
 │   ├── json_test.go
-│   ├── jwt.go
 │   ├── limiter/
 │   │   ├── limiter.go
 │   │   └── lua/
@@ -3047,7 +3046,7 @@ newapi_2_-edu/
 | **中继核心库** | `relaykit/` | 独立 Go module — DTO、协议转换层 (`relayconvert`)、中继类型、reasonmap |
 | **中间件** | `middleware/` | 横切关注点 — 认证、限流、CORS、日志、分发 |
 | **配置** | `setting/` | 分域配置（模型、运营、系统、比率、性能） |
-| **共享** | `common/` | 工具函数 — JSON、加密、Redis、限流、JWT、校验 |
+| **共享** | `common/` | 工具函数 — JSON、加密、Redis、限流、校验 |
 | **常量** | `constant/` | 枚举和常量 |
 | **DTO** | `dto/` | 异步任务相关 DTO（其余 DTO 在 `relaykit/dto/`） |
 | **类型** | `types/` | 基础类型（其余在 `relaykit/types/`） |

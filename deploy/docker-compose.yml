@@ -18,7 +18,7 @@ services:
     restart: always
     environment:
       - TZ=Asia/Shanghai
-      - JWT_SECRET=random_string
+      - SESSION_SECRET=random_string
     networks:
       - newapi-network
     healthcheck:

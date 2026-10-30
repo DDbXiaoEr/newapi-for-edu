@@ -11,7 +11,7 @@ Note: 本项目目前所有的更改全部由AI完成，由于本人去年脑出
 由于我每天要去医院康复，时间精力有限，而且由于没工作没收入，token全靠各大平台新用户额度和邀请赠送，目前开发效率已经到极限了。token富裕的大哥可以自己上）
 ###在此感谢GLM 阿里云百炼 DeepSeek（梁文谷）该有我[好哥们](https://github.com/FireSpoonYZ)支援的grok
 
-> ⚠️ **当前进度**：校园 LDAP / CAS 登录、分组渠道绑定、令牌锁定账号分组、JWT 会话、Syslog 与 Kubernetes / Docker Compose 部署已落地。课程管理、教师班级管理等教学业务仍在规划中。欢迎贡献！
+> ⚠️ **当前进度**：校园 LDAP / CAS 登录、分组渠道绑定、令牌锁定账号分组、登录会话、Syslog 与 Kubernetes / Docker Compose 部署已落地。课程管理、教师班级管理等教学业务仍在规划中。欢迎贡献！
 
 <p align="center">
   <strong>简体中文</strong> |
@@ -87,7 +87,7 @@ Note: 本项目目前所有的更改全部由AI完成，由于本人去年脑出
 | 功能 | 状态 | 说明 |
 |------|------|------|
 | 去掉 SQLite | ✅ 已完成 | 仅支持 MySQL ≥ 5.7.8 / PostgreSQL ≥ 9.6；启动必须提供 `SQL_DSN` |
-| JWT 会话 | ✅ 已完成 | 去掉 Cookie Session，控制台鉴权改为 JWT（`JWT_SECRET` / `JWT_EXPIRATION_SECONDS`） |
+| 登录会话 | ✅ 已完成 | 控制台鉴权改为服务端登录会话：HttpOnly 刷新 Cookie + 短期 Access Token，支持会话列表与吊销 |
 | Syslog | ✅ 已完成 | 可选输出到远程/本地 syslog，连接超时避免阻塞启动 |
 | S3 制品存储 | ✅ 已完成 | 图片/视频任务产物持久化到 S3 兼容存储（RustFS、MinIO、AWS S3）；下载由服务端代理，region 可留空 |
 | Docker Compose 全栈 | ✅ 已完成 | `docker-compose/` 提供 PostgreSQL、Redis、ClickHouse、OpenLDAP 与本服务 |
@@ -109,13 +109,13 @@ cd newapi_2_-edu
 # 先构建镜像（全栈镜像内嵌前端）
 make docker-allinone
 
-# 按需修改 docker-compose/docker-compose.yml 中的密码与 JWT_SECRET
+# 按需修改 docker-compose/docker-compose.yml 中的密码
 docker compose -f docker-compose/docker-compose.yml up -d
 ```
 
 仅后端镜像（不含内嵌前端）用 `make docker-backend`，镜像名为 `newapi-edu-pure`。
 
-> **⚠️ 生产环境务必修改** PostgreSQL / Redis / LDAP 默认密码，以及 `JWT_SECRET`。启动必须提供 `SQL_DSN` 与 `LOG_SQL_DSN`（可用 `REQUIRED_ENV_VARS=""` 关闭检查）。
+> **⚠️ 生产环境务必修改** PostgreSQL / Redis / LDAP 默认密码。启动必须提供 `SQL_DSN` 与 `LOG_SQL_DSN`（可用 `REQUIRED_ENV_VARS=""` 关闭检查）。
 
 ---
 
@@ -166,7 +166,7 @@ docker compose -f docker-compose/docker-compose.yml up -d
 - 🔗 **分组渠道绑定**：按分组+模型钉死渠道，未绑定则走上游调度
 - 🔒 **令牌锁定账号分组**：用户不能自选令牌分组；模型广场只显示当前分组模型
 - 👥 **批量分配用户分组**：管理端可批量划入指定分组
-- 🧾 **JWT + Syslog**：去掉 Cookie Session；可选 syslog，超时不阻塞启动
+- 🧾 **登录会话 + Syslog**：服务端登录会话，支持会话吊销；可选 syslog，超时不阻塞启动
 - 🚢 **高校部署清单**：去掉 SQLite；提供 Docker Compose 全栈与 Kubernetes + HPA
 - 🗄️ **S3 制品存储**：图片/视频任务产物自动保存到 S3 兼容对象存储（RustFS、MinIO、AWS S3）；下载仍由服务端代理，密钥不会暴露给客户端
 - 📚 **课程 / 班级管理**（🔜 计划中）
@@ -238,8 +238,6 @@ kubectl apply -k kubernetes/
 | `SQL_DSN` | 主库连接串（必填） | - |
 | `LOG_SQL_DSN` | 日志库连接串（默认必填） | - |
 | `REQUIRED_ENV_VARS` | 启动必填变量列表；设为空字符串可关闭检查 | `SQL_DSN,LOG_SQL_DSN` |
-| `JWT_SECRET` | JWT 签名密钥（未设置时回退 `SESSION_SECRET`） | `uuid` |
-| `JWT_EXPIRATION_SECONDS` | JWT 过期时间（秒） | `604800` |
 | `SYSLOG_ENABLED` | 启用 syslog | `false` |
 | `SYSLOG_NETWORK` | syslog 协议（`udp`/`tcp`，空则本地 socket） | - |
 | `SYSLOG_ADDR` | 远程 syslog 地址 | - |

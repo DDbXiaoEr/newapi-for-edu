@@ -11,7 +11,7 @@
 由於我每天要去醫院康復，時間精力有限，而且由於沒工作沒收入，token全靠各大平台新用戶額度和邀請贈送，目前開發效率已經到極限了。token富裕的大哥可以自己上）
 ###在此感謝GLM 阿里云百煉 DeepSeek（梁文谷）該有我[好哥們](https://github.com/FireSpoonYZ)支援的grok
 
-> ⚠️ **目前進度**：校園 LDAP / CAS 登入、分組渠道綁定、令牌鎖定帳號分組、JWT 會話、Syslog 與 Kubernetes / Docker Compose 部署已落地。課程管理、教師班級管理等教學業務仍在規劃中。歡迎貢獻！
+> ⚠️ **目前進度**：校園 LDAP / CAS 登入、分組渠道綁定、令牌鎖定帳號分組、登入會話、Syslog 與 Kubernetes / Docker Compose 部署已落地。課程管理、教師班級管理等教學業務仍在規劃中。歡迎貢獻！
 
 <p align="center">
   <a href="./README.zh_CN.md">简体中文</a> |
@@ -87,7 +87,7 @@
 | 功能 | 狀態 | 說明 |
 |------|------|------|
 | 去掉 SQLite | ✅ 已完成 | 僅支援 MySQL ≥ 5.7.8 / PostgreSQL ≥ 9.6；啟動必須提供 `SQL_DSN` |
-| JWT 會話 | ✅ 已完成 | 去掉 Cookie Session，控制台鑑權改為 JWT（`JWT_SECRET` / `JWT_EXPIRATION_SECONDS`） |
+| 登入會話 | ✅ 已完成 | 控制台鑑權改為服務端登入會話：HttpOnly 重新整理 Cookie + 短期 Access Token，支援會話列表與撤銷 |
 | Syslog | ✅ 已完成 | 可選輸出到遠端/本機 syslog，連線逾時避免阻塞啟動 |
 | S3 製品存儲 | ✅ 已完成 | 圖片/影片任務產物持久化到 S3 相容儲存（RustFS、MinIO、AWS S3）；下載由服務端代理，region 可留空 |
 | Docker Compose 全棧 | ✅ 已完成 | `docker-compose/` 提供 PostgreSQL、Redis、ClickHouse、OpenLDAP 與本服務 |
@@ -109,13 +109,13 @@ cd newapi_2_-edu
 # 先構建鏡像（全棧鏡像內嵌前端）
 make docker-allinone
 
-# 按需修改 docker-compose/docker-compose.yml 中的密碼與 JWT_SECRET
+# 按需修改 docker-compose/docker-compose.yml 中的密碼
 docker compose -f docker-compose/docker-compose.yml up -d
 ```
 
 僅後端鏡像（不含內嵌前端）用 `make docker-backend`，鏡像名為 `newapi-edu-pure`。
 
-> **⚠️ 生產環境務必修改** PostgreSQL / Redis / LDAP 預設密碼，以及 `JWT_SECRET`。啟動必須提供 `SQL_DSN` 與 `LOG_SQL_DSN`（可用 `REQUIRED_ENV_VARS=""` 關閉檢查）。
+> **⚠️ 生產環境務必修改** PostgreSQL / Redis / LDAP 預設密碼。啟動必須提供 `SQL_DSN` 與 `LOG_SQL_DSN`（可用 `REQUIRED_ENV_VARS=""` 關閉檢查）。
 
 ---
 
@@ -166,7 +166,7 @@ docker compose -f docker-compose/docker-compose.yml up -d
 - 🔗 **分組渠道綁定**：按分組+模型釘死渠道，未綁定則走上游調度
 - 🔒 **令牌鎖定帳號分組**：使用者不能自選令牌分組；模型廣場只顯示當前分組模型
 - 👥 **批次分配使用者分組**：管理端可批次劃入指定分組
-- 🧾 **JWT + Syslog**：去掉 Cookie Session；可選 syslog，逾時不阻塞啟動
+- 🧾 **登入會話 + Syslog**：服務端登入會話，支援會話撤銷；可選 syslog，逾時不阻塞啟動
 - 🚢 **高校部署清單**：去掉 SQLite；提供 Docker Compose 全棧與 Kubernetes + HPA
 - 🗄️ **S3 製品存儲**：圖片/影片任務產物自動保存到 S3 相容物件儲存（RustFS、MinIO、AWS S3）；下載仍由服務端代理，金鑰不會暴露給用戶端
 - 📚 **課程 / 班級管理**（🔜 規劃中）
@@ -238,8 +238,6 @@ kubectl apply -k kubernetes/
 | `SQL_DSN` | 主庫連接串（必填） | - |
 | `LOG_SQL_DSN` | 日誌庫連接串（預設必填） | - |
 | `REQUIRED_ENV_VARS` | 啟動必填變數列表；設為空字串可關閉檢查 | `SQL_DSN,LOG_SQL_DSN` |
-| `JWT_SECRET` | JWT 簽名密鑰（未設置時回退 `SESSION_SECRET`） | `uuid` |
-| `JWT_EXPIRATION_SECONDS` | JWT 過期時間（秒） | `604800` |
 | `SYSLOG_ENABLED` | 啟用 syslog | `false` |
 | `SYSLOG_NETWORK` | syslog 協議（`udp`/`tcp`，空則本機 socket） | - |
 | `SYSLOG_ADDR` | 遠端 syslog 地址 | - |
